@@ -1,0 +1,24 @@
+{
+  "name": "QUIZ du 7TER — Le Grand Quiz",
+  "short_name": "QUIZ 7TER",
+  "description": "Le Grand Quiz du 7TER — Édition 2 Couples & 4 Joueurs. 10 niveaux en direct, mode Quitte ou Double et Chrono.",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#050d26",
+  "theme_color": "#091945",
+  "icons": [
+    {
+      "src": "./apple-touch-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./logo-7ter.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
