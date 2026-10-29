@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import type { QuizQuestionRecord } from '@/lib/supabase';
-import type { PlayerScore } from './Scoreboard';
+import type { PlayerScore, CoopStats } from './Scoreboard';
 import {
   CheckCircle2,
   XCircle,
@@ -13,6 +13,9 @@ import {
   Zap,
   Timer,
   Eye,
+  Flame,
+  RotateCcw,
+  Trophy,
 } from 'lucide-react';
 import {
   playCorrectSound,
@@ -32,13 +35,16 @@ interface QuestionCardProps {
   doublePoints: boolean;
   timerEnabled: boolean;
   soundEnabled: boolean;
+  isCoopMode?: boolean;
+  coopStats?: CoopStats;
+  onCoopAnswer?: (isCorrect: boolean) => void;
 }
 
 const OPTION_LETTERS = ['A', 'B', 'C', 'D'] as const;
 
-const CONFETTI_PIECES = Array.from({ length: 18 }, (_, i) => ({
+const CONFETTI_PIECES = Array.from({ length: 22 }, (_, i) => ({
   id: i,
-  left: `${(i * 5.2 + 4) % 95}%`,
+  left: `${(i * 4.5 + 3) % 96}%`,
   delay: `${(i % 5) * 0.05}s`,
   color: i % 2 === 0 ? '#FACC15' : i % 3 === 0 ? '#38BDF8' : '#FFFFFF',
 }));
@@ -54,6 +60,9 @@ export default function QuestionCard({
   doublePoints,
   timerEnabled,
   soundEnabled,
+  isCoopMode = false,
+  coopStats,
+  onCoopAnswer,
 }: QuestionCardProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [awardedTeams, setAwardedTeams] = useState<Record<string, boolean>>({});
@@ -75,7 +84,11 @@ export default function QuestionCard({
     if (!timerEnabled || selectedIndex !== null || !question) return;
     if (timeLeft <= 0) {
       setSelectedIndex(-1);
+      setShakeCard(true);
       playWrongSound(soundEnabled);
+      if (isCoopMode && onCoopAnswer) {
+        onCoopAnswer(false);
+      }
       return;
     }
 
@@ -88,7 +101,7 @@ export default function QuestionCard({
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [timerEnabled, timeLeft, selectedIndex, question, soundEnabled]);
+  }, [timerEnabled, timeLeft, selectedIndex, question, soundEnabled, isCoopMode, onCoopAnswer]);
 
   if (!question) {
     return (
@@ -106,12 +119,17 @@ export default function QuestionCard({
     if (isRevealed) return;
     setSelectedIndex(idx);
 
-    if (idx === question.correct_index) {
+    const correct = idx === question.correct_index;
+    if (correct) {
       setShowConfetti(true);
       playCorrectSound(soundEnabled);
     } else {
       setShakeCard(true);
       playWrongSound(soundEnabled);
+    }
+
+    if (isCoopMode && onCoopAnswer) {
+      onCoopAnswer(correct);
     }
   };
 
@@ -130,7 +148,11 @@ export default function QuestionCard({
     <section
       key={question.id}
       className={`relative flex-1 min-h-0 flex flex-col justify-between overflow-hidden rounded-2xl border-2 bg-gradient-to-b from-[#0b1d48]/95 via-[#081538]/95 to-[#050d26]/95 p-3 sm:p-5 shadow-2xl backdrop-blur-md animate-fadeIn ${
-        doublePoints
+        isCoopMode && coopStats?.status === 'failed'
+          ? 'border-rose-500 shadow-rose-500/20'
+          : isCoopMode && coopStats?.status === 'victory'
+          ? 'border-emerald-400 shadow-emerald-400/25'
+          : doublePoints
           ? 'border-yellow-400 shadow-yellow-400/15'
           : 'border-blue-500/45 shadow-blue-950/70'
       } ${shakeCard ? 'animate-shake' : ''}`}
@@ -181,11 +203,17 @@ export default function QuestionCard({
 
         <div className="flex items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
+            {isCoopMode && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-yellow-300 to-amber-500 text-blue-950 px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide shadow">
+                <Flame className="h-3 w-3 fill-blue-950" />
+                Palier {question.difficulty} / 10
+              </span>
+            )}
             <span className="inline-flex items-center gap-1 rounded-full bg-yellow-400 text-blue-950 px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide">
               <Tag className="h-3 w-3 fill-blue-950" />
               {question.theme}
             </span>
-            {doublePoints && (
+            {!isCoopMode && doublePoints && (
               <span className="inline-flex items-center gap-1 rounded-full bg-amber-400 px-2.5 py-0.5 text-[11px] font-black text-blue-950 animate-pulse">
                 <Zap className="h-3 w-3 fill-blue-950" />
                 x2 (+2 PTS)
@@ -269,28 +297,56 @@ export default function QuestionCard({
 
         {/* Zone Explication / Anecdote (hauteur maîtrisée pour zéro scroll) */}
         {isRevealed ? (
-          <div className="rounded-xl border border-yellow-400/50 bg-[#07153a]/95 px-3 py-2 sm:px-4 sm:py-2.5 shadow-lg animate-fadeIn">
+          <div
+            className={`rounded-xl border px-3 py-2 sm:px-4 sm:py-2.5 shadow-lg animate-fadeIn ${
+              isCoopMode && coopStats?.status === 'failed'
+                ? 'border-rose-400/70 bg-rose-950/40'
+                : isCoopMode && coopStats?.status === 'victory'
+                ? 'border-emerald-400 bg-emerald-950/40'
+                : 'border-yellow-400/50 bg-[#07153a]/95'
+            }`}
+          >
             <div className="flex items-start gap-2.5">
               <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-yellow-400 text-blue-950 font-black">
-                <Lightbulb className="h-3.5 w-3.5" />
+                {isCoopMode && coopStats?.status === 'victory' ? (
+                  <Trophy className="h-3.5 w-3.5" />
+                ) : (
+                  <Lightbulb className="h-3.5 w-3.5" />
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
-                  <span
-                    className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
-                      selectedIndex === question.correct_index
-                        ? 'bg-emerald-400 text-slate-950'
+                  {isCoopMode ? (
+                    coopStats?.status === 'victory' ? (
+                      <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-yellow-400 text-blue-950">
+                        🏆 VICTOIRE TOTALE 10 / 10 ! LÉGENDES DU 7TER !
+                      </span>
+                    ) : coopStats?.status === 'step_won' ? (
+                      <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-400 text-slate-950">
+                        ✅ PALIER {question.difficulty}/10 VALIDÉ ! EN ROUTE VERS LE NIVEAU {question.difficulty + 1} !
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-rose-500 text-white">
+                        💥 ERREUR AU PALIER {question.difficulty} ! CHUTE AU NIVEAU 1 (Réponse {OPTION_LETTERS[question.correct_index]})
+                      </span>
+                    )
+                  ) : (
+                    <span
+                      className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                        selectedIndex === question.correct_index
+                          ? 'bg-emerald-400 text-slate-950'
+                          : selectedIndex === -1
+                          ? 'bg-amber-400 text-slate-950'
+                          : 'bg-rose-500 text-white'
+                      }`}
+                    >
+                      {selectedIndex === question.correct_index
+                        ? '🎉 BINGO !'
                         : selectedIndex === -1
-                        ? 'bg-amber-400 text-slate-950'
-                        : 'bg-rose-500 text-white'
-                    }`}
-                  >
-                    {selectedIndex === question.correct_index
-                      ? '🎉 BINGO !'
-                      : selectedIndex === -1
-                      ? `⏱️ TEMPS ÉCOULÉ (${OPTION_LETTERS[question.correct_index]})`
-                      : `❌ RATÉ (${OPTION_LETTERS[question.correct_index]})`}
-                  </span>
+                        ? `⏱️ TEMPS ÉCOULÉ (${OPTION_LETTERS[question.correct_index]})`
+                        : `❌ RATÉ (${OPTION_LETTERS[question.correct_index]})`}
+                    </span>
+                  )}
                   <span className="text-[11px] font-extrabold text-yellow-300">
                     L’Anecdote du 7TER :
                   </span>
@@ -301,7 +357,7 @@ export default function QuestionCard({
               </div>
             </div>
           </div>
-        ) : (
+        ) : !isCoopMode ? (
           <div className="flex justify-end">
             <button
               type="button"
@@ -316,46 +372,101 @@ export default function QuestionCard({
               Révéler la réponse (jeu à l’oral)
             </button>
           </div>
-        )}
+        ) : null}
       </div>
 
-      {/* PARTIE BASSE FIXE DANS LA CARTE : Attribution rapide + Question suivante */}
+      {/* PARTIE BASSE FIXE DANS LA CARTE : Attribution rapide (Modes Duel/Solo) OU Progression Ascension (Mode Ensemble) */}
       <div className="shrink-0 pt-2.5 border-t border-blue-500/30 flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="hidden md:inline-flex items-center gap-1 text-[11px] font-black uppercase text-yellow-300 mr-0.5">
-            <Award className="h-3.5 w-3.5 text-yellow-400" />
-            +{pointValue} pt :
-          </span>
-          {teams.map((team) => {
-            const isAwarded = Boolean(awardedTeams[team.id]);
-            return (
+        {isCoopMode ? (
+          <>
+            <div className="text-xs font-bold text-blue-200/85">
+              {!isRevealed ? (
+                <span>🤝 Concertation à 4 : cliquez sur votre réponse finale !</span>
+              ) : coopStats?.status === 'victory' ? (
+                <span className="text-emerald-300 font-black">
+                  🎉 Incroyable ! Vous avez vaincu les 10 niveaux d’affilée !
+                </span>
+              ) : coopStats?.status === 'step_won' ? (
+                <span className="text-emerald-300 font-extrabold">
+                  🔥 Sans-faute en cours ({question.difficulty}/10) ! Prêts pour la suite ?
+                </span>
+              ) : (
+                <span className="text-rose-300 font-extrabold">
+                  💀 Une seule erreur pardonne pas au 7TER… On repart du Niveau 1 !
+                </span>
+              )}
+            </div>
+
+            {isRevealed && (
               <button
-                key={team.id}
                 type="button"
-                onClick={() => handleQuickAward(team.id)}
-                className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-black transition-all ${
-                  isAwarded
-                    ? 'bg-emerald-400 text-slate-950 shadow scale-105'
-                    : 'bg-blue-900/75 hover:bg-yellow-400 hover:text-blue-950 text-white border border-blue-400/40'
+                onClick={onNextQuestion}
+                className={`shimmer-btn relative overflow-hidden inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-black uppercase tracking-wide shadow-lg active:scale-95 transition-all ml-auto ${
+                  coopStats?.status === 'failed'
+                    ? 'bg-gradient-to-r from-rose-500 to-amber-500 text-white shadow-rose-500/25'
+                    : 'bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 text-blue-950 shadow-yellow-400/25'
                 }`}
               >
-                <span>{isAwarded ? `✓ +${pointValue}` : `+${pointValue}`}</span>
-                <span className="truncate max-w-[85px] sm:max-w-[110px]">
-                  {team.name}
-                </span>
+                {coopStats?.status === 'victory' ? (
+                  <>
+                    <RotateCcw className="h-4 w-4 stroke-[2.5]" />
+                    <span>Nouvelle Ascension (1 → 10)</span>
+                  </>
+                ) : coopStats?.status === 'failed' ? (
+                  <>
+                    <RotateCcw className="h-4 w-4 stroke-[2.5]" />
+                    <span>Retomber au Niveau 1</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Monter au Niveau {question.difficulty + 1}</span>
+                    <ArrowRight className="h-4 w-4 stroke-[2.5]" />
+                  </>
+                )}
               </button>
-            );
-          })}
-        </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="hidden md:inline-flex items-center gap-1 text-[11px] font-black uppercase text-yellow-300 mr-0.5">
+                <Award className="h-3.5 w-3.5 text-yellow-400" />
+                +{pointValue} pt :
+              </span>
+              {teams.map((team) => {
+                const isAwarded = Boolean(awardedTeams[team.id]);
+                return (
+                  <button
+                    key={team.id}
+                    type="button"
+                    onClick={() => handleQuickAward(team.id)}
+                    className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-black transition-all ${
+                      isAwarded
+                        ? 'bg-emerald-400 text-slate-950 shadow scale-105'
+                        : 'bg-blue-900/75 hover:bg-yellow-400 hover:text-blue-950 text-white border border-blue-400/40'
+                    }`}
+                  >
+                    <span>
+                      {isAwarded ? `✓ +${pointValue}` : `+${pointValue}`}
+                    </span>
+                    <span className="truncate max-w-[85px] sm:max-w-[110px]">
+                      {team.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
 
-        <button
-          type="button"
-          onClick={onNextQuestion}
-          className="shimmer-btn relative overflow-hidden inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 hover:from-yellow-200 hover:to-yellow-400 px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-black uppercase tracking-wide text-blue-950 shadow-lg shadow-yellow-400/25 active:scale-95 transition-all ml-auto"
-        >
-          <span>Question suivante</span>
-          <ArrowRight className="h-4 w-4 stroke-[2.5]" />
-        </button>
+            <button
+              type="button"
+              onClick={onNextQuestion}
+              className="shimmer-btn relative overflow-hidden inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 hover:from-yellow-200 hover:to-yellow-400 px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-black uppercase tracking-wide text-blue-950 shadow-lg shadow-yellow-400/25 active:scale-95 transition-all ml-auto"
+            >
+              <span>Question suivante</span>
+              <ArrowRight className="h-4 w-4 stroke-[2.5]" />
+            </button>
+          </>
+        )}
       </div>
     </section>
   );

@@ -7,14 +7,26 @@ import {
   Pencil,
   Check,
   Crown,
+  Flame,
+  Trophy,
+  RotateCcw,
+  Sparkles,
 } from 'lucide-react';
 
-export type GameMode = '2_couples' | '4_players';
+export type GameMode = '2_couples' | '4_players' | 'coop';
 
 export interface PlayerScore {
   id: string;
   name: string;
   score: number;
+}
+
+export interface CoopStats {
+  currentStep: number; // 1 to 10
+  bestStep: number; // 0 to 10
+  attempts: number;
+  victories: number;
+  status: 'playing' | 'step_won' | 'failed' | 'victory';
 }
 
 interface ScoreboardProps {
@@ -23,6 +35,8 @@ interface ScoreboardProps {
   onUpdateScore: (id: string, delta: number) => void;
   onRenameTeam: (id: string, newName: string) => void;
   lastScoredId?: string | null;
+  coopStats?: CoopStats;
+  onResetCoopRun?: () => void;
 }
 
 export default function Scoreboard({
@@ -31,6 +45,8 @@ export default function Scoreboard({
   onUpdateScore,
   onRenameTeam,
   lastScoredId,
+  coopStats,
+  onResetCoopRun,
 }: ScoreboardProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState<string>('');
@@ -47,6 +63,87 @@ export default function Scoreboard({
     }
     setEditingId(null);
   };
+
+  // Affichage spécial pour le Mode ENSEMBLE (Ascension 1 -> 10 sans erreur)
+  if (mode === 'coop' && coopStats) {
+    const completedCount =
+      coopStats.status === 'victory'
+        ? 10
+        : coopStats.status === 'step_won'
+        ? coopStats.currentStep
+        : coopStats.currentStep - 1;
+
+    return (
+      <section className="shrink-0 rounded-2xl border-2 border-yellow-400/55 bg-gradient-to-r from-[#0c2157]/95 via-[#091942]/95 to-[#0c2157]/95 px-3 py-2 sm:px-4 sm:py-2.5 shadow-xl backdrop-blur-md">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-lg bg-yellow-400 px-2.5 py-0.5 text-xs font-black uppercase text-blue-950 shadow">
+              <Flame className="h-3.5 w-3.5 fill-blue-950" />
+              Mode Ensemble (À 4)
+            </span>
+            <span className="text-xs sm:text-sm font-extrabold text-white">
+              Objectif : Réussir les niveaux <span className="text-yellow-300">1 → 10</span> d’affilée sans aucune erreur !
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs font-bold">
+            <span className="rounded-lg bg-blue-950/90 border border-blue-400/35 px-2.5 py-0.5 text-blue-200">
+              Essai #{coopStats.attempts}
+            </span>
+            <span className="rounded-lg bg-blue-950/90 border border-yellow-400/40 px-2.5 py-0.5 text-yellow-300 flex items-center gap-1">
+              <Trophy className="h-3.5 w-3.5 text-yellow-400" />
+              Record : {coopStats.bestStep}/10
+            </span>
+            {coopStats.victories > 0 && (
+              <span className="rounded-lg bg-emerald-500/20 border border-emerald-400/50 px-2.5 py-0.5 text-emerald-300 flex items-center gap-1">
+                <Sparkles className="h-3.5 w-3.5" />
+                {coopStats.victories} Victoire{coopStats.victories > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Barre d'Ascension des 10 paliers (1 -> 10) */}
+        <div className="grid grid-cols-10 gap-1 sm:gap-1.5">
+          {Array.from({ length: 10 }, (_, idx) => {
+            const lvl = idx + 1;
+            const isDone = lvl <= completedCount;
+            const isCurrent =
+              lvl === coopStats.currentStep && coopStats.status !== 'victory';
+            const isFailedHere =
+              isCurrent && coopStats.status === 'failed';
+
+            let stepStyle =
+              'bg-[#040b1e]/80 border-blue-500/30 text-blue-300/60';
+            if (isDone) {
+              stepStyle =
+                'bg-emerald-500 text-slate-950 border-emerald-300 font-black shadow-md shadow-emerald-500/20';
+            } else if (isFailedHere) {
+              stepStyle =
+                'bg-rose-500 text-white border-rose-300 font-black animate-shake shadow-md shadow-rose-500/30';
+            } else if (isCurrent) {
+              stepStyle =
+                'bg-gradient-to-b from-yellow-300 via-yellow-400 to-amber-500 text-blue-950 border-white font-black scale-105 animate-pulse-gold z-10';
+            }
+
+            return (
+              <div
+                key={lvl}
+                className={`flex flex-col items-center justify-center rounded-xl border py-1 sm:py-1.5 transition-all ${stepStyle}`}
+              >
+                <span className="text-xs sm:text-sm font-black leading-none">
+                  {isDone ? '✓' : isFailedHere ? '✗' : lvl}
+                </span>
+                <span className="text-[9px] font-bold leading-none mt-0.5 opacity-85">
+                  Niv.{lvl}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    );
+  }
 
   const maxScore = Math.max(...teams.map((t) => t.score), 0);
 
