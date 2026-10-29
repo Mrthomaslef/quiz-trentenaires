@@ -11,13 +11,13 @@ import {
 } from '@/lib/supabase';
 import { getAllLocalSeedQuestionsGrouped } from '@/lib/seed-data';
 import {
-  Sparkles,
   Database,
   RotateCcw,
   Zap,
   Volume2,
   VolumeX,
-  Filter,
+  Users,
+  User,
 } from 'lucide-react';
 import { playPointSound } from '@/lib/sound';
 
@@ -76,7 +76,6 @@ export default function QuizHomePage() {
   const [lastScoredId, setLastScoredId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState<boolean>(false);
 
-  // Hydratation depuis localStorage au montage
   useEffect(() => {
     try {
       const savedMode = localStorage.getItem(STORAGE_KEYS.MODE) as GameMode | null;
@@ -120,13 +119,12 @@ export default function QuizHomePage() {
         setSoundEnabled(false);
       }
     } catch {
-      // Ignore storage errors in private mode
+      // Ignore storage errors
     } finally {
       setHydrated(true);
     }
   }, []);
 
-  // Pré-chargement (Prefetching) de toute la banque Supabase dès l'ouverture
   useEffect(() => {
     let active = true;
     fetchAllQuestionsFromSupabase()
@@ -151,16 +149,13 @@ export default function QuizHomePage() {
           setDbSynced(true);
         }
       })
-      .catch(() => {
-        // Fallback local transparent déjà chargé en mémoire
-      });
+      .catch(() => {});
 
     return () => {
       active = false;
     };
   }, []);
 
-  // Sauvegarde automatique dans localStorage
   useEffect(() => {
     if (!hydrated) return;
     try {
@@ -214,7 +209,6 @@ export default function QuizHomePage() {
     return currentLevelQuestions[0] || null;
   }, [unplayedInCurrentLevel, currentLevelQuestions]);
 
-  // Transition instantanée (<10ms) vers la question suivante
   const handleNextQuestion = useCallback(() => {
     if (!activeQuestion) return;
 
@@ -276,25 +270,12 @@ export default function QuizHomePage() {
     [mode]
   );
 
-  const handleResetScores = useCallback(() => {
-    if (mode === '2_couples') {
-      setCouples((prev) => prev.map((t) => ({ ...t, score: 0 })));
-    } else {
-      setPlayers((prev) => prev.map((t) => ({ ...t, score: 0 })));
-    }
-  }, [mode]);
-
-  const handleResetPartyHistory = useCallback(() => {
+  const handleResetAll = useCallback(() => {
+    setCouples((prev) => prev.map((t) => ({ ...t, score: 0 })));
+    setPlayers((prev) => prev.map((t) => ({ ...t, score: 0 })));
     setPlayedIds([]);
     setQuestionNumber(1);
     setSelectedTheme('ALL');
-    setPoolByLevel((prev) => {
-      const reshuffled: Record<number, QuizQuestionRecord[]> = {};
-      for (let lvl = 1; lvl <= 10; lvl++) {
-        reshuffled[lvl] = shuffleQuestions(prev[lvl] || []);
-      }
-      return reshuffled;
-    });
   }, []);
 
   const totalPoolCount = useMemo(
@@ -304,117 +285,124 @@ export default function QuizHomePage() {
   );
 
   return (
-    <div className="min-h-screen pb-16">
-      {/* En-tête Plateau TV Jaune & Bleu du 7TER */}
-      <header className="border-b-2 border-yellow-400/40 bg-[#050d26]/90 backdrop-blur-xl sticky top-0 z-30 shadow-xl shadow-blue-950/50">
-        <div className="mx-auto max-w-5xl px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+    <div className="h-[100dvh] max-h-[100dvh] w-full overflow-hidden flex flex-col justify-between select-none">
+      {/* En-tête ultra-compact 1 ligne */}
+      <header className="shrink-0 border-b border-yellow-400/35 bg-[#050d26]/95 px-3 py-2">
+        <div className="mx-auto max-w-5xl flex items-center justify-between gap-2">
           {/* Logo Plaque "7 TER" + Titre */}
-          <div className="flex items-center gap-3.5">
-            <div className="relative flex h-12 w-16 shrink-0 items-center justify-center rounded-xl border-2 border-yellow-400 bg-gradient-to-br from-[#133282] via-[#0b1d48] to-[#06102b] shadow-lg shadow-yellow-400/20">
-              <div className="absolute inset-0.5 rounded-[9px] border border-sky-400/35 pointer-events-none" />
-              <div className="flex items-baseline gap-0.5 leading-none">
-                <span className="text-2xl font-black text-yellow-400 tracking-tighter drop-shadow">
-                  7
-                </span>
-                <span className="text-xs font-black uppercase text-white tracking-wider">
-                  TER
-                </span>
-              </div>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="relative flex h-8 w-12 shrink-0 items-center justify-center rounded-lg border-2 border-yellow-400 bg-gradient-to-br from-[#133282] to-[#06102b] shadow">
+              <span className="text-base font-black text-yellow-400 tracking-tighter">
+                7
+              </span>
+              <span className="text-[9px] font-black uppercase text-white ml-0.5">
+                TER
+              </span>
             </div>
 
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg sm:text-2xl font-black uppercase tracking-tight text-white">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <h1 className="text-sm sm:text-lg font-black uppercase tracking-tight text-white truncate">
                   QUIZ du <span className="text-yellow-400">7TER</span>
                 </h1>
-                <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-yellow-400 text-blue-950 px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide shadow-sm">
-                  <Sparkles className="h-3 w-3 fill-blue-950" />
-                  Show 90–98
+                <span className="hidden md:inline-flex items-center gap-1 rounded-full bg-yellow-400/15 border border-yellow-400/40 px-2 py-0.5 text-[10px] font-bold text-yellow-300">
+                  {totalPoolCount} questions
                 </span>
               </div>
-              <p className="text-xs font-medium text-blue-200/80">
-                2 Couples ou 4 Joueurs · {totalPoolCount} questions en stock · Zéro latence
-              </p>
             </div>
           </div>
 
-          {/* Actions Header : Son, Statut DB, Nouvelle soirée */}
-          <div className="flex items-center gap-2">
+          {/* Contrôles rapides Header : Mode 2 Couples / 4 Joueurs + Son + Statut + Reset */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <div className="inline-flex rounded-lg bg-[#040b1e] p-0.5 border border-blue-500/30">
+              <button
+                type="button"
+                onClick={() => setMode('2_couples')}
+                className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-extrabold transition ${
+                  mode === '2_couples'
+                    ? 'bg-yellow-400 text-blue-950'
+                    : 'text-blue-200/75 hover:text-white'
+                }`}
+              >
+                <Users className="h-3 w-3" />
+                <span>2 Couples</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('4_players')}
+                className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-extrabold transition ${
+                  mode === '4_players'
+                    ? 'bg-yellow-400 text-blue-950'
+                    : 'text-blue-200/75 hover:text-white'
+                }`}
+              >
+                <User className="h-3 w-3" />
+                <span>4 Solo</span>
+              </button>
+            </div>
+
             <button
               type="button"
               onClick={() => setSoundEnabled((s) => !s)}
-              className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-extrabold transition ${
+              className={`flex h-7 w-7 items-center justify-center rounded-lg border transition ${
                 soundEnabled
                   ? 'border-yellow-400/60 bg-yellow-400/15 text-yellow-300'
-                  : 'border-blue-500/30 bg-blue-950/70 text-blue-300/60'
+                  : 'border-blue-500/30 bg-blue-950/70 text-blue-300/50'
               }`}
-              title={soundEnabled ? 'Couper les bruitages TV' : 'Activer les bruitages TV'}
+              title={soundEnabled ? 'Couper le son' : 'Activer le son'}
             >
               {soundEnabled ? (
-                <>
-                  <Volume2 className="h-4 w-4 text-yellow-400" />
-                  <span className="hidden sm:inline">Son TV</span>
-                </>
+                <Volume2 className="h-3.5 w-3.5 text-yellow-400" />
               ) : (
-                <>
-                  <VolumeX className="h-4 w-4" />
-                  <span className="hidden sm:inline">Muet</span>
-                </>
+                <VolumeX className="h-3.5 w-3.5" />
               )}
             </button>
 
             <span
-              className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-bold ${
+              className={`hidden sm:inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-bold ${
                 dbSynced
                   ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-300'
                   : 'border-sky-400/40 bg-sky-500/15 text-sky-300'
               }`}
-              title={
-                dbSynced
-                  ? 'Connecté en direct à Supabase PostgreSQL'
-                  : 'Pool pré-chargé en mémoire locale (<10ms)'
-              }
             >
               {dbSynced ? (
                 <>
-                  <Database className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Supabase Live</span>
+                  <Database className="h-3 w-3" />
+                  <span>Live</span>
                 </>
               ) : (
                 <>
-                  <Zap className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Prêt &lt;10ms</span>
+                  <Zap className="h-3 w-3" />
+                  <span>&lt;10ms</span>
                 </>
               )}
             </span>
 
             <button
               type="button"
-              onClick={handleResetPartyHistory}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-blue-400/35 bg-blue-900/50 px-3 py-1.5 text-xs font-extrabold text-blue-100 hover:bg-yellow-400 hover:text-blue-950 hover:border-yellow-400 transition"
-              title="Rebattre toutes les cartes pour une nouvelle soirée"
+              onClick={handleResetAll}
+              className="inline-flex items-center gap-1 rounded-lg border border-blue-400/35 bg-blue-900/50 px-2 py-1 text-[11px] font-extrabold text-blue-100 hover:bg-yellow-400 hover:text-blue-950 transition"
+              title="Remettre les scores et la soirée à zéro"
             >
-              <RotateCcw className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Nouvelle soirée</span>
+              <RotateCcw className="h-3 w-3" />
+              <span className="hidden sm:inline">Reset</span>
             </button>
           </div>
         </div>
       </header>
 
-      {/* Contenu principal */}
-      <main className="mx-auto max-w-5xl px-4 pt-5 space-y-5">
-        {/* 1. Tableau des scores (2 Couples / 4 Joueurs + Jauge du 7TER) */}
+      {/* Cockpit Principal Sans Scroll (occupe exactement le reste de la hauteur 100dvh) */}
+      <main className="mx-auto w-full max-w-5xl flex-1 min-h-0 flex flex-col justify-between gap-2 px-2.5 py-2 sm:px-4 sm:py-3">
+        {/* 1. Bandeau des scores compact */}
         <Scoreboard
           mode={mode}
-          onModeChange={setMode}
           teams={activeTeams}
           onUpdateScore={handleUpdateScore}
           onRenameTeam={handleRenameTeam}
-          onResetScores={handleResetScores}
           lastScoredId={lastScoredId}
         />
 
-        {/* 2. Sélecteur de difficulté en direct (1 à 10) + Roulette & Modes */}
+        {/* 2. Barre de niveau 1-10 sur 1 ligne + Roulette / x2 / 20s / Thème */}
         <DifficultySelector
           selectedLevel={selectedLevel}
           onSelectLevel={(lvl) => {
@@ -427,42 +415,12 @@ export default function QuizHomePage() {
           timerEnabled={timerEnabled}
           onToggleTimer={() => setTimerEnabled((t) => !t)}
           soundEnabled={soundEnabled}
+          availableThemes={availableThemesInLevel}
+          selectedTheme={selectedTheme}
+          onSelectTheme={setSelectedTheme}
         />
 
-        {/* Barre de filtre rapide par thème (optionnel) */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-          <span className="inline-flex items-center gap-1 text-xs font-extrabold uppercase tracking-wider text-yellow-300 shrink-0 mr-1">
-            <Filter className="h-3.5 w-3.5" />
-            Thème :
-          </span>
-          <button
-            type="button"
-            onClick={() => setSelectedTheme('ALL')}
-            className={`shrink-0 rounded-full px-3 py-1 text-xs font-extrabold transition ${
-              selectedTheme === 'ALL'
-                ? 'bg-yellow-400 text-blue-950 shadow-md'
-                : 'bg-[#0b1d48]/80 text-blue-200 border border-blue-500/30 hover:border-yellow-400/50'
-            }`}
-          >
-            Tous les thèmes
-          </button>
-          {availableThemesInLevel.map((th) => (
-            <button
-              key={th}
-              type="button"
-              onClick={() => setSelectedTheme(th)}
-              className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold transition ${
-                selectedTheme === th
-                  ? 'bg-yellow-400 text-blue-950 shadow-md font-extrabold'
-                  : 'bg-[#0b1d48]/80 text-blue-200 border border-blue-500/30 hover:border-yellow-400/50'
-              }`}
-            >
-              {th}
-            </button>
-          ))}
-        </div>
-
-        {/* 3. Carte Question active & Explication */}
+        {/* 3. Carte Question flexible (flex-1 min-h-0) avec boutons toujours visibles en bas */}
         <QuestionCard
           question={activeQuestion}
           onNextQuestion={handleNextQuestion}
