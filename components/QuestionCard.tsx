@@ -433,8 +433,9 @@ export default function QuestionCard({
                 <Award className="h-3.5 w-3.5 text-yellow-400" />
                 +{pointValue} pt :
               </span>
-              {teams.map((team) => {
+              {teams.map((team, idx) => {
                 const isAwarded = Boolean(awardedTeams[team.id]);
+                const tag = teams.length === 4 ? `J${idx + 1}` : `C${idx + 1}`;
                 return (
                   <button
                     key={team.id}
@@ -449,9 +450,10 @@ export default function QuestionCard({
                     <span>
                       {isAwarded ? `✓ +${pointValue}` : `+${pointValue}`}
                     </span>
-                    <span className="truncate max-w-[85px] sm:max-w-[110px]">
-                      {team.name}
+                    <span className="rounded bg-yellow-400/20 px-1 text-[10px] text-yellow-300">
+                      {tag}
                     </span>
+                    <span className="truncate max-w-[110px]">{team.name}</span>
                   </button>
                 );
               })}

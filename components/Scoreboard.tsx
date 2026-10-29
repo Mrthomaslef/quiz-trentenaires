@@ -9,7 +9,6 @@ import {
   Crown,
   Flame,
   Trophy,
-  RotateCcw,
   Sparkles,
 } from 'lucide-react';
 
@@ -46,7 +45,6 @@ export default function Scoreboard({
   onRenameTeam,
   lastScoredId,
   coopStats,
-  onResetCoopRun,
 }: ScoreboardProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState<string>('');
@@ -154,21 +152,29 @@ export default function Scoreboard({
 
   return (
     <section className="shrink-0 rounded-2xl border border-blue-500/35 bg-[#091942]/90 px-2.5 py-2 sm:px-3.5 sm:py-2.5 shadow-lg backdrop-blur-md">
-      {/* Cartes de score ultra-compactes sur 1 ligne (2 Couples) ou grille compacte (4 Joueurs) */}
+      {/* Cartes de score : 2 colonnes sur mobile (pour que Joueur 1..4 soit toujours lisible en entier) et 4 sur grand écran */}
       <div
         className={`grid gap-2 ${
-          mode === '2_couples' ? 'grid-cols-2' : 'grid-cols-4'
+          mode === '2_couples' ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'
         }`}
       >
         {teams.map((team, idx) => {
           const isLeader = maxScore > 0 && team.score === maxScore;
           const isJustScored = lastScoredId === team.id;
+          const playerNumber = idx + 1;
 
           const cardThemes = [
             'border-yellow-400/55 bg-gradient-to-r from-yellow-500/15 to-blue-950/85',
             'border-sky-400/55 bg-gradient-to-r from-sky-500/15 to-blue-950/85',
             'border-amber-400/55 bg-gradient-to-r from-amber-500/15 to-blue-950/85',
             'border-indigo-400/55 bg-gradient-to-r from-indigo-500/15 to-blue-950/85',
+          ];
+
+          const badgeColors = [
+            'bg-yellow-400 text-blue-950',
+            'bg-sky-400 text-blue-950',
+            'bg-amber-400 text-blue-950',
+            'bg-indigo-400 text-blue-950',
           ];
 
           return (
@@ -214,12 +220,22 @@ export default function Scoreboard({
                   <button
                     type="button"
                     onClick={() => startEditing(team)}
-                    className="group flex items-center gap-1 text-left max-w-full"
+                    className="group flex items-center gap-1.5 text-left max-w-full"
                     title="Cliquer pour renommer"
                   >
+                    {/* Pastille Numéro du Joueur / Couple toujours visible */}
+                    <span
+                      className={`inline-flex h-5 min-w-[22px] shrink-0 items-center justify-center rounded-md px-1 text-[11px] font-black shadow-sm ${
+                        badgeColors[idx % badgeColors.length]
+                      }`}
+                    >
+                      {mode === '4_players' ? `J${playerNumber}` : `C${playerNumber}`}
+                    </span>
+
                     {isLeader && (
                       <Crown className="h-3.5 w-3.5 shrink-0 text-yellow-400 fill-yellow-400" />
                     )}
+
                     <span className="truncate text-xs sm:text-sm font-extrabold text-white group-hover:text-yellow-300">
                       {team.name}
                     </span>
@@ -227,7 +243,7 @@ export default function Scoreboard({
                   </button>
                 )}
 
-                <div className="flex items-baseline gap-1">
+                <div className="mt-0.5 flex items-baseline gap-1">
                   <span className="text-lg sm:text-2xl font-black leading-none text-yellow-300">
                     {team.score}
                   </span>
