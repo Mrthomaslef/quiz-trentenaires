@@ -1,10 +1,14 @@
 import { QUESTIONS_PART_1, type RawSeedQuestion } from './questions-part1';
 import { QUESTIONS_PART_2 } from './questions-part2';
+import { QUESTIONS_PART_3 } from './questions-part3';
+import { QUESTIONS_PART_4 } from './questions-part4';
 import type { QuizQuestionRecord } from './supabase';
 
 export const ALL_SEED_QUESTIONS: RawSeedQuestion[] = [
   ...QUESTIONS_PART_1,
   ...QUESTIONS_PART_2,
+  ...QUESTIONS_PART_3,
+  ...QUESTIONS_PART_4,
 ];
 
 export function getLocalSeedQuestionsByLevel(
