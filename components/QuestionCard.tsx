@@ -175,7 +175,7 @@ export default function QuestionCard({
       )}
 
       {/* 1. PARTIE HAUTE (shrink-0) : Métadonnées + Chrono + Énoncé */}
-      <div className="shrink-0 space-y-1.5">
+      <div className="shrink-0 space-y-2">
         {timerEnabled && (
           <div className="flex items-center gap-2">
             <Timer className="h-3.5 w-3.5 text-yellow-400 shrink-0" />
@@ -204,176 +204,178 @@ export default function QuestionCard({
         <div className="flex items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
             {isCoopMode && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-yellow-300 to-amber-500 text-blue-950 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide shadow">
+              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-yellow-300 to-amber-500 text-blue-950 px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide shadow">
                 <Flame className="h-3 w-3 fill-blue-950" />
                 Palier {question.difficulty} / 10
               </span>
             )}
-            <span className="inline-flex items-center gap-1 rounded-full bg-yellow-400 text-blue-950 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide">
-              <Tag className="h-2.5 w-2.5 fill-blue-950" />
+            <span className="inline-flex items-center gap-1 rounded-full bg-yellow-400 text-blue-950 px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide">
+              <Tag className="h-3 w-3 fill-blue-950" />
               {question.theme}
             </span>
             {!isCoopMode && doublePoints && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black text-blue-950 animate-pulse">
-                <Zap className="h-2.5 w-2.5 fill-blue-950" />
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-400 px-2.5 py-0.5 text-[11px] font-black text-blue-950 animate-pulse">
+                <Zap className="h-3 w-3 fill-blue-950" />
                 x2 (+2 PTS)
               </span>
             )}
           </div>
 
-          <span className="text-[10px] font-bold text-blue-200/75">
+          <span className="text-[11px] font-bold text-blue-200/75">
             #{questionNumber} · {remainingInLevel}/{totalInLevel}
           </span>
         </div>
 
-        {/* Énoncé (séparé proprement avec marge inférieure garantie) */}
-        <div className="rounded-xl border border-blue-400/30 bg-[#040b1e]/90 px-3 py-2 sm:px-4 sm:py-3 shadow-inner">
-          <h3 className="text-sm sm:text-lg lg:text-xl font-black text-white leading-snug">
+        {/* Énoncé bien mis en valeur */}
+        <div className="rounded-xl border border-blue-400/30 bg-[#040b1e]/90 px-3.5 py-2.5 sm:px-5 sm:py-3.5 shadow-inner">
+          <h3 className="text-[15px] sm:text-lg lg:text-xl font-black text-white leading-snug">
             {question.question}
           </h3>
         </div>
       </div>
 
-      {/* 2. PARTIE CENTRALE (flux vertical naturel de haut en bas, zéro superposition) */}
-      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col justify-start gap-2 pt-0.5">
-        {/* Grille 2x2 sur mobile et desktop pour gagner 50% de hauteur verticale */}
-        <div className="grid grid-cols-2 gap-2">
-          {question.options.map((optionText, idx) => {
-            const isCorrect = idx === question.correct_index;
-            const isSelected = idx === selectedIndex;
+      {/* 2. PARTIE CENTRALE : centrée verticalement via my-auto dans un conteneur overflow-y-auto (zéro superposition possible) */}
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
+        <div className="my-auto flex flex-col gap-2.5 py-1">
+          {/* 1 colonne confortable sur mobile, 2x2 sur tablette/desktop */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
+            {question.options.map((optionText, idx) => {
+              const isCorrect = idx === question.correct_index;
+              const isSelected = idx === selectedIndex;
 
-            let buttonStyle =
-              'border-blue-400/35 bg-blue-950/70 hover:bg-blue-900/75 hover:border-yellow-400 text-white';
-            let badgeStyle = 'bg-yellow-400 text-blue-950 font-black';
+              let buttonStyle =
+                'border-blue-400/35 bg-blue-950/70 hover:bg-blue-900/75 hover:border-yellow-400 text-white';
+              let badgeStyle = 'bg-yellow-400 text-blue-950 font-black';
 
-            if (isRevealed) {
-              if (isCorrect) {
-                buttonStyle =
-                  'border-emerald-400 bg-emerald-500/25 text-emerald-50 ring-1 ring-emerald-400/60';
-                badgeStyle = 'bg-emerald-400 text-slate-950 font-black';
-              } else if (isSelected && !isCorrect) {
-                buttonStyle =
-                  'border-rose-400 bg-rose-500/25 text-rose-100 ring-1 ring-rose-400/50';
-                badgeStyle = 'bg-rose-500 text-white font-black';
-              } else {
-                buttonStyle =
-                  'border-blue-900/40 bg-[#040b1e]/40 text-blue-300/40 opacity-55';
-                badgeStyle = 'bg-blue-950 text-blue-400/40';
+              if (isRevealed) {
+                if (isCorrect) {
+                  buttonStyle =
+                    'border-emerald-400 bg-emerald-500/25 text-emerald-50 ring-1 ring-emerald-400/60';
+                  badgeStyle = 'bg-emerald-400 text-slate-950 font-black';
+                } else if (isSelected && !isCorrect) {
+                  buttonStyle =
+                    'border-rose-400 bg-rose-500/25 text-rose-100 ring-1 ring-rose-400/50';
+                  badgeStyle = 'bg-rose-500 text-white font-black';
+                } else {
+                  buttonStyle =
+                    'border-blue-900/40 bg-[#040b1e]/40 text-blue-300/40 opacity-55';
+                  badgeStyle = 'bg-blue-950 text-blue-400/40';
+                }
               }
-            }
 
-            return (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => handleOptionClick(idx)}
-                disabled={isRevealed}
-                className={`group relative flex items-center justify-between gap-2 rounded-xl border-2 px-2.5 py-2 sm:px-3.5 sm:py-2.5 text-left transition-all duration-150 ${buttonStyle} ${
-                  !isRevealed
-                    ? 'active:scale-[0.98] cursor-pointer'
-                    : 'cursor-default'
-                }`}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span
-                    className={`flex h-6 w-6 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-lg text-xs font-black shadow-sm ${badgeStyle}`}
-                  >
-                    {OPTION_LETTERS[idx]}
-                  </span>
-                  <span className="text-xs sm:text-sm font-bold leading-tight break-words">
-                    {optionText}
-                  </span>
-                </div>
-
-                {isRevealed && isCorrect && (
-                  <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-emerald-400" />
-                )}
-                {isRevealed && isSelected && !isCorrect && (
-                  <XCircle className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-rose-400" />
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Zone Explication / Anecdote (juste sous les 4 réponses) */}
-        {isRevealed ? (
-          <div
-            className={`rounded-xl border px-3 py-2 shadow-lg animate-fadeIn ${
-              isCoopMode && coopStats?.status === 'failed'
-                ? 'border-rose-400/70 bg-rose-950/40'
-                : isCoopMode && coopStats?.status === 'victory'
-                ? 'border-emerald-400 bg-emerald-950/40'
-                : 'border-yellow-400/50 bg-[#07153a]/95'
-            }`}
-          >
-            <div className="flex items-start gap-2">
-              <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-yellow-400 text-blue-950 font-black">
-                {isCoopMode && coopStats?.status === 'victory' ? (
-                  <Trophy className="h-3 w-3" />
-                ) : (
-                  <Lightbulb className="h-3 w-3" />
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
-                  {isCoopMode ? (
-                    coopStats?.status === 'victory' ? (
-                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-yellow-400 text-blue-950">
-                        🏆 VICTOIRE TOTALE 10 / 10 ! LÉGENDES DU 7TER !
-                      </span>
-                    ) : coopStats?.status === 'step_won' ? (
-                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-400 text-slate-950">
-                        ✅ PALIER {question.difficulty}/10 VALIDÉ !
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-500 text-white">
-                        💥 ERREUR AU PALIER {question.difficulty} ! CHUTE AU NIVEAU 1 (Réponse {OPTION_LETTERS[question.correct_index]})
-                      </span>
-                    )
-                  ) : (
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleOptionClick(idx)}
+                  disabled={isRevealed}
+                  className={`group relative flex items-center justify-between gap-2.5 rounded-xl border-2 px-3 py-2.5 sm:px-4 sm:py-3 text-left transition-all duration-150 ${buttonStyle} ${
+                    !isRevealed
+                      ? 'active:scale-[0.98] cursor-pointer'
+                      : 'cursor-default'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
                     <span
-                      className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
-                        selectedIndex === question.correct_index
-                          ? 'bg-emerald-400 text-slate-950'
-                          : selectedIndex === -1
-                          ? 'bg-amber-400 text-slate-950'
-                          : 'bg-rose-500 text-white'
-                      }`}
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs sm:text-sm font-black shadow-sm ${badgeStyle}`}
                     >
-                      {selectedIndex === question.correct_index
-                        ? '🎉 BINGO !'
-                        : selectedIndex === -1
-                        ? `⏱️ TEMPS ÉCOULÉ (${OPTION_LETTERS[question.correct_index]})`
-                        : `❌ RATÉ (${OPTION_LETTERS[question.correct_index]})`}
+                      {OPTION_LETTERS[idx]}
                     </span>
+                    <span className="text-sm sm:text-base font-bold leading-snug break-words">
+                      {optionText}
+                    </span>
+                  </div>
+
+                  {isRevealed && isCorrect && (
+                    <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" />
                   )}
-                  <span className="text-[10px] font-extrabold text-yellow-300">
-                    L’Anecdote du 7TER :
-                  </span>
+                  {isRevealed && isSelected && !isCorrect && (
+                    <XCircle className="h-5 w-5 shrink-0 text-rose-400" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Zone Explication / Anecdote (juste sous les 4 réponses) */}
+          {isRevealed ? (
+            <div
+              className={`rounded-xl border px-3 py-2.5 shadow-lg animate-fadeIn ${
+                isCoopMode && coopStats?.status === 'failed'
+                  ? 'border-rose-400/70 bg-rose-950/40'
+                  : isCoopMode && coopStats?.status === 'victory'
+                  ? 'border-emerald-400 bg-emerald-950/40'
+                  : 'border-yellow-400/50 bg-[#07153a]/95'
+              }`}
+            >
+              <div className="flex items-start gap-2.5">
+                <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-yellow-400 text-blue-950 font-black">
+                  {isCoopMode && coopStats?.status === 'victory' ? (
+                    <Trophy className="h-3.5 w-3.5" />
+                  ) : (
+                    <Lightbulb className="h-3.5 w-3.5" />
+                  )}
                 </div>
-                <p className="text-[11px] sm:text-xs text-blue-50 leading-snug">
-                  {question.explanation}
-                </p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+                    {isCoopMode ? (
+                      coopStats?.status === 'victory' ? (
+                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-yellow-400 text-blue-950">
+                          🏆 VICTOIRE TOTALE 10 / 10 ! LÉGENDES DU 7TER !
+                        </span>
+                      ) : coopStats?.status === 'step_won' ? (
+                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-400 text-slate-950">
+                          ✅ PALIER {question.difficulty}/10 VALIDÉ !
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-500 text-white">
+                          💥 ERREUR AU PALIER {question.difficulty} ! CHUTE AU NIVEAU 1 (Réponse {OPTION_LETTERS[question.correct_index]})
+                        </span>
+                      )
+                    ) : (
+                      <span
+                        className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                          selectedIndex === question.correct_index
+                            ? 'bg-emerald-400 text-slate-950'
+                            : selectedIndex === -1
+                            ? 'bg-amber-400 text-slate-950'
+                            : 'bg-rose-500 text-white'
+                        }`}
+                      >
+                        {selectedIndex === question.correct_index
+                          ? '🎉 BINGO !'
+                          : selectedIndex === -1
+                          ? `⏱️ TEMPS ÉCOULÉ (${OPTION_LETTERS[question.correct_index]})`
+                          : `❌ RATÉ (${OPTION_LETTERS[question.correct_index]})`}
+                      </span>
+                    )}
+                    <span className="text-[11px] font-extrabold text-yellow-300">
+                      L’Anecdote du 7TER :
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-blue-50 leading-snug">
+                    {question.explanation}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        ) : !isCoopMode ? (
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedIndex(question.correct_index);
-                setShowConfetti(true);
-                playCorrectSound(soundEnabled);
-              }}
-              className="inline-flex items-center gap-1 text-[11px] font-bold text-yellow-300/80 hover:text-yellow-300 transition"
-            >
-              <Eye className="h-3 w-3" />
-              Révéler la réponse (jeu à l’oral)
-            </button>
-          </div>
-        ) : null}
+          ) : !isCoopMode ? (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedIndex(question.correct_index);
+                  setShowConfetti(true);
+                  playCorrectSound(soundEnabled);
+                }}
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-yellow-300/80 hover:text-yellow-300 transition"
+              >
+                <Eye className="h-3 w-3" />
+                Révéler la réponse (jeu à l’oral)
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {/* 3. PARTIE BASSE FIXE DANS LA CARTE (shrink-0) */}
