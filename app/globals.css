@@ -256,13 +256,6 @@ body {
   100% { opacity: 1; transform: translateX(0) scale(1); }
 }
 
-@keyframes hostCrtFlicker {
-  0%, 100% { opacity: 0.55; }
-  48% { opacity: 0.45; }
-  50% { opacity: 0.7; }
-  52% { opacity: 0.5; }
-}
-
 .animate-host-pop {
   animation: hostPop 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -299,8 +292,7 @@ body {
     transparent 1px,
     transparent 3px
   );
-  mix-blend-mode: multiply;
-  animation: hostCrtFlicker 3.2s steps(1) infinite;
+  opacity: 0.55;
 }
 
 .host-crt-vignette {
@@ -316,8 +308,7 @@ body {
   .animate-host-idle,
   .animate-host-jump,
   .animate-host-sad,
-  .animate-host-tremble,
-  .host-crt-scanlines {
+  .animate-host-tremble {
     animation: none;
   }
 }

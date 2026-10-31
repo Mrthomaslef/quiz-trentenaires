@@ -91,8 +91,8 @@ export default function HostReaction({
       <div
         className={`relative shrink-0 ${
           isInline
-            ? 'h-14 w-14 xs:h-16 xs:w-16'
-            : 'h-16 w-16 ls:h-12 ls:w-12 sm:h-[72px] sm:w-[72px] lg:h-24 lg:w-24'
+            ? 'h-20 w-20 xs:h-24 xs:w-24'
+            : 'h-20 w-20 ls:h-16 ls:w-16 sm:h-24 sm:w-24 lg:h-32 lg:w-32'
         } overflow-hidden rounded-lg border-2 bg-[#0a1a5c] transition-[border-color,box-shadow] duration-300 ${frameTone}`}
       >
         <div
@@ -127,7 +127,7 @@ export default function HostReaction({
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 animate-host-flash"
         />
-        <span className="pointer-events-none absolute left-1 top-0.5 flex items-center gap-0.5 font-mono text-[7px] lg:text-[8px] font-black uppercase tracking-wider text-rose-400/90">
+        <span className="pointer-events-none absolute left-1 top-0.5 flex items-center gap-0.5 font-mono text-[8px] lg:text-[9px] font-black uppercase tracking-wider text-rose-400/90">
           <span className="h-1 w-1 rounded-full bg-rose-500 animate-pulse" />
           Live
         </span>
@@ -144,7 +144,7 @@ export default function HostReaction({
         />
         <p
           className={`${
-            isInline ? 'text-[11px] xs:text-xs' : 'text-[10px] ls:text-[9px] lg:text-xs'
+            isInline ? 'text-xs xs:text-sm' : 'text-[10px] ls:text-[9px] lg:text-xs'
           } font-black italic leading-tight text-yellow-200`}
         >
           {line}

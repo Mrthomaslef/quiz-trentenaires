@@ -457,6 +457,7 @@ export function playJokerSound(enabled = true) {
 
 let millionsInterval: ReturnType<typeof setInterval> | null = null;
 let millionsStepIndex = 0;
+let millionsNextTickTime = 0;
 let millionsCurrentStep = 1; // 1..15
 let millionsSuspenseLocked = false; // true quand une réponse orange attend "Dernier mot ?"
 let masterCompressor: DynamicsCompressorNode | null = null;
@@ -889,11 +890,10 @@ export function startMillionsZoukMusic(enabled = true, step = 1) {
   const STEP_MS = 120;
   const STEP_SEC = STEP_MS / 1000;
 
-  const playQuizGrooveTick = () => {
+  const playQuizGrooveTick = (now: number) => {
     const audio = getCtx();
     if (!audio) return;
     const out = getMasterOutput(audio);
-    const now = audio.currentTime;
 
     const pos64 = millionsStepIndex % 64;
     const pos16 = pos64 % 16;
@@ -974,8 +974,28 @@ export function startMillionsZoukMusic(enabled = true, step = 1) {
     millionsStepIndex += 1;
   };
 
-  playQuizGrooveTick();
-  millionsInterval = setInterval(playQuizGrooveTick, STEP_MS);
+  // Planificateur « look-ahead » : on programme les notes un peu à l'avance sur
+  // l'horloge audio. Ainsi, si le thread principal est occupé (animations,
+  // re-rendus React), le rythme reste parfaitement régulier.
+  const LOOKAHEAD_MS = 25;
+  const SCHEDULE_AHEAD_SEC = 0.15;
+  millionsNextTickTime = ctx.currentTime + 0.05;
+
+  const scheduler = () => {
+    const audio = getCtx();
+    if (!audio) return;
+    // Onglet en arrière-plan / gros retard : on se recale au lieu de rattraper
+    if (millionsNextTickTime < audio.currentTime - 0.1) {
+      millionsNextTickTime = audio.currentTime + 0.02;
+    }
+    while (millionsNextTickTime < audio.currentTime + SCHEDULE_AHEAD_SEC) {
+      playQuizGrooveTick(millionsNextTickTime);
+      millionsNextTickTime += STEP_SEC;
+    }
+  };
+
+  scheduler();
+  millionsInterval = setInterval(scheduler, LOOKAHEAD_MS);
 }
 
 export function stopMillionsZoukMusic() {
