@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { DIFFICULTY_LEVELS, getDifficultyInfo } from '@/lib/generator';
-import { Dices, Zap, Timer } from 'lucide-react';
+import { Dices, Zap, Timer, CheckSquare, Square } from 'lucide-react';
 import { playTickSound, playPointSound } from '@/lib/sound';
 
 interface DifficultySelectorProps {
@@ -13,6 +13,8 @@ interface DifficultySelectorProps {
   onToggleDoublePoints: () => void;
   timerEnabled: boolean;
   onToggleTimer: () => void;
+  duoCarreCashEnabled: boolean;
+  onToggleDuoCarreCash: () => void;
   soundEnabled: boolean;
   availableThemes: string[];
   selectedTheme: string;
@@ -27,6 +29,8 @@ export default function DifficultySelector({
   onToggleDoublePoints,
   timerEnabled,
   onToggleTimer,
+  duoCarreCashEnabled,
+  onToggleDuoCarreCash,
   soundEnabled,
   availableThemes,
   selectedTheme,
@@ -89,7 +93,7 @@ export default function DifficultySelector({
         })}
       </div>
 
-      {/* Ligne 2 : Titre du niveau actif + Sélecteur Thème + Boutons Roulette / x2 / Chrono */}
+      {/* Ligne 2 : Titre du niveau actif + Sélecteur Thème + Option cochable Duo/Carré/Cash + Roulette / x2 / Chrono */}
       <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs">
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="shrink-0 rounded-md bg-yellow-400 px-2 py-0.5 text-[11px] font-black uppercase text-blue-950">
@@ -115,6 +119,25 @@ export default function DifficultySelector({
               </option>
             ))}
           </select>
+
+          {/* Option cochable Duo / Carré / Cash */}
+          <button
+            type="button"
+            onClick={onToggleDuoCarreCash}
+            className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-extrabold transition active:scale-95 ${
+              duoCarreCashEnabled
+                ? 'border-emerald-300 bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow'
+                : 'border-blue-400/35 bg-[#05102e] text-blue-100 hover:border-yellow-400/60 hover:text-yellow-300'
+            }`}
+            title="Activer le choix Duo (1 pt) / Carré (3 pts) / Cash (5 pts) avant de voir les réponses"
+          >
+            {duoCarreCashEnabled ? (
+              <CheckSquare className="h-3.5 w-3.5 stroke-[2.5]" />
+            ) : (
+              <Square className="h-3.5 w-3.5" />
+            )}
+            <span>Duo/Carré/Cash</span>
+          </button>
 
           <button
             type="button"

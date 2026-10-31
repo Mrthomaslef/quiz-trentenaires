@@ -93,6 +93,7 @@ export default function QuizHomePage() {
   const [questionNumber, setQuestionNumber] = useState<number>(1);
   const [doublePoints, setDoublePoints] = useState<boolean>(false);
   const [timerEnabled, setTimerEnabled] = useState<boolean>(false);
+  const [duoCarreCashEnabled, setDuoCarreCashEnabled] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [lastScoredId, setLastScoredId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState<boolean>(false);
@@ -169,6 +170,11 @@ export default function QuizHomePage() {
       if (savedSound === 'false') {
         setSoundEnabled(false);
       }
+
+      const savedDCC = localStorage.getItem('7ter:dcc:v1');
+      if (savedDCC === 'true') {
+        setDuoCarreCashEnabled(true);
+      }
     } catch {
       // Ignore storage errors
     } finally {
@@ -226,6 +232,7 @@ export default function QuizHomePage() {
       localStorage.setItem(STORAGE_KEYS.PLAYED_IDS, JSON.stringify(playedIds));
       localStorage.setItem(STORAGE_KEYS.QUESTION_COUNT, String(questionNumber));
       localStorage.setItem(STORAGE_KEYS.SOUND, String(soundEnabled));
+      localStorage.setItem('7ter:dcc:v1', String(duoCarreCashEnabled));
     } catch {
       // Ignore storage errors
     }
@@ -239,6 +246,7 @@ export default function QuizHomePage() {
     playedIds,
     questionNumber,
     soundEnabled,
+    duoCarreCashEnabled,
   ]);
 
   // Niveau effectif : en mode Ensemble (coop), c'est le palier d'ascension (1 -> 10)
@@ -615,6 +623,8 @@ export default function QuizHomePage() {
                 onToggleDoublePoints={() => setDoublePoints((d) => !d)}
                 timerEnabled={timerEnabled}
                 onToggleTimer={() => setTimerEnabled((t) => !t)}
+                duoCarreCashEnabled={duoCarreCashEnabled}
+                onToggleDuoCarreCash={() => setDuoCarreCashEnabled((d) => !d)}
                 soundEnabled={soundEnabled}
                 availableThemes={availableThemesInLevel}
                 selectedTheme={selectedTheme}
@@ -635,6 +645,7 @@ export default function QuizHomePage() {
               totalInLevel={currentLevelQuestions.length}
               doublePoints={doublePoints}
               timerEnabled={timerEnabled}
+              duoCarreCashEnabled={duoCarreCashEnabled && mode !== 'coop'}
               soundEnabled={soundEnabled}
               isCoopMode={mode === 'coop'}
               coopStats={coopStats}
