@@ -145,7 +145,7 @@ export async function incrementQuestionPlayed(questionId: string): Promise<void>
 export async function recordQuestionOutcomeSupabase(
   questionId: string,
   wasCorrect: boolean,
-  autoArchiveThreshold = 2
+  autoArchiveThreshold = 1
 ): Promise<void> {
   if (!questionId || questionId.startsWith('local-')) return;
   try {

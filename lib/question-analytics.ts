@@ -1,5 +1,6 @@
 import {
   type QuizQuestionRecord,
+  incrementQuestionPlayed,
   recordQuestionOutcomeSupabase,
   updateQuestionAdminSupabase,
 } from './supabase';
@@ -9,7 +10,7 @@ export const ADMIN_SETTINGS_STORAGE_KEY = '7ter:admin_settings:v1';
 export const ADMIN_SESSION_UNLOCKED_KEY = '7ter:admin_unlocked:v1';
 
 export const VALID_ADMIN_CODES = ['7TER', 'ADMIN', '7TER2026', '1234'];
-export const DEFAULT_AUTO_ARCHIVE_THRESHOLD = 2;
+export const DEFAULT_AUTO_ARCHIVE_THRESHOLD = 1;
 
 export type DifficultyDiagnostic =
   | 'untested'
@@ -35,13 +36,13 @@ export interface QuestionAnalyticsEntry {
 export type QuestionAnalyticsMap = Record<string, QuestionAnalyticsEntry>;
 
 export interface AdminSettings {
-  autoArchiveThreshold: number; // default: 2 (questions answered >= 2 times go to "Déjà répondu" pool)
-  alreadyAnsweredWeight: number; // default: 0.15 (15% weight when picking vs 100% for fresh)
+  autoArchiveThreshold: number; // default: 1 (any asked question goes to "Déjà répondu" pool and is not re-asked)
+  alreadyAnsweredWeight: number; // default: 0 (excluded while fresh questions remain)
 }
 
 export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   autoArchiveThreshold: DEFAULT_AUTO_ARCHIVE_THRESHOLD,
-  alreadyAnsweredWeight: 0.15,
+  alreadyAnsweredWeight: 0,
 };
 
 export function normalizeQuestionKey(questionText: string): string {
@@ -99,7 +100,7 @@ export function loadAdminSettings(): AdminSettings {
         parsed.alreadyAnsweredWeight >= 0 &&
         parsed.alreadyAnsweredWeight <= 1
           ? parsed.alreadyAnsweredWeight
-          : 0.15,
+          : 0,
     };
   } catch {
     return DEFAULT_ADMIN_SETTINGS;
@@ -241,7 +242,7 @@ export function getQuestionAnalytics(
     inAlreadyAnsweredPool =
       Boolean(existing?.inAlreadyAnsweredPool) ||
       Boolean(question.is_already_answered) ||
-      timesAnswered >= threshold;
+      timesAnswered >= Math.max(1, threshold);
   }
 
   const evalResult = evaluateQuestionDifficulty(
@@ -267,9 +268,75 @@ export function getQuestionAnalytics(
 }
 
 /**
+ * Détermine si une question a déjà été posée (que ce soit via son ID, son texte normalisé,
+ * son historique local ou son historique Supabase).
+ */
+export function isQuestionAlreadyAsked(
+  question: QuizQuestionRecord,
+  playedIdsInSession: Set<string>,
+  analyticsMap: QuestionAnalyticsMap,
+  threshold = DEFAULT_AUTO_ARCHIVE_THRESHOLD
+): boolean {
+  const key = normalizeQuestionKey(question.question);
+  if (playedIdsInSession.has(question.id) || playedIdsInSession.has(key)) {
+    return true;
+  }
+
+  const entry = getQuestionAnalytics(question, analyticsMap, threshold);
+  if (entry.manualPoolOverride === false) {
+    return false;
+  }
+
+  return (
+    entry.inAlreadyAnsweredPool ||
+    entry.timesAnswered > 0 ||
+    (question.times_played ?? 0) > 0 ||
+    Boolean(question.is_already_answered)
+  );
+}
+
+/**
+ * Marque une question comme ayant été posée (même si aucune option n'a été cliquée, ex: jeu à l'oral ou passage à la suivante).
+ */
+export function markQuestionAsAsked(
+  question: QuizQuestionRecord,
+  currentMap?: QuestionAnalyticsMap
+): QuestionAnalyticsMap {
+  const map = { ...(currentMap ?? loadQuestionAnalytics()) };
+  const settings = loadAdminSettings();
+  const current = getQuestionAnalytics(
+    question,
+    map,
+    settings.autoArchiveThreshold
+  );
+
+  const nextAnswered = Math.max(1, current.timesAnswered);
+  const nowIso = new Date().toISOString();
+
+  const updatedEntry: QuestionAnalyticsEntry = {
+    ...current,
+    questionId: question.id,
+    questionKey: normalizeQuestionKey(question.question),
+    timesAnswered: nextAnswered,
+    inAlreadyAnsweredPool: true,
+    manualPoolOverride: undefined,
+    lastAnsweredAt: nowIso,
+    updatedAt: nowIso,
+  };
+
+  map[question.id] = updatedEntry;
+  map[updatedEntry.questionKey] = updatedEntry;
+
+  saveQuestionAnalytics(map);
+  incrementQuestionPlayed(question.id);
+
+  return map;
+}
+
+/**
  * Enregistre une réponse (bonne ou mauvaise) à une question.
- * Si la question atteint le seuil (par défaut >= 2 réponses), elle bascule automatiquement
- * dans la base "Déjà répondu" et sera moins proposée.
+ * Dès qu'une question a été posée/répondue, elle bascule dans la base "Déjà répondu"
+ * afin de ne plus être reposée.
  */
 export function recordQuestionAnswerOutcome(
   question: QuizQuestionRecord,
@@ -288,12 +355,6 @@ export function recordQuestionAnswerOutcome(
   const nextCorrect = current.timesCorrect + (isCorrect ? 1 : 0);
   const nextWrong = current.timesWrong + (isCorrect ? 0 : 1);
 
-  const shouldAutoArchive =
-    current.manualPoolOverride === false
-      ? false
-      : current.inAlreadyAnsweredPool ||
-        nextAnswered >= settings.autoArchiveThreshold;
-
   const evalResult = evaluateQuestionDifficulty(
     current.difficultyOverride ?? question.difficulty,
     nextAnswered,
@@ -309,7 +370,8 @@ export function recordQuestionAnswerOutcome(
     timesCorrect: nextCorrect,
     timesWrong: nextWrong,
     suggestedDifficulty: evalResult.suggestedDifficulty,
-    inAlreadyAnsweredPool: shouldAutoArchive,
+    inAlreadyAnsweredPool: true,
+    manualPoolOverride: undefined,
     lastAnsweredAt: nowIso,
     updatedAt: nowIso,
   };
@@ -319,12 +381,8 @@ export function recordQuestionAnswerOutcome(
 
   saveQuestionAnalytics(map);
 
-  // Synchronisation non-bloquante avec Supabase
-  recordQuestionOutcomeSupabase(
-    question.id,
-    isCorrect,
-    settings.autoArchiveThreshold
-  );
+  // Synchronisation non-bloquante avec Supabase (seuil forcé à 1 pour marquer is_already_answered = true dès la 1re fois)
+  recordQuestionOutcomeSupabase(question.id, isCorrect, 1);
 
   return map;
 }
@@ -369,9 +427,9 @@ export function updateQuestionAdminEntry(
 
   const manualPoolOverride =
     updates.inAlreadyAnsweredPool !== undefined
-      ? true
+      ? updates.inAlreadyAnsweredPool
       : updates.resetStats
-      ? undefined
+      ? false
       : current.manualPoolOverride;
 
   const evalResult = evaluateQuestionDifficulty(
@@ -414,10 +472,9 @@ export function updateQuestionAdminEntry(
 }
 
 /**
- * Trie et pondère une liste de questions pour que :
- * 1. Les questions fraîches (non présentes dans la base "Déjà répondu" et non jouées dans la session) passent en priorité.
- * 2. Les questions dans la base "Déjà répondu" (répondues plusieurs fois) aient une probabilité beaucoup plus faible
- *    d'être proposées (poussées en fin de file ou tirées avec un poids réduit de 15%).
+ * Trie une liste de questions pour que :
+ * 1. Les questions jamais posées passent exclusivement en premier.
+ * 2. Les questions déjà posées ne soient placées qu'en toute fin de file (uniquement en cas d'épuisement total).
  */
 export function prioritizeQuestionsByAnalytics(
   questions: QuizQuestionRecord[],
@@ -428,37 +485,37 @@ export function prioritizeQuestionsByAnalytics(
   if (questions.length <= 1) return questions;
 
   const freshUnplayed: QuizQuestionRecord[] = [];
-  const alreadyAnsweredMulti: QuizQuestionRecord[] = [];
+  const alreadyAsked: QuizQuestionRecord[] = [];
   const playedThisSession: QuizQuestionRecord[] = [];
 
   for (const q of questions) {
-    const entry = getQuestionAnalytics(q, analyticsMap, threshold);
-    const inSession = playedIdsInSession.has(q.id);
+    const key = normalizeQuestionKey(q.question);
+    const inSession =
+      playedIdsInSession.has(q.id) || playedIdsInSession.has(key);
 
     if (inSession) {
       playedThisSession.push(q);
-    } else if (entry.inAlreadyAnsweredPool) {
-      alreadyAnsweredMulti.push(q);
+    } else if (
+      isQuestionAlreadyAsked(q, playedIdsInSession, analyticsMap, threshold)
+    ) {
+      alreadyAsked.push(q);
     } else {
       freshUnplayed.push(q);
     }
   }
 
-  // Au sein des questions déjà répondues plusieurs fois, celles ayant été jouées le moins souvent passent avant
-  alreadyAnsweredMulti.sort((a, b) => {
+  alreadyAsked.sort((a, b) => {
     const aCount = getQuestionAnalytics(a, analyticsMap, threshold).timesAnswered;
     const bCount = getQuestionAnalytics(b, analyticsMap, threshold).timesAnswered;
     return aCount - bCount;
   });
 
-  return [...freshUnplayed, ...alreadyAnsweredMulti, ...playedThisSession];
+  return [...freshUnplayed, ...alreadyAsked, ...playedThisSession];
 }
 
 /**
- * Sélection pondérée d'une question aléatoire (pour Versus / Millions) :
- * - Priorité aux questions fraîches non jouées
- * - Les questions dans la base "Déjà répondu" ont un poids très réduit (ex: 0.12 contre 1.0)
- *   pour être beaucoup moins proposées tout en restant disponibles si besoin.
+ * Sélection d'une question aléatoire (pour Versus / Millions) :
+ * - Exclut strictement toutes les questions déjà posées tant qu'il reste au moins une question inédite.
  */
 export function pickWeightedQuestion(
   candidates: QuizQuestionRecord[],
@@ -470,36 +527,24 @@ export function pickWeightedQuestion(
   const available = candidates.filter((q) => q.id !== excludeId);
   if (available.length === 0) return candidates[0] || null;
 
-  const unplayedSession = available.filter((q) => !playedIdsInSession.has(q.id));
-  const pool = unplayedSession.length > 0 ? unplayedSession : available;
+  // Filtrage strict : uniquement les questions qui n'ont JAMAIS été posées
+  const strictlyUnasked = available.filter(
+    (q) => !isQuestionAlreadyAsked(q, playedIdsInSession, analyticsMap, threshold)
+  );
 
-  // Calcul des poids :
-  // - Question jamais répondue (0 fois) : poids 1.0
-  // - Question répondue 1 fois : poids 0.65
-  // - Question dans la base "Déjà répondu" (répondue >= threshold fois ou marquée) : poids 0.12 / (1 + timesAnswered * 0.25)
-  const weights = pool.map((q) => {
-    const entry = getQuestionAnalytics(q, analyticsMap, threshold);
-    if (entry.inAlreadyAnsweredPool) {
-      return Math.max(0.03, 0.12 / (1 + entry.timesAnswered * 0.25));
-    }
-    if (entry.timesAnswered === 1) {
-      return 0.65;
-    }
-    return 1.0;
+  if (strictlyUnasked.length > 0) {
+    return strictlyUnasked[Math.floor(Math.random() * strictlyUnasked.length)];
+  }
+
+  // Secours uniquement si 100% des questions ont déjà été posées :
+  // exclure d'abord celles jouées dans la session courante
+  const notInCurrentSession = available.filter((q) => {
+    const key = normalizeQuestionKey(q.question);
+    return !playedIdsInSession.has(q.id) && !playedIdsInSession.has(key);
   });
 
-  const totalWeight = weights.reduce((acc, w) => acc + w, 0);
-  if (totalWeight <= 0) {
-    return pool[Math.floor(Math.random() * pool.length)];
-  }
+  const fallbackPool =
+    notInCurrentSession.length > 0 ? notInCurrentSession : available;
 
-  let r = Math.random() * totalWeight;
-  for (let i = 0; i < pool.length; i++) {
-    r -= weights[i];
-    if (r <= 0) {
-      return pool[i];
-    }
-  }
-
-  return pool[pool.length - 1];
+  return fallbackPool[Math.floor(Math.random() * fallbackPool.length)];
 }

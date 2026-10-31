@@ -18,7 +18,8 @@ export type GameMode =
   | 'coop'
   | 'versus'
   | 'millions'
-  | 'wikipedia';
+  | 'wikipedia'
+  | 'code_route';
 
 export interface PlayerScore {
   id: string;
@@ -154,11 +155,11 @@ export default function Scoreboard({
   const c1Percent = totalDuel === 0 ? 50 : Math.round((c1Score / totalDuel) * 100);
 
   return (
-    <section className="shrink-0 rounded-2xl border border-blue-500/35 bg-[#091942]/90 px-2 py-1.5 sm:px-3 sm:py-2 shadow-lg backdrop-blur-md">
-      {/* Toujours sur 1 seule ligne horizontale (2 colonnes en 2 Couples, 4 colonnes en 4 Solo) */}
+    <section className="shrink-0 rounded-2xl border border-blue-500/35 bg-[#091942]/90 px-2 py-1 sm:px-3 sm:py-2 shadow-lg backdrop-blur-md">
+      {/* En portrait mobile : 2 colonnes (2x1 en 2 Équipes, 2x2 ultra-compact en 4 Joueurs pour que les noms soient 100% lisibles) */}
       <div
-        className={`grid gap-1.5 sm:gap-2 ${
-          mode === '2_couples' ? 'grid-cols-2' : 'grid-cols-4'
+        className={`grid gap-1 sm:gap-2 ${
+          mode === '2_couples' ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'
         }`}
       >
         {teams.map((team, idx) => {
@@ -183,7 +184,7 @@ export default function Scoreboard({
           return (
             <div
               key={team.id}
-              className={`relative flex flex-col justify-between rounded-xl border px-2 py-1.5 sm:px-3 sm:py-2 transition-all ${
+              className={`relative flex flex-row sm:flex-col items-center sm:items-stretch justify-between gap-1 rounded-xl border px-2 py-1 sm:px-3 sm:py-2 transition-all ${
                 cardThemes[idx % cardThemes.length]
               } ${isLeader ? 'ring-1 ring-yellow-400' : ''}`}
             >
@@ -193,8 +194,8 @@ export default function Scoreboard({
                 </span>
               )}
 
-              {/* Ligne du haut de la carte : Pastille Numéro (J1..J4 / C1..C2) + Nom */}
-              <div className="min-w-0 w-full mb-1">
+              {/* Partie Gauche (ou Haut sur desktop) : Pastille Numéro (J1..J4 / E1..E2) + Nom */}
+              <div className="min-w-0 flex-1 sm:w-full sm:mb-1">
                 {editingId === team.id ? (
                   <form
                     onSubmit={(e) => {
@@ -224,7 +225,7 @@ export default function Scoreboard({
                   <button
                     type="button"
                     onClick={() => startEditing(team)}
-                    className="group flex items-center gap-1 text-left w-full"
+                    className="group flex items-center gap-1 text-left w-full min-w-0"
                     title="Cliquer pour renommer"
                   >
                     <span
@@ -247,10 +248,10 @@ export default function Scoreboard({
                 )}
               </div>
 
-              {/* Ligne du bas de la carte : Score + Boutons - / + */}
-              <div className="flex items-center justify-between gap-1">
+              {/* Partie Droite (ou Bas sur desktop) : Score + Boutons - / + */}
+              <div className="flex items-center justify-end sm:justify-between gap-1.5 sm:gap-1 shrink-0">
                 <div className="flex items-baseline gap-0.5">
-                  <span className="text-base sm:text-xl font-black leading-none text-yellow-300">
+                  <span className="text-sm sm:text-xl font-black leading-none text-yellow-300">
                     {team.score}
                   </span>
                   <span className="text-[9px] font-bold uppercase text-blue-200/70 hidden sm:inline">
@@ -263,7 +264,7 @@ export default function Scoreboard({
                     type="button"
                     onClick={() => onUpdateScore(team.id, -1)}
                     disabled={team.score <= 0}
-                    className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-md border border-blue-400/30 bg-blue-950/90 text-blue-200 hover:bg-blue-900 disabled:opacity-30 transition"
+                    className="flex h-5 w-5 sm:h-7 sm:w-7 items-center justify-center rounded-md border border-blue-400/30 bg-blue-950/90 text-blue-200 hover:bg-blue-900 disabled:opacity-30 transition"
                     aria-label={`Retirer 1 point à ${team.name}`}
                   >
                     <Minus className="h-3 w-3" />
@@ -271,10 +272,10 @@ export default function Scoreboard({
                   <button
                     type="button"
                     onClick={() => onUpdateScore(team.id, 1)}
-                    className="flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-md bg-gradient-to-br from-yellow-300 to-amber-500 text-blue-950 font-black shadow active:scale-90 transition"
+                    className="flex h-5 w-5 sm:h-7 sm:w-7 items-center justify-center rounded-md bg-gradient-to-br from-yellow-300 to-amber-500 text-blue-950 font-black shadow active:scale-90 transition"
                     aria-label={`Ajouter 1 point à ${team.name}`}
                   >
-                    <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+                    <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5 stroke-[2.5]" />
                   </button>
                 </div>
               </div>

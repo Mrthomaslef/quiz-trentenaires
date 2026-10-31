@@ -55,13 +55,27 @@ export default function PullToRefresh() {
       pullRef.current = 0;
     };
 
+    const isInsideNoPull = (target: EventTarget | null) =>
+      Boolean((target as HTMLElement | null)?.closest?.('[data-no-pull-refresh]'));
+
     const handleTouchStart = (e: TouchEvent) => {
+      if (isInsideNoPull(e.target)) return;
       if (e.touches.length === 1) onStart(e.touches[0].clientY);
     };
     const handleTouchMove = (e: TouchEvent) => {
+      if (isInsideNoPull(e.target) || e.touches.length > 1) {
+        if (pullingRef.current) {
+          pullingRef.current = false;
+          setDragging(false);
+          setPull(0);
+          pullRef.current = 0;
+        }
+        return;
+      }
       if (e.touches.length === 1) onMove(e.touches[0].clientY, e);
     };
     const handleMouseDown = (e: MouseEvent) => {
+      if (isInsideNoPull(e.target)) return;
       const tag = (e.target as HTMLElement | null)?.tagName || "";
       if (e.button === 0 && !["INPUT", "BUTTON", "A", "SELECT", "TEXTAREA"].includes(tag)) {
         onStart(e.clientY);

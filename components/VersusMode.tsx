@@ -48,13 +48,15 @@ import {
 
 import {
   pickWeightedQuestion,
+  isQuestionAlreadyAsked,
+  normalizeQuestionKey,
   type QuestionAnalyticsMap,
 } from '@/lib/question-analytics';
 
 interface VersusModeProps {
   poolByLevel: Record<number, QuizQuestionRecord[]>;
   playedIds: string[];
-  onMarkQuestionPlayed: (questionId: string) => void;
+  onMarkQuestionPlayed: (questionId: string, question?: QuizQuestionRecord) => void;
   onRecordOutcome?: (question: QuizQuestionRecord, isCorrect: boolean) => void;
   analyticsMap?: QuestionAnalyticsMap;
   soundEnabled: boolean;
@@ -254,17 +256,88 @@ export default function VersusMode({
     []
   );
 
-  // Sélection d'une question non jouée dans le niveau choisi (pondérée pour moins proposer la base "Déjà répondu")
+  const usedInVersusRef = useRef<Set<string>>(new Set());
+
+  // Sélection d'une question non jouée dans le niveau choisi (exclut strictement les questions déjà posées)
   const pickQuestionForLevel = useCallback(
     (level: number, theme: string): QuizQuestionRecord | null => {
+      const playedSet = new Set([
+        ...playedIds,
+        ...Array.from(usedInVersusRef.current),
+      ]);
       const allInLevel = poolByLevel[level] || [];
       const themeFiltered =
         theme === 'ALL'
           ? allInLevel
           : allInLevel.filter((q) => q.theme === theme);
+
+      // 1. Chercher une question inédite dans le niveau + thème choisi
+      const unaskedInTheme = themeFiltered.filter(
+        (q) => !isQuestionAlreadyAsked(q, playedSet, analyticsMap)
+      );
+      if (unaskedInTheme.length > 0) {
+        const picked = pickWeightedQuestion(
+          unaskedInTheme,
+          playedSet,
+          analyticsMap
+        );
+        if (picked) {
+          usedInVersusRef.current.add(picked.id);
+          usedInVersusRef.current.add(normalizeQuestionKey(picked.question));
+        }
+        return picked;
+      }
+
+      // 2. Si le thème choisi n'a plus de questions inédites dans ce niveau, prendre n'importe quel thème de ce niveau
+      const unaskedInLevel = allInLevel.filter(
+        (q) => !isQuestionAlreadyAsked(q, playedSet, analyticsMap)
+      );
+      if (unaskedInLevel.length > 0) {
+        const picked = pickWeightedQuestion(
+          unaskedInLevel,
+          playedSet,
+          analyticsMap
+        );
+        if (picked) {
+          usedInVersusRef.current.add(picked.id);
+          usedInVersusRef.current.add(normalizeQuestionKey(picked.question));
+        }
+        return picked;
+      }
+
+      // 3. Si toutes les questions de ce niveau ont déjà été posées, chercher dans les niveaux voisins
+      for (let delta = 1; delta <= 9; delta++) {
+        for (const candidateLvl of [level + delta, level - delta]) {
+          if (candidateLvl >= 1 && candidateLvl <= 10) {
+            const adjList = poolByLevel[candidateLvl] || [];
+            const unaskedAdj = adjList.filter(
+              (q) => !isQuestionAlreadyAsked(q, playedSet, analyticsMap)
+            );
+            if (unaskedAdj.length > 0) {
+              const picked = pickWeightedQuestion(
+                unaskedAdj,
+                playedSet,
+                analyticsMap
+              );
+              if (picked) {
+                usedInVersusRef.current.add(picked.id);
+                usedInVersusRef.current.add(
+                  normalizeQuestionKey(picked.question)
+                );
+              }
+              return picked;
+            }
+          }
+        }
+      }
+
       const list = themeFiltered.length > 0 ? themeFiltered : allInLevel;
-      const playedSet = new Set(playedIds);
-      return pickWeightedQuestion(list, playedSet, analyticsMap);
+      const fallback = pickWeightedQuestion(list, playedSet, analyticsMap);
+      if (fallback) {
+        usedInVersusRef.current.add(fallback.id);
+        usedInVersusRef.current.add(normalizeQuestionKey(fallback.question));
+      }
+      return fallback;
     },
     [poolByLevel, playedIds, analyticsMap]
   );
@@ -810,7 +883,7 @@ export default function VersusMode({
     );
     if (!nextQ) return;
 
-    onMarkQuestionPlayed(nextQ.id);
+    onMarkQuestionPlayed(nextQ.id, nextQ);
 
     commitHostRoomState((prev) => {
       if (!prev) return prev;

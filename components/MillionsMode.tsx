@@ -23,22 +23,27 @@ import {
   playCorrectSound,
   playWrongSound,
   playSuspenseSound,
+  playFinalAnswerJingle,
+  playFinalAnswerSuspenseSound,
   playJokerSound,
   playPointSound,
   startMillionsZoukMusic,
   stopMillionsZoukMusic,
   setMillionsZoukStep,
+  setMillionsSuspenseLocked,
 } from '@/lib/sound';
 
 import {
   pickWeightedQuestion,
+  isQuestionAlreadyAsked,
+  normalizeQuestionKey,
   type QuestionAnalyticsMap,
 } from '@/lib/question-analytics';
 
 interface MillionsModeProps {
   poolByLevel: Record<number, QuizQuestionRecord[]>;
   playedIds: string[];
-  onMarkQuestionPlayed: (questionId: string) => void;
+  onMarkQuestionPlayed: (questionId: string, question?: QuizQuestionRecord) => void;
   onRecordOutcome?: (question: QuizQuestionRecord, isCorrect: boolean) => void;
   analyticsMap?: QuestionAnalyticsMap;
   soundEnabled: boolean;
@@ -136,6 +141,13 @@ export default function MillionsMode({
     useState<QuizQuestionRecord | null>(null);
   const [pendingOption, setPendingOption] = useState<number | null>(null); // "Dernier mot ?" (orange)
   const [lockedOption, setLockedOption] = useState<number | null>(null); // Validé
+  const [isSuspenseLock, setIsSuspenseLock] = useState<boolean>(false); // Suspense avant révélation
+  const [suspenseStage, setSuspenseStage] = useState<0 | 1 | 2>(0);
+  const [suspenseDurationMs, setSuspenseDurationMs] = useState<number>(2200);
+  const suspenseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suspenseStageTimersRef = useRef<Array<ReturnType<typeof setTimeout>>>(
+    []
+  );
   const [runStatus, setRunStatus] = useState<
     'playing' | 'step_won' | 'failed' | 'walked_away' | 'millionaire'
   >('playing');
@@ -166,9 +178,23 @@ export default function MillionsMode({
     gamesPlayed: 1,
   });
 
-  // Lancement / arrêt automatique de la musique Zouk "Qui veut gagner des millions"
+  const clearAllSuspenseTimers = useCallback(() => {
+    if (suspenseTimerRef.current) {
+      clearTimeout(suspenseTimerRef.current);
+      suspenseTimerRef.current = null;
+    }
+    suspenseStageTimersRef.current.forEach((id) => clearTimeout(id));
+    suspenseStageTimersRef.current = [];
+  }, []);
+
+  // Lancement / arrêt automatique de la musique "Qui veut gagner des millions"
   useEffect(() => {
-    if (soundEnabled && zoukMusicEnabled && runStatus === 'playing') {
+    if (
+      soundEnabled &&
+      zoukMusicEnabled &&
+      runStatus === 'playing' &&
+      !isSuspenseLock
+    ) {
       startMillionsZoukMusic(true, currentStep);
     } else {
       stopMillionsZoukMusic();
@@ -176,7 +202,13 @@ export default function MillionsMode({
     return () => {
       stopMillionsZoukMusic();
     };
-  }, [soundEnabled, zoukMusicEnabled, runStatus]);
+  }, [soundEnabled, zoukMusicEnabled, runStatus, isSuspenseLock, currentStep]);
+
+  useEffect(() => {
+    return () => {
+      clearAllSuspenseTimers();
+    };
+  }, [clearAllSuspenseTimers]);
 
   const handleToggleZoukButton = () => {
     if (onToggleZoukMusic) {
@@ -195,6 +227,10 @@ export default function MillionsMode({
   useEffect(() => {
     setMillionsZoukStep(currentStep);
   }, [currentStep]);
+
+  useEffect(() => {
+    setMillionsSuspenseLocked(pendingOption !== null);
+  }, [pendingOption]);
 
   const ladderScrollRef = useRef<HTMLDivElement | null>(null);
   const desktopLadderScrollRef = useRef<HTMLDivElement | null>(null);
@@ -341,16 +377,79 @@ export default function MillionsMode({
     }
   }, []);
 
-  // Tirage d'une question correspondant au niveau du palier (pondéré pour moins proposer la base "Déjà répondu")
+  const usedInMillionsRef = useRef<Set<string>>(new Set());
+
+  const registerUsedQuestion = useCallback((q?: QuizQuestionRecord | null) => {
+    if (!q) return;
+    usedInMillionsRef.current.add(q.id);
+    usedInMillionsRef.current.add(normalizeQuestionKey(q.question));
+  }, []);
+
+  // Tirage d'une question correspondant au niveau du palier (exclut strictement les questions déjà posées)
   const pickQuestionForStep = useCallback(
     (stepNumber: number, excludeId?: string): QuizQuestionRecord | null => {
       const stepInfo =
         MILLION_LADDER.find((s) => s.step === stepNumber) || MILLION_LADDER[0];
-      const list = poolByLevel[stepInfo.level] || [];
-      const playedSet = new Set(playedIds);
-      return pickWeightedQuestion(list, playedSet, analyticsMap, excludeId);
+      const playedSet = new Set([...playedIds, ...Array.from(usedInMillionsRef.current)]);
+      if (excludeId) {
+        playedSet.add(excludeId);
+      }
+
+      const targetLevelList = poolByLevel[stepInfo.level] || [];
+      const hasUnaskedInTarget = targetLevelList.some(
+        (q) =>
+          q.id !== excludeId &&
+          !isQuestionAlreadyAsked(q, playedSet, analyticsMap)
+      );
+
+      if (hasUnaskedInTarget) {
+        const picked = pickWeightedQuestion(
+          targetLevelList,
+          playedSet,
+          analyticsMap,
+          excludeId
+        );
+        registerUsedQuestion(picked);
+        return picked;
+      }
+
+      // Si toutes les questions de ce niveau ont déjà été posées, chercher dans les niveaux voisins
+      for (let delta = 1; delta <= 9; delta++) {
+        for (const candidateLvl of [
+          stepInfo.level + delta,
+          stepInfo.level - delta,
+        ]) {
+          if (candidateLvl >= 1 && candidateLvl <= 10) {
+            const adjList = poolByLevel[candidateLvl] || [];
+            const hasUnaskedAdj = adjList.some(
+              (q) =>
+                q.id !== excludeId &&
+                !isQuestionAlreadyAsked(q, playedSet, analyticsMap)
+            );
+            if (hasUnaskedAdj) {
+              const picked = pickWeightedQuestion(
+                adjList,
+                playedSet,
+                analyticsMap,
+                excludeId
+              );
+              registerUsedQuestion(picked);
+              return picked;
+            }
+          }
+        }
+      }
+
+      const fallback = pickWeightedQuestion(
+        targetLevelList,
+        playedSet,
+        analyticsMap,
+        excludeId
+      );
+      registerUsedQuestion(fallback);
+      return fallback;
     },
-    [poolByLevel, playedIds, analyticsMap]
+    [poolByLevel, playedIds, analyticsMap, registerUsedQuestion]
   );
 
   // Initialisation de la première question uniquement après hydratation si aucune question n'était sauvegardée
@@ -360,8 +459,10 @@ export default function MillionsMode({
       if (q) {
         setCurrentQuestion(q);
       }
+    } else if (hydratedRun && currentQuestion) {
+      registerUsedQuestion(currentQuestion);
     }
-  }, [hydratedRun, currentQuestion, pickQuestionForStep]);
+  }, [hydratedRun, currentQuestion, pickQuestionForStep, registerUsedQuestion]);
 
   const currentStepInfo = useMemo(
     () =>
@@ -394,7 +495,8 @@ export default function MillionsMode({
       !jokers.fiftyFifty ||
       !currentQuestion ||
       runStatus !== 'playing' ||
-      lockedOption !== null
+      lockedOption !== null ||
+      isSuspenseLock
     ) {
       return;
     }
@@ -419,7 +521,8 @@ export default function MillionsMode({
       !jokers.audience ||
       !currentQuestion ||
       runStatus !== 'playing' ||
-      lockedOption !== null
+      lockedOption !== null ||
+      isSuspenseLock
     ) {
       return;
     }
@@ -466,7 +569,8 @@ export default function MillionsMode({
       !jokers.phoneFriend ||
       !currentQuestion ||
       runStatus !== 'playing' ||
-      lockedOption !== null
+      lockedOption !== null ||
+      isSuspenseLock
     ) {
       return;
     }
@@ -500,15 +604,19 @@ export default function MillionsMode({
       !jokers.switchQuestion ||
       !currentQuestion ||
       runStatus !== 'playing' ||
-      lockedOption !== null
+      lockedOption !== null ||
+      isSuspenseLock
     ) {
       return;
     }
     playJokerSound(soundEnabled);
 
-    const replacement = pickQuestionForStep(currentStep, currentQuestion.id);
+    const oldQuestion = currentQuestion;
+    registerUsedQuestion(oldQuestion);
+    onMarkQuestionPlayed(oldQuestion.id, oldQuestion);
+
+    const replacement = pickQuestionForStep(currentStep, oldQuestion.id);
     if (replacement) {
-      onMarkQuestionPlayed(replacement.id);
       setCurrentQuestion(replacement);
       setPendingOption(null);
       setHiddenOptions([]);
@@ -525,63 +633,107 @@ export default function MillionsMode({
     if (
       runStatus !== 'playing' ||
       lockedOption !== null ||
+      isSuspenseLock ||
       hiddenOptions.includes(idx)
     ) {
       return;
     }
     setPendingOption(idx);
-    playSuspenseSound(soundEnabled);
+    playSuspenseSound(soundEnabled, currentStep);
   };
 
   const handleConfirmFinalAnswer = () => {
     if (
       pendingOption === null ||
       !currentQuestion ||
-      runStatus !== 'playing'
+      runStatus !== 'playing' ||
+      isSuspenseLock
     ) {
       return;
     }
 
-    setLockedOption(pendingOption);
-    onMarkQuestionPlayed(currentQuestion.id);
+    const chosenOption = pendingOption;
+    const questionSnapshot = currentQuestion;
+    const stepSnapshot = currentStep;
+    const wonAmount = currentStepInfo.amount;
+    const safeHavenSnapshot = guaranteedSafeHavenAmount;
 
-    const isCorrect = pendingOption === currentQuestion.correct_index;
-    if (onRecordOutcome) {
-      onRecordOutcome(currentQuestion, isCorrect);
-    }
-    if (isCorrect) {
-      playCorrectSound(soundEnabled);
-      const wonAmount = currentStepInfo.amount;
-      if (currentStep >= 15) {
-        setRunStatus('millionaire');
-        saveStats({
-          bestAmount: Math.max(stats.bestAmount, 1000000),
-          millionWins: stats.millionWins + 1,
-          gamesPlayed: stats.gamesPlayed,
-        });
+    registerUsedQuestion(questionSnapshot);
+    onMarkQuestionPlayed(questionSnapshot.id, questionSnapshot);
+
+    const suspenseDelayMs = !soundEnabled
+      ? 1100
+      : stepSnapshot <= 5
+      ? 2100
+      : stepSnapshot <= 10
+      ? 2500
+      : 3000;
+
+    clearAllSuspenseTimers();
+    setIsSuspenseLock(true);
+    setSuspenseStage(0);
+    setSuspenseDurationMs(suspenseDelayMs);
+    stopMillionsZoukMusic();
+    playFinalAnswerJingle(soundEnabled, stepSnapshot);
+    playFinalAnswerSuspenseSound(soundEnabled, suspenseDelayMs, stepSnapshot);
+
+    const stage1Id = setTimeout(() => {
+      setSuspenseStage(1);
+    }, Math.round(suspenseDelayMs * 0.36));
+
+    const stage2Id = setTimeout(() => {
+      setSuspenseStage(2);
+    }, Math.round(suspenseDelayMs * 0.72));
+
+    suspenseStageTimersRef.current = [stage1Id, stage2Id];
+
+    suspenseTimerRef.current = setTimeout(() => {
+      suspenseTimerRef.current = null;
+      suspenseStageTimersRef.current = [];
+      setIsSuspenseLock(false);
+      setLockedOption(chosenOption);
+
+      const isCorrect = chosenOption === questionSnapshot.correct_index;
+      if (onRecordOutcome) {
+        onRecordOutcome(questionSnapshot, isCorrect);
+      }
+      if (isCorrect) {
+        playCorrectSound(soundEnabled);
+        if (stepSnapshot >= 15) {
+          setRunStatus('millionaire');
+          saveStats({
+            bestAmount: Math.max(stats.bestAmount, 1000000),
+            millionWins: stats.millionWins + 1,
+            gamesPlayed: stats.gamesPlayed,
+          });
+        } else {
+          setRunStatus('step_won');
+          if (wonAmount > stats.bestAmount) {
+            saveStats({
+              ...stats,
+              bestAmount: wonAmount,
+            });
+          }
+        }
       } else {
-        setRunStatus('step_won');
-        if (wonAmount > stats.bestAmount) {
+        playWrongSound(soundEnabled);
+        setRunStatus('failed');
+        if (safeHavenSnapshot > stats.bestAmount) {
           saveStats({
             ...stats,
-            bestAmount: wonAmount,
+            bestAmount: safeHavenSnapshot,
           });
         }
       }
-    } else {
-      playWrongSound(soundEnabled);
-      setRunStatus('failed');
-      if (guaranteedSafeHavenAmount > stats.bestAmount) {
-        saveStats({
-          ...stats,
-          bestAmount: guaranteedSafeHavenAmount,
-        });
-      }
-    }
+    }, suspenseDelayMs);
   };
 
   const handleWalkAway = () => {
-    if (runStatus !== 'playing' || currentStep <= 1) return;
+    if (runStatus !== 'playing' || currentStep <= 1 || isSuspenseLock) return;
+    if (currentQuestion) {
+      registerUsedQuestion(currentQuestion);
+      onMarkQuestionPlayed(currentQuestion.id, currentQuestion);
+    }
     playPointSound(soundEnabled);
     setRunStatus('walked_away');
     if (currentWalkAwayAmount > stats.bestAmount) {
@@ -593,6 +745,12 @@ export default function MillionsMode({
   };
 
   const handleAdvanceToNextStep = () => {
+    clearAllSuspenseTimers();
+    setIsSuspenseLock(false);
+    if (currentQuestion) {
+      registerUsedQuestion(currentQuestion);
+      onMarkQuestionPlayed(currentQuestion.id, currentQuestion);
+    }
     const nextStep = Math.min(15, currentStep + 1);
     const nextQ = pickQuestionForStep(nextStep, currentQuestion?.id);
     setCurrentStep(nextStep);
@@ -606,7 +764,13 @@ export default function MillionsMode({
   };
 
   const handleStartNewMillionGame = () => {
-    const firstQ = pickQuestionForStep(1);
+    clearAllSuspenseTimers();
+    setIsSuspenseLock(false);
+    if (currentQuestion) {
+      registerUsedQuestion(currentQuestion);
+      onMarkQuestionPlayed(currentQuestion.id, currentQuestion);
+    }
+    const firstQ = pickQuestionForStep(1, currentQuestion?.id);
     setCurrentStep(1);
     setCurrentQuestion(firstQ);
     setPendingOption(null);
@@ -650,16 +814,25 @@ export default function MillionsMode({
          ==================================================================== */}
       <div className="flex-1 min-h-0 flex flex-col justify-between gap-2 overflow-hidden">
         {/* 1. BARRE SUPÉRIEURE : LES 4 JOKERS + INFOS GAIN EN JEU */}
-        <section className="shrink-0 rounded-2xl border-2 border-yellow-400/50 bg-gradient-to-r from-[#091b46]/95 via-[#071436]/95 to-[#091b46]/95 px-3 py-2 shadow-xl space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+        <section className="shrink-0 rounded-2xl border-2 border-yellow-400/50 bg-gradient-to-r from-[#091b46]/95 via-[#071436]/95 to-[#091b46]/95 px-2.5 sm:px-3 py-1.5 sm:py-2 shadow-xl space-y-1.5 sm:space-y-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2">
             {/* Gain de la question actuelle + Toggle Musique Zouk */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 px-2.5 py-1 text-xs sm:text-sm font-black uppercase text-blue-950 shadow">
-                <Banknote className="h-4 w-4" />
-                <span>
-                  Palier {currentStep}/15 · {currentStepInfo.label}
+            <div className="flex items-center justify-between sm:justify-start gap-1.5 flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 px-2 sm:px-2.5 py-0.5 sm:py-1 text-xs sm:text-sm font-black uppercase text-blue-950 shadow">
+                  <Banknote className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span>
+                    Palier {currentStep}/15 · {currentStepInfo.label}
+                  </span>
                 </span>
-              </span>
+
+                <span className="inline-flex items-center gap-1 rounded-lg border border-blue-400/35 bg-blue-950/80 px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-[11px] font-bold text-blue-200">
+                  <ShieldCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-yellow-400" />
+                  <span>
+                    Garanti : {formatEuros(guaranteedSafeHavenAmount)}
+                  </span>
+                </span>
+              </div>
 
               <button
                 type="button"
@@ -674,29 +847,22 @@ export default function MillionsMode({
                 <Music className="h-3 w-3" />
                 <span>TV {zoukMusicEnabled && soundEnabled ? 'ON' : 'OFF'}</span>
               </button>
-
-              <span className="hidden md:inline-flex items-center gap-1 rounded-lg border border-blue-400/35 bg-blue-950/80 px-2 py-1 text-[11px] font-bold text-blue-200">
-                <ShieldCheck className="h-3.5 w-3.5 text-yellow-400" />
-                <span>
-                  Garanti : {formatEuros(guaranteedSafeHavenAmount)}
-                </span>
-              </span>
             </div>
 
-            {/* LES 4 BOUTONS JOKERS */}
-            <div className="flex items-center gap-1.5">
+            {/* LES 4 BOUTONS JOKERS (grille 4 colonnes sur mobile portrait) */}
+            <div className="grid grid-cols-4 sm:flex items-center gap-1 sm:gap-1.5">
               <button
                 type="button"
                 onClick={handleUseFiftyFifty}
                 disabled={!jokers.fiftyFifty || runStatus !== 'playing'}
-                className={`inline-flex items-center gap-1 rounded-full border-2 px-2.5 py-1 text-[11px] sm:text-xs font-black transition ${
+                className={`inline-flex items-center justify-center gap-1 rounded-full border-2 px-2 sm:px-2.5 py-1 text-[10px] sm:text-xs font-black transition ${
                   jokers.fiftyFifty
                     ? 'border-yellow-400 bg-gradient-to-b from-blue-800 to-blue-950 text-yellow-300 hover:bg-yellow-400 hover:text-blue-950 shadow cursor-pointer active:scale-95'
                     : 'border-blue-900/40 bg-blue-950/40 text-blue-400/30 line-through cursor-not-allowed'
                 }`}
                 title="Joker 50:50 — Élimine 2 mauvaises réponses"
               >
-                <Scissors className="h-3.5 w-3.5" />
+                <Scissors className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
                 <span>50:50</span>
               </button>
 
@@ -704,14 +870,14 @@ export default function MillionsMode({
                 type="button"
                 onClick={handleUseAudience}
                 disabled={!jokers.audience || runStatus !== 'playing'}
-                className={`inline-flex items-center gap-1 rounded-full border-2 px-2.5 py-1 text-[11px] sm:text-xs font-black transition ${
+                className={`inline-flex items-center justify-center gap-1 rounded-full border-2 px-2 sm:px-2.5 py-1 text-[10px] sm:text-xs font-black transition ${
                   jokers.audience
                     ? 'border-yellow-400 bg-gradient-to-b from-blue-800 to-blue-950 text-yellow-300 hover:bg-yellow-400 hover:text-blue-950 shadow cursor-pointer active:scale-95'
                     : 'border-blue-900/40 bg-blue-950/40 text-blue-400/30 line-through cursor-not-allowed'
                 }`}
                 title="Joker Avis du Public — Sondage en pourcentages"
               >
-                <Users className="h-3.5 w-3.5" />
+                <Users className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
                 <span>Public</span>
               </button>
 
@@ -719,14 +885,14 @@ export default function MillionsMode({
                 type="button"
                 onClick={handleUsePhoneFriend}
                 disabled={!jokers.phoneFriend || runStatus !== 'playing'}
-                className={`inline-flex items-center gap-1 rounded-full border-2 px-2.5 py-1 text-[11px] sm:text-xs font-black transition ${
+                className={`inline-flex items-center justify-center gap-1 rounded-full border-2 px-2 sm:px-2.5 py-1 text-[10px] sm:text-xs font-black transition ${
                   jokers.phoneFriend
                     ? 'border-yellow-400 bg-gradient-to-b from-blue-800 to-blue-950 text-yellow-300 hover:bg-yellow-400 hover:text-blue-950 shadow cursor-pointer active:scale-95'
                     : 'border-blue-900/40 bg-blue-950/40 text-blue-400/30 line-through cursor-not-allowed'
                 }`}
                 title="Joker Appel à un Ami — Conseil d’un ami du 7TER"
               >
-                <PhoneCall className="h-3.5 w-3.5" />
+                <PhoneCall className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
                 <span>Ami</span>
               </button>
 
@@ -734,15 +900,15 @@ export default function MillionsMode({
                 type="button"
                 onClick={handleUseSwitchQuestion}
                 disabled={!jokers.switchQuestion || runStatus !== 'playing'}
-                className={`inline-flex items-center gap-1 rounded-full border-2 px-2.5 py-1 text-[11px] sm:text-xs font-black transition ${
+                className={`inline-flex items-center justify-center gap-1 rounded-full border-2 px-2 sm:px-2.5 py-1 text-[10px] sm:text-xs font-black transition ${
                   jokers.switchQuestion
                     ? 'border-yellow-400 bg-gradient-to-b from-blue-800 to-blue-950 text-yellow-300 hover:bg-yellow-400 hover:text-blue-950 shadow cursor-pointer active:scale-95'
                     : 'border-blue-900/40 bg-blue-950/40 text-blue-400/30 line-through cursor-not-allowed'
                 }`}
                 title="Joker Switch — Changer de question"
               >
-                <RefreshCw className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Switch</span>
+                <RefreshCw className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
+                <span>Switch</span>
               </button>
             </div>
           </div>
@@ -751,7 +917,7 @@ export default function MillionsMode({
           <div className="grid grid-cols-15 gap-0.5 lg:hidden">
             <div
               ref={ladderScrollRef}
-              className="col-span-full relative flex items-center gap-1 overflow-x-auto pb-0.5 scroll-smooth"
+              className="col-span-full relative flex items-center gap-1 overflow-x-auto no-scrollbar pb-0.5 scroll-smooth"
             >
               <div
                 aria-hidden="true"
@@ -789,267 +955,387 @@ export default function MillionsMode({
         </section>
 
         {/* 2. CARTE QUESTION STYLE PLATEAU TV "QUI VEUT GAGNER DES MILLIONS" */}
-        <section className="relative flex-1 min-h-0 flex flex-col justify-between gap-2 overflow-hidden rounded-2xl border-2 border-blue-500/50 bg-gradient-to-b from-[#0b1d48]/95 via-[#071334]/95 to-[#040a1d]/95 p-3 sm:p-4 shadow-2xl">
+        <section
+          className={`relative flex-1 min-h-0 flex flex-col justify-between gap-1.5 sm:gap-2 overflow-hidden rounded-2xl border-2 bg-gradient-to-b from-[#0b1d48]/95 via-[#071334]/95 to-[#040a1d]/95 p-2.5 sm:p-4 shadow-2xl transition-all duration-500 ${
+            isSuspenseLock
+              ? 'border-amber-400/90 shadow-[0_0_45px_rgba(245,158,11,0.3)]'
+              : 'border-blue-500/50'
+          }`}
+        >
+          {/* Faisceaux projecteurs TV croisés pendant le suspense du dernier mot */}
+          {isSuspenseLock && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 overflow-hidden z-0"
+            >
+              <div className="animate-millions-spotlight absolute -top-1/2 left-1/4 h-[200%] w-36 bg-gradient-to-r from-transparent via-amber-400/18 to-transparent blur-xl" />
+              <div
+                className="animate-millions-spotlight absolute -top-1/2 right-1/4 h-[200%] w-36 bg-gradient-to-r from-transparent via-sky-400/18 to-transparent blur-xl"
+                style={{ animationDelay: '-0.9s' }}
+              />
+            </div>
+          )}
+
           {/* Énoncé */}
-          <div className="shrink-0 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="inline-flex items-center gap-1 rounded-full bg-yellow-400 text-blue-950 px-2.5 py-0.5 text-[11px] font-black uppercase">
-                <Tag className="h-3 w-3 fill-blue-950" />
-                {currentQuestion.theme} · Niv. {currentQuestion.difficulty}/10
+          <div className="relative z-10 shrink-0 space-y-1.5 sm:space-y-2">
+            <div className="flex items-center justify-between text-xs gap-1.5">
+              <span className="inline-flex items-center gap-1 rounded-full bg-yellow-400 text-blue-950 px-2 sm:px-2.5 py-0.5 text-[10px] sm:text-[11px] font-black uppercase truncate max-w-[200px] sm:max-w-none">
+                <Tag className="h-3 w-3 fill-blue-950 shrink-0" />
+                <span className="truncate">
+                  {currentQuestion.theme} · Niv. {currentQuestion.difficulty}/10
+                </span>
               </span>
 
-              <span className="text-[11px] font-bold text-yellow-300">
+              <span className="text-[10px] sm:text-[11px] font-bold text-yellow-300 shrink-0">
                 Record : {formatEuros(stats.bestAmount)}
                 {stats.millionWins > 0 ? ` (🏆 ${stats.millionWins}x)` : ''}
               </span>
             </div>
 
-            <div className="rounded-2xl border-2 border-yellow-400/45 bg-gradient-to-r from-[#040b1e] via-[#091c4e] to-[#040b1e] px-4 py-3 sm:px-5 sm:py-3.5 text-center shadow-inner">
-              <h3 className="text-base sm:text-lg lg:text-xl font-black text-white leading-snug">
+            <div
+              className={`rounded-2xl border-2 bg-gradient-to-r from-[#040b1e] via-[#091c4e] to-[#040b1e] px-3 py-2 sm:px-5 sm:py-3.5 text-center shadow-inner transition-colors duration-300 ${
+                isSuspenseLock ? 'border-amber-400/80' : 'border-yellow-400/45'
+              }`}
+            >
+              <h3 className="text-sm sm:text-lg lg:text-xl font-black text-white leading-snug">
                 {currentQuestion.question}
               </h3>
             </div>
           </div>
 
-          {/* Zone centrale : Fenêtres Jokers (Public / Ami) + Les 4 propositions A/B/C/D */}
-          <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
-            <div className="my-auto space-y-2.5 py-1">
-              {/* Résultat Joker Avis du Public */}
-              {audiencePoll && !isRevealed && (
-                <div className="rounded-xl border border-sky-400/50 bg-[#051235]/95 p-2.5 animate-fadeIn">
-                  <div className="text-[11px] font-black uppercase text-sky-300 mb-1.5 flex items-center gap-1.5">
-                    <Users className="h-3.5 w-3.5" />
-                    <span>Vote du Public en direct :</span>
-                  </div>
-                  <div className="grid grid-cols-4 gap-2">
-                    {audiencePoll.map((pct, idx) => (
-                      <div key={idx} className="space-y-1">
-                        <div className="flex items-center justify-between text-[11px] font-black">
-                          <span className="text-yellow-400">
-                            {OPTION_LETTERS[idx]}
-                          </span>
-                          <span className="text-white">{pct}%</span>
-                        </div>
-                        <div className="h-2 w-full rounded-full bg-blue-950 overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-sky-400 to-yellow-400 transition-all duration-500"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+          {/* Zone centrale : Les 4 propositions A/B/C/D fixes en haut + Retours Jokers / Suspense / Anecdote en dessous */}
+          <div className="relative z-10 flex-1 min-h-0 overflow-y-auto flex flex-col gap-2 sm:gap-2.5 py-0.5 sm:py-1">
+            {/* Grille 2x2 des 4 réponses style losanges TV (position fixe, ne bouge pas à la sélection ni à la validation) */}
+            <div className="shrink-0 grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2.5">
+              {currentQuestion.options.map((optText, idx) => {
+                const isHiddenBy5050 = hiddenOptions.includes(idx);
+                const isPending =
+                  pendingOption === idx && lockedOption === null;
+                const isLocked = lockedOption === idx;
+                const isCorrect = idx === currentQuestion.correct_index;
 
-              {/* Résultat Joker Appel à un Ami */}
-              {friendAdvice && !isRevealed && (
-                <div className="rounded-xl border border-amber-400/60 bg-amber-950/35 px-3 py-2 animate-fadeIn">
-                  <div className="flex items-center gap-1.5 text-[11px] font-black text-yellow-300">
-                    <PhoneCall className="h-3.5 w-3.5 text-amber-400" />
-                    <span>{friendAdvice.friendName} :</span>
-                  </div>
-                  <p className="text-xs text-amber-50 italic mt-0.5 leading-snug">
-                    {friendAdvice.message}
-                  </p>
-                </div>
-              )}
-
-              {/* Grille 2x2 des 4 réponses style losanges TV */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
-                {currentQuestion.options.map((optText, idx) => {
-                  const isHiddenBy5050 = hiddenOptions.includes(idx);
-                  const isPending =
-                    pendingOption === idx && lockedOption === null;
-                  const isLocked = lockedOption === idx;
-                  const isCorrect = idx === currentQuestion.correct_index;
-
-                  if (isHiddenBy5050) {
-                    return (
-                      <div
-                        key={idx}
-                        className="flex items-center gap-2.5 rounded-xl border border-blue-900/30 bg-[#040b1e]/30 px-4 py-3 opacity-25 select-none"
-                      >
-                        <span className="text-xs font-black text-blue-500">
-                          {OPTION_LETTERS[idx]} :
+                if (isHiddenBy5050) {
+                  return (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between gap-2 rounded-xl border-2 border-blue-900/30 bg-[#040b1e]/30 px-3 py-2 sm:px-4 sm:py-3 opacity-25 select-none"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-xs sm:text-base font-black shrink-0 text-blue-500">
+                          ◆ {OPTION_LETTERS[idx]} :
                         </span>
-                        <span className="text-xs text-blue-400">
+                        <span className="text-xs sm:text-base font-extrabold leading-snug break-words text-blue-400">
                           — Éliminé par le 50:50 —
                         </span>
                       </div>
-                    );
-                  }
+                      <span className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" aria-hidden="true" />
+                    </div>
+                  );
+                }
 
-                  let btnStyle =
-                    'border-blue-400/45 bg-gradient-to-r from-[#07173f] via-[#0b235c] to-[#07173f] hover:border-yellow-400 text-white';
-                  let letterColor = 'text-yellow-400';
+                let btnStyle =
+                  'border-blue-400/45 bg-gradient-to-r from-[#07173f] via-[#0b235c] to-[#07173f] hover:border-yellow-400 text-white';
+                let letterColor = 'text-yellow-400';
 
-                  if (isPending && !isRevealed) {
-                    // Orange "C'est votre dernier mot ?"
+                if (isPending && !isRevealed) {
+                  // Orange "C'est votre dernier mot ?" / Pulsation dramatique au verrouillage
+                  btnStyle = isSuspenseLock
+                    ? 'shimmer-btn overflow-hidden border-white bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400 text-slate-950 ring-2 ring-yellow-200 animate-millions-lock'
+                    : 'border-white bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 text-slate-950 ring-2 ring-amber-300 shadow-lg';
+                  letterColor = 'text-slate-950';
+                } else if (isSuspenseLock && !isRevealed) {
+                  btnStyle =
+                    'border-blue-950/40 bg-[#030817]/80 text-blue-300/35 opacity-40';
+                  letterColor = 'text-blue-400/40';
+                } else if (isRevealed) {
+                  if (isCorrect) {
                     btnStyle =
-                      'border-white bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 text-slate-950 ring-2 ring-amber-300 shadow-lg scale-[1.01]';
+                      'border-emerald-300 bg-gradient-to-r from-emerald-500 to-green-500 text-slate-950 ring-2 ring-emerald-300 animate-millions-reveal-win';
                     letterColor = 'text-slate-950';
-                  } else if (isRevealed) {
-                    if (isCorrect) {
-                      btnStyle =
-                        'border-emerald-300 bg-gradient-to-r from-emerald-500 to-green-500 text-slate-950 ring-2 ring-emerald-300 font-black';
-                      letterColor = 'text-slate-950';
-                    } else if (isLocked && !isCorrect) {
-                      btnStyle =
-                        'border-rose-300 bg-gradient-to-r from-rose-600 to-red-500 text-white ring-2 ring-rose-400';
-                      letterColor = 'text-yellow-200';
-                    } else {
-                      btnStyle =
-                        'border-blue-900/40 bg-[#040b1e]/50 text-blue-300/40 opacity-55';
-                    }
+                  } else if (isLocked && !isCorrect) {
+                    btnStyle =
+                      'border-rose-300 bg-gradient-to-r from-rose-600 to-red-500 text-white ring-2 ring-rose-400 animate-shake';
+                    letterColor = 'text-yellow-200';
+                  } else {
+                    btnStyle =
+                      'border-blue-900/40 bg-[#040b1e]/50 text-blue-300/40 opacity-55';
                   }
+                }
 
-                  return (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleClickOption(idx)}
-                      disabled={isRevealed}
-                      className={`group relative flex items-center justify-between gap-2.5 rounded-xl border-2 px-3.5 py-2.5 sm:px-4 sm:py-3 text-left transition-all ${btnStyle} ${
-                        !isRevealed ? 'cursor-pointer active:scale-95' : ''
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span
-                          className={`text-sm sm:text-base font-black shrink-0 ${letterColor}`}
-                        >
-                          ◆ {OPTION_LETTERS[idx]} :
-                        </span>
-                        <span className="text-sm sm:text-base font-extrabold leading-snug break-words">
-                          {optText}
-                        </span>
-                      </div>
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleClickOption(idx)}
+                    disabled={isRevealed || isSuspenseLock}
+                    className={`group relative flex items-center justify-between gap-2 rounded-xl border-2 px-3 py-2 sm:px-4 sm:py-3 text-left transition-colors ${btnStyle} ${
+                      !isRevealed && !isSuspenseLock
+                        ? 'cursor-pointer'
+                        : 'cursor-default'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className={`text-xs sm:text-base font-black shrink-0 ${letterColor}`}
+                      >
+                        ◆ {OPTION_LETTERS[idx]} :
+                      </span>
+                      <span className="text-[13px] sm:text-base font-extrabold leading-snug break-words">
+                        {optText}
+                      </span>
+                    </div>
 
+                    <span className="flex h-4 w-4 sm:h-5 sm:w-5 shrink-0 items-center justify-center">
+                      {isSuspenseLock && isPending && !isRevealed && (
+                        <span className="relative flex h-3 w-3">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-950 opacity-75" />
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-slate-950" />
+                        </span>
+                      )}
                       {isRevealed && isCorrect && (
-                        <CheckCircle2 className="h-5 w-5 shrink-0 text-slate-950" />
+                        <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-slate-950" />
                       )}
                       {isRevealed && isLocked && !isCorrect && (
-                        <XCircle className="h-5 w-5 shrink-0 text-white" />
+                        <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                       )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Bandeau "C'est votre dernier mot ?" quand une option est pré-sélectionnée en orange */}
-              {pendingOption !== null && !isRevealed && (
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-amber-400 bg-gradient-to-r from-amber-500/20 via-orange-500/25 to-amber-500/20 px-3.5 py-2 animate-fadeIn">
-                  <span className="text-xs sm:text-sm font-black text-amber-300">
-                    🎙️ Réponse {OPTION_LETTERS[pendingOption]} : « C’est votre
-                    dernier mot ? »
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleConfirmFinalAnswer}
-                    className="shimmer-btn relative overflow-hidden inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 px-4 py-1.5 text-xs sm:text-sm font-black uppercase text-slate-950 shadow-lg active:scale-95 transition"
-                  >
-                    <span>Oui, c’est mon dernier mot !</span>
-                    <ArrowRight className="h-4 w-4 stroke-[2.5]" />
-                  </button>
-                </div>
-              )}
-
-              {/* Zone Anecdote & Bilan après validation */}
-              {isRevealed && (
-                <div
-                  className={`rounded-xl border px-3.5 py-2.5 shadow-lg animate-fadeIn ${
-                    runStatus === 'millionaire' || runStatus === 'step_won'
-                      ? 'border-emerald-400 bg-emerald-950/45'
-                      : runStatus === 'walked_away'
-                      ? 'border-yellow-400 bg-blue-950/80'
-                      : 'border-rose-400 bg-rose-950/45'
-                  }`}
-                >
-                  <div className="flex items-start gap-2.5">
-                    <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-yellow-400 text-blue-950">
-                      {runStatus === 'millionaire' ? (
-                        <Trophy className="h-3.5 w-3.5" />
-                      ) : (
-                        <Lightbulb className="h-3.5 w-3.5" />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1 space-y-0.5">
-                      <div className="text-xs font-black uppercase">
-                        {runStatus === 'millionaire' ? (
-                          <span className="text-yellow-300">
-                            🏆 1 000 000 € ! VOUS AVEZ FAIT SAUTER LA BANQUE DU
-                            7TER !
-                          </span>
-                        ) : runStatus === 'step_won' ? (
-                          <span className="text-emerald-300">
-                            ✅ PALIER {currentStepInfo.label} VALIDÉ !
-                            {currentStepInfo.isSafeHaven
-                              ? ' (🔒 PALIER DE SÉCURITÉ VERROUILLÉ !)'
-                              : ''}
-                          </span>
-                        ) : runStatus === 'walked_away' ? (
-                          <span className="text-yellow-300">
-                            💼 VOUS REPARTEZ AVEC LE CHÈQUE DE{' '}
-                            {formatEuros(currentWalkAwayAmount)} !
-                          </span>
-                        ) : (
-                          <span className="text-rose-300">
-                            💥 MAUVAISE RÉPONSE ! Vous repartez avec le palier
-                            garanti de {formatEuros(guaranteedSafeHavenAmount)}.
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs sm:text-sm text-blue-50 leading-snug">
-                        {currentQuestion.explanation}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Barre du bas : S'arrêter et encaisser OU Question suivante / Nouvelle partie */}
-          <div className="shrink-0 pt-2 border-t border-blue-500/30 flex items-center justify-between gap-2 flex-wrap">
-            {!isRevealed ? (
-              <>
-                <span className="text-[11px] sm:text-xs font-bold text-blue-200/80">
-                  Cliquez sur une réponse puis confirmez votre dernier mot.
-                </span>
-
-                {currentStep > 1 && (
-                  <button
-                    type="button"
-                    onClick={handleWalkAway}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-yellow-400/50 bg-blue-950/90 hover:bg-yellow-400 hover:text-blue-950 px-3 py-1.5 text-xs font-black text-yellow-300 transition ml-auto"
-                    title="Ne pas répondre et repartir avec les gains acquis"
-                  >
-                    <Banknote className="h-3.5 w-3.5" />
-                    <span>
-                      S’arrêter et encaisser {formatEuros(currentWalkAwayAmount)}
                     </span>
                   </button>
-                )}
+                );
+              })}
+            </div>
+
+            {/* Bandeau d'animation SUSPENSE TV en direct après validation du dernier mot */}
+            {isSuspenseLock && pendingOption !== null && !isRevealed && (
+              <div className="rounded-xl border-2 border-amber-400 bg-gradient-to-r from-[#1c1002]/95 via-[#2e1904]/95 to-[#1c1002]/95 px-3.5 py-2.5 shadow-[0_0_30px_rgba(245,158,11,0.35)] animate-fadeIn space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="relative flex h-3 w-3 shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-85" />
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-400" />
+                    </span>
+                    <span className="text-xs sm:text-sm font-black text-amber-200 truncate">
+                      {suspenseStage === 0 &&
+                        `🎙️ « Réponse ${OPTION_LETTERS[pendingOption]} verrouillée… C’est votre dernier mot ! »`}
+                      {suspenseStage === 1 &&
+                        (currentStep >= 10
+                          ? `🔥 « ${currentStepInfo.label} sont en jeu… Le plateau retient son souffle ! »`
+                          : '👀 « Le plateau s’assombrit… Jean-Pierre vous fixe dans les yeux… »')}
+                      {suspenseStage === 2 &&
+                        `⚡ « Verdict imminent pour le palier à ${currentStepInfo.label}… »`}
+                    </span>
+                  </div>
+                  <span className="shrink-0 rounded-md border border-amber-400/60 bg-amber-400/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-yellow-300">
+                    Dernier mot
+                  </span>
+                </div>
+
+                {/* Jauge de tension dramatique */}
+                <div className="h-1.5 w-full rounded-full bg-slate-950/90 overflow-hidden border border-amber-500/35">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-amber-500 via-yellow-300 to-white"
+                    style={{
+                      width:
+                        suspenseStage === 0
+                          ? '36%'
+                          : suspenseStage === 1
+                          ? '74%'
+                          : '100%',
+                      transition: `width ${Math.round(
+                        suspenseDurationMs * 0.34
+                      )}ms linear`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Résultat Joker Avis du Public */}
+            {audiencePoll && !isRevealed && !isSuspenseLock && (
+              <div className="rounded-xl border border-sky-400/50 bg-[#051235]/95 p-2.5 animate-fadeIn">
+                <div className="text-[11px] font-black uppercase text-sky-300 mb-1.5 flex items-center gap-1.5">
+                  <Users className="h-3.5 w-3.5" />
+                  <span>Vote du Public en direct :</span>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {audiencePoll.map((pct, idx) => (
+                    <div key={idx} className="space-y-1">
+                      <div className="flex items-center justify-between text-[11px] font-black">
+                        <span className="text-yellow-400">
+                          {OPTION_LETTERS[idx]}
+                        </span>
+                        <span className="text-white">{pct}%</span>
+                      </div>
+                      <div className="h-2 w-full rounded-full bg-blue-950 overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-sky-400 to-yellow-400 transition-all duration-500"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Résultat Joker Appel à un Ami */}
+            {friendAdvice && !isRevealed && !isSuspenseLock && (
+              <div className="rounded-xl border border-amber-400/60 bg-amber-950/35 px-3 py-2 animate-fadeIn">
+                <div className="flex items-center gap-1.5 text-[11px] font-black text-yellow-300">
+                  <PhoneCall className="h-3.5 w-3.5 text-amber-400" />
+                  <span>{friendAdvice.friendName} :</span>
+                </div>
+                <p className="text-xs text-amber-50 italic mt-0.5 leading-snug">
+                  {friendAdvice.message}
+                </p>
+              </div>
+            )}
+
+            {/* Zone Anecdote & Bilan après validation */}
+            {isRevealed && (
+              <div
+                className={`rounded-xl border px-3.5 py-2.5 shadow-lg animate-fadeIn ${
+                  runStatus === 'millionaire' || runStatus === 'step_won'
+                    ? 'border-emerald-400 bg-emerald-950/45'
+                    : runStatus === 'walked_away'
+                    ? 'border-yellow-400 bg-blue-950/80'
+                    : 'border-rose-400 bg-rose-950/45'
+                }`}
+              >
+                <div className="flex items-start gap-2.5">
+                  <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-yellow-400 text-blue-950">
+                    {runStatus === 'millionaire' ? (
+                      <Trophy className="h-3.5 w-3.5" />
+                    ) : (
+                      <Lightbulb className="h-3.5 w-3.5" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <div className="text-xs font-black uppercase">
+                      {runStatus === 'millionaire' ? (
+                        <span className="text-yellow-300">
+                          🏆 1 000 000 € ! VOUS AVEZ FAIT SAUTER LA BANQUE DU
+                          7TER !
+                        </span>
+                      ) : runStatus === 'step_won' ? (
+                        <span className="text-emerald-300">
+                          ✅ PALIER {currentStepInfo.label} VALIDÉ !
+                          {currentStepInfo.isSafeHaven
+                            ? ' (🔒 PALIER DE SÉCURITÉ VERROUILLÉ !)'
+                            : ''}
+                        </span>
+                      ) : runStatus === 'walked_away' ? (
+                        <span className="text-yellow-300">
+                          💼 VOUS REPARTEZ AVEC LE CHÈQUE DE{' '}
+                          {formatEuros(currentWalkAwayAmount)} !
+                        </span>
+                      ) : (
+                        <span className="text-rose-300">
+                          💥 MAUVAISE RÉPONSE ! Vous repartez avec le palier
+                          garanti de {formatEuros(guaranteedSafeHavenAmount)}.
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs sm:text-sm text-blue-50 leading-snug">
+                      {currentQuestion.explanation}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Barre du bas fixe : hauteur et position du bouton principal verrouillées au pixel près */}
+          <div className="shrink-0 pt-2 border-t border-blue-500/30 flex items-center justify-between gap-2">
+            {!isRevealed ? (
+              <>
+                <div className="flex items-center gap-2 min-w-0">
+                  {currentStep > 1 && (
+                    <button
+                      type="button"
+                      onClick={handleWalkAway}
+                      disabled={isSuspenseLock}
+                      className={`shrink-0 inline-flex items-center gap-1.5 rounded-xl border px-2.5 sm:px-3 py-2 text-xs font-black transition-colors ${
+                        isSuspenseLock
+                          ? 'border-blue-800/30 bg-blue-950/40 text-blue-400/30 cursor-not-allowed'
+                          : 'border-yellow-400/50 bg-blue-950/90 hover:bg-yellow-400 hover:text-blue-950 text-yellow-300'
+                      }`}
+                      title="Ne pas répondre et repartir avec les gains acquis"
+                    >
+                      <Banknote className="h-3.5 w-3.5 shrink-0" />
+                      <span>
+                        Encaisser {formatEuros(currentWalkAwayAmount)}
+                      </span>
+                    </button>
+                  )}
+
+                  <span
+                    className={`hidden md:inline truncate text-xs ${
+                      isSuspenseLock
+                        ? 'font-black text-amber-200 animate-pulse'
+                        : pendingOption !== null
+                        ? 'font-black text-amber-300'
+                        : 'font-bold text-blue-200/80'
+                    }`}
+                  >
+                    {isSuspenseLock && pendingOption !== null
+                      ? `🥁 Réponse ${OPTION_LETTERS[pendingOption]} verrouillée… Suspense sur le plateau !`
+                      : pendingOption !== null
+                      ? `🎙️ Réponse ${OPTION_LETTERS[pendingOption]} : « C’est votre dernier mot ? »`
+                      : 'Cliquez sur une réponse puis validez votre dernier mot.'}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleConfirmFinalAnswer}
+                  disabled={pendingOption === null || isSuspenseLock}
+                  className={`shrink-0 relative overflow-hidden inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-xl border px-3.5 sm:px-5 py-2 text-xs sm:text-sm font-black uppercase transition-colors ml-auto ${
+                    isSuspenseLock
+                      ? 'border-amber-300 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 text-slate-950 shadow-lg animate-pulse cursor-wait'
+                      : pendingOption !== null
+                      ? 'shimmer-btn border-transparent bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-slate-950 shadow-lg cursor-pointer'
+                      : 'border-blue-500/30 bg-blue-950/50 text-blue-300/40 cursor-not-allowed'
+                  }`}
+                >
+                  {isSuspenseLock ? (
+                    <>
+                      <Sparkles className="h-4 w-4 shrink-0 animate-spin" />
+                      <span>Suspense…</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="sm:hidden">
+                        {pendingOption !== null
+                          ? `Dernier mot (${OPTION_LETTERS[pendingOption]})`
+                          : 'Dernier mot'}
+                      </span>
+                      <span className="hidden sm:inline">
+                        Oui, c’est mon dernier mot !
+                      </span>
+                      <ArrowRight className="h-4 w-4 shrink-0 stroke-[2.5]" />
+                    </>
+                  )}
+                </button>
               </>
             ) : runStatus === 'step_won' ? (
               <button
                 type="button"
                 onClick={handleAdvanceToNextStep}
-                className="shimmer-btn relative overflow-hidden inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 px-5 py-2 text-xs sm:text-sm font-black uppercase text-blue-950 shadow-lg active:scale-95 transition ml-auto"
+                className="shimmer-btn shrink-0 relative overflow-hidden inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-xl border border-transparent bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 px-3.5 sm:px-5 py-2 text-xs sm:text-sm font-black uppercase text-blue-950 shadow-lg transition-colors ml-auto"
               >
                 <span>
                   Jouer pour{' '}
                   {MILLION_LADDER[currentStep]?.label || '1 000 000 €'}
                 </span>
-                <ArrowRight className="h-4 w-4 stroke-[2.5]" />
+                <ArrowRight className="h-4 w-4 shrink-0 stroke-[2.5]" />
               </button>
             ) : (
               <button
                 type="button"
                 onClick={handleStartNewMillionGame}
-                className="shimmer-btn relative overflow-hidden inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 px-5 py-2 text-xs sm:text-sm font-black uppercase text-blue-950 shadow-lg active:scale-95 transition ml-auto"
+                className="shimmer-btn shrink-0 relative overflow-hidden inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-xl border border-transparent bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 px-3.5 sm:px-5 py-2 text-xs sm:text-sm font-black uppercase text-blue-950 shadow-lg transition-colors ml-auto"
               >
-                <RotateCcw className="h-4 w-4 stroke-[2.5]" />
+                <RotateCcw className="h-4 w-4 shrink-0 stroke-[2.5]" />
                 <span>Nouvelle Ascension vers le Million</span>
               </button>
             )}

@@ -124,3 +124,78 @@ body {
   );
   animation: shimmerSweep 3.2s infinite;
 }
+
+/* Animations "Qui veut gagner des millions" — Suspense Dernier Mot & Révélation TV */
+@keyframes millionsLockPulse {
+  0%, 100% {
+    transform: scale(1.015);
+    box-shadow:
+      0 0 0 0 rgba(251, 191, 36, 0.75),
+      0 0 28px rgba(245, 158, 11, 0.65),
+      inset 0 0 14px rgba(255, 255, 255, 0.35);
+  }
+  50% {
+    transform: scale(1.03);
+    box-shadow:
+      0 0 0 8px rgba(251, 191, 36, 0),
+      0 0 44px rgba(250, 204, 21, 0.95),
+      inset 0 0 22px rgba(255, 255, 255, 0.6);
+  }
+}
+
+@keyframes millionsCorrectFlash {
+  0%, 28% {
+    filter: brightness(1.35);
+    transform: scale(1.025);
+  }
+  14%, 42% {
+    filter: brightness(0.85) saturate(1.4);
+    transform: scale(1);
+  }
+  56% {
+    filter: brightness(1.25);
+    transform: scale(1.02);
+  }
+  100% {
+    filter: brightness(1);
+    transform: scale(1);
+  }
+}
+
+@keyframes millionsSpotlightSweep {
+  0% {
+    transform: translateX(-55%) rotate(-12deg);
+    opacity: 0.25;
+  }
+  50% {
+    transform: translateX(55%) rotate(12deg);
+    opacity: 0.55;
+  }
+  100% {
+    transform: translateX(-55%) rotate(-12deg);
+    opacity: 0.25;
+  }
+}
+
+.animate-millions-lock {
+  animation: millionsLockPulse 0.68s infinite ease-in-out;
+}
+
+.animate-millions-reveal-win {
+  animation: millionsCorrectFlash 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-millions-spotlight {
+  animation: millionsSpotlightSweep 1.8s infinite ease-in-out;
+}
+
+/* Masquer la barre de défilement horizontale sur mobile portrait tout en gardant le scroll tactile */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+

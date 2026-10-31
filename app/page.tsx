@@ -12,6 +12,7 @@ import QuestionCard from '@/components/QuestionCard';
 import VersusMode from '@/components/VersusMode';
 import MillionsMode from '@/components/MillionsMode';
 import WikipediaMode from '@/components/WikipediaMode';
+import CodeRouteMode from '@/components/CodeRouteMode';
 import {
   fetchAllQuestionsFromSupabase,
   incrementQuestionPlayed,
@@ -22,6 +23,9 @@ import {
   loadQuestionAnalytics,
   loadAdminSettings,
   recordQuestionAnswerOutcome,
+  markQuestionAsAsked,
+  isQuestionAlreadyAsked,
+  normalizeQuestionKey,
   prioritizeQuestionsByAnalytics,
   getQuestionAnalytics,
   type QuestionAnalyticsMap,
@@ -42,6 +46,7 @@ import {
   Music,
   ShieldCheck,
   Globe,
+  Car,
 } from 'lucide-react';
 import {
   playPointSound,
@@ -143,7 +148,8 @@ export default function QuizHomePage() {
         savedMode === 'coop' ||
         savedMode === 'versus' ||
         savedMode === 'millions' ||
-        savedMode === 'wikipedia'
+        savedMode === 'wikipedia' ||
+        savedMode === 'code_route'
       ) {
         setMode(savedMode);
         if (
@@ -267,17 +273,24 @@ export default function QuizHomePage() {
           0
         );
         if (totalRemote > 0) {
+          const remoteByKey = new Map<string, QuizQuestionRecord>();
+          for (let lvl = 1; lvl <= 10; lvl++) {
+            for (const rq of remoteGrouped[lvl] || []) {
+              remoteByKey.set(normalizeQuestionKey(rq.question), rq);
+            }
+          }
+
           setPoolByLevel((prev) => {
             const merged: Record<number, QuizQuestionRecord[]> = {};
             for (let lvl = 1; lvl <= 10; lvl++) {
               const remoteList = remoteGrouped[lvl] || [];
               const localList = prev[lvl] || [];
               if (remoteList.length > 0) {
-                const seenQuestions = new Set(
-                  remoteList.map((q) => q.question.trim().toLowerCase())
+                const seenKeys = new Set(
+                  remoteList.map((q) => normalizeQuestionKey(q.question))
                 );
                 const extraLocal = localList.filter(
-                  (q) => !seenQuestions.has(q.question.trim().toLowerCase())
+                  (q) => !seenKeys.has(normalizeQuestionKey(q.question))
                 );
                 merged[lvl] = shuffleQuestions([...remoteList, ...extraLocal]);
               } else {
@@ -286,6 +299,46 @@ export default function QuizHomePage() {
             }
             return merged;
           });
+
+          // Met à jour les snapshots actifs avec l'UUID Supabase réel, ou déverrouille si la question avait déjà été jouée
+          setActiveQuestionSnapshots((prevSnaps) => {
+            const nextSnaps = { ...prevSnaps };
+            let changed = false;
+            const slotsToRemove: string[] = [];
+
+            for (const [slot, snap] of Object.entries(prevSnaps)) {
+              if (!snap) continue;
+              const match = remoteByKey.get(normalizeQuestionKey(snap.question));
+              if (match) {
+                if ((match.times_played ?? 0) > 0 || match.is_already_answered) {
+                  delete nextSnaps[slot];
+                  slotsToRemove.push(slot);
+                  changed = true;
+                } else if (snap.id !== match.id) {
+                  nextSnaps[slot] = match;
+                  changed = true;
+                }
+              }
+            }
+
+            if (changed) {
+              setActiveQuestionByKey((prevKeys) => {
+                const nextKeys = { ...prevKeys };
+                for (const slot of slotsToRemove) {
+                  delete nextKeys[slot];
+                }
+                for (const [slot, snap] of Object.entries(nextSnaps)) {
+                  if (snap) {
+                    nextKeys[slot] = snap.id;
+                  }
+                }
+                return nextKeys;
+              });
+              return nextSnaps;
+            }
+            return prevSnaps;
+          });
+
           setDbSynced(true);
         }
       })
@@ -376,24 +429,18 @@ export default function QuizHomePage() {
     const stats: Record<number, { total: number; remaining: number }> = {};
     for (let lvl = 1; lvl <= 10; lvl++) {
       const list = effectivePoolByLevel[lvl] || [];
-      const freshRemaining = list.filter((q) => {
-        if (playedSet.has(q.id)) return false;
-        const entry = getQuestionAnalytics(
-          q,
-          analyticsMap,
-          adminSettings.autoArchiveThreshold
-        );
-        return !entry.inAlreadyAnsweredPool;
-      }).length;
-      const unplayedSession = list.filter((q) => !playedSet.has(q.id)).length;
+      const freshRemaining = list.filter(
+        (q) =>
+          !isQuestionAlreadyAsked(
+            q,
+            playedSet,
+            analyticsMap,
+            adminSettings.autoArchiveThreshold
+          )
+      ).length;
       stats[lvl] = {
         total: list.length,
-        remaining:
-          freshRemaining > 0
-            ? freshRemaining
-            : unplayedSession > 0
-            ? unplayedSession
-            : list.length,
+        remaining: freshRemaining,
       };
     }
     return stats;
@@ -413,7 +460,7 @@ export default function QuizHomePage() {
             const filtered = allInLevel.filter((q) => q.theme === selectedTheme);
             return filtered.length > 0 ? filtered : allInLevel;
           })();
-    // Les questions dans la base "Déjà répondu" (répondues plusieurs fois) sont reléguées en fin de file pour être moins proposées
+    // Les questions déjà posées sont strictement exclues tant qu'il reste des questions inédites
     return prioritizeQuestionsByAnalytics(
       baseList,
       playedSet,
@@ -436,19 +483,62 @@ export default function QuizHomePage() {
   }, [effectivePoolByLevel, effectiveLevel]);
 
   const unplayedInCurrentLevel = useMemo(() => {
-    return currentLevelQuestions.filter((q) => !playedSet.has(q.id));
-  }, [currentLevelQuestions, playedSet]);
+    return currentLevelQuestions.filter(
+      (q) =>
+        !isQuestionAlreadyAsked(
+          q,
+          playedSet,
+          analyticsMap,
+          adminSettings.autoArchiveThreshold
+        )
+    );
+  }, [
+    currentLevelQuestions,
+    playedSet,
+    analyticsMap,
+    adminSettings.autoArchiveThreshold,
+  ]);
 
   const activeQuestion = useMemo(() => {
     const pinnedId = activeQuestionByKey[effectiveSlotKey];
     if (pinnedId && !playedSet.has(pinnedId)) {
       const foundInPool = currentLevelQuestions.find((q) => q.id === pinnedId);
-      if (foundInPool) return foundInPool;
+      if (
+        foundInPool &&
+        !playedSet.has(normalizeQuestionKey(foundInPool.question))
+      ) {
+        return foundInPool;
+      }
       const snapshot = activeQuestionSnapshots[effectiveSlotKey];
-      if (snapshot && snapshot.id === pinnedId) return snapshot;
+      if (
+        snapshot &&
+        snapshot.id === pinnedId &&
+        !playedSet.has(normalizeQuestionKey(snapshot.question))
+      ) {
+        const upgradedInPool = currentLevelQuestions.find(
+          (q) =>
+            normalizeQuestionKey(q.question) ===
+            normalizeQuestionKey(snapshot.question)
+        );
+        return upgradedInPool || snapshot;
+      }
     }
     if (unplayedInCurrentLevel.length > 0) {
       return unplayedInCurrentLevel[0];
+    }
+    // Si le thème sélectionné n'a plus de questions inédites dans ce niveau, chercher une question inédite tous thèmes confondus dans ce niveau
+    const allInLevel = effectivePoolByLevel[effectiveLevel] || [];
+    const unplayedAnyTheme = allInLevel.find(
+      (q) =>
+        !isQuestionAlreadyAsked(
+          q,
+          playedSet,
+          analyticsMap,
+          adminSettings.autoArchiveThreshold
+        )
+    );
+    if (unplayedAnyTheme) {
+      return unplayedAnyTheme;
     }
     return currentLevelQuestions[0] || null;
   }, [
@@ -458,6 +548,10 @@ export default function QuizHomePage() {
     playedSet,
     currentLevelQuestions,
     unplayedInCurrentLevel,
+    effectivePoolByLevel,
+    effectiveLevel,
+    analyticsMap,
+    adminSettings.autoArchiveThreshold,
   ]);
 
   // Verrouille la question active pour ce niveau/thème afin qu'un rafraîchissement (F5 / PullToRefresh) ou la synchro Supabase ne change jamais la question en cours
@@ -482,6 +576,24 @@ export default function QuizHomePage() {
     activeQuestionByKey,
     activeQuestionSnapshots,
   ]);
+
+  // Résout l'enregistrement d'une question avec son vrai ID Supabase si disponible
+  const resolvePoolQuestion = useCallback(
+    (q: QuizQuestionRecord): QuizQuestionRecord => {
+      if (!q.id.startsWith('local-')) return q;
+      const targetKey = normalizeQuestionKey(q.question);
+      for (let lvl = 1; lvl <= 10; lvl++) {
+        const match = (effectivePoolByLevel[lvl] || []).find(
+          (cand) =>
+            !cand.id.startsWith('local-') &&
+            normalizeQuestionKey(cand.question) === targetKey
+        );
+        if (match) return match;
+      }
+      return q;
+    },
+    [effectivePoolByLevel]
+  );
 
   // Évaluation de la réponse en Mode Ensemble (1 -> 10 sans erreur)
   const handleCoopAnswer = useCallback((isCorrect: boolean) => {
@@ -513,7 +625,11 @@ export default function QuizHomePage() {
   const handleNextQuestion = useCallback(() => {
     if (!activeQuestion) return;
 
-    incrementQuestionPlayed(activeQuestion.id);
+    const resolved = resolvePoolQuestion(activeQuestion);
+    const qKey = normalizeQuestionKey(activeQuestion.question);
+
+    // Marque définitivement la question comme posée dans les analytics locaux + Supabase
+    setAnalyticsMap((prev) => markQuestionAsAsked(resolved, prev));
 
     setActiveQuestionByKey((prev) => {
       const next = { ...prev };
@@ -527,12 +643,11 @@ export default function QuizHomePage() {
     });
 
     setPlayedIds((prev) => {
-      if (unplayedInCurrentLevel.length <= 1) {
-        const levelIds = new Set(currentLevelQuestions.map((q) => q.id));
-        const filtered = prev.filter((id) => !levelIds.has(id));
-        return filtered;
-      }
-      return [...prev, activeQuestion.id];
+      const nextSet = new Set(prev);
+      nextSet.add(activeQuestion.id);
+      nextSet.add(resolved.id);
+      nextSet.add(qKey);
+      return Array.from(nextSet);
     });
 
     if (mode === 'coop') {
@@ -556,19 +671,14 @@ export default function QuizHomePage() {
 
     setDoublePoints(false);
     setQuestionNumber((n) => n + 1);
-  }, [
-    activeQuestion,
-    effectiveSlotKey,
-    unplayedInCurrentLevel.length,
-    currentLevelQuestions,
-    mode,
-  ]);
+  }, [activeQuestion, effectiveSlotKey, mode, resolvePoolQuestion]);
 
   const wikiTeamMode: '2_couples' | '4_players' =
     classicSubMode === '4_players' ? '4_players' : '2_couples';
   const isTwoCouplesScore =
     mode === '2_couples' ||
-    (mode === 'wikipedia' && wikiTeamMode === '2_couples');
+    ((mode === 'wikipedia' || mode === 'code_route') &&
+      wikiTeamMode === '2_couples');
   const activeTeams = isTwoCouplesScore ? couples : players;
 
   const handleUpdateScore = useCallback(
@@ -616,25 +726,57 @@ export default function QuizHomePage() {
     setCouples((prev) => prev.map((t) => ({ ...t, score: 0 })));
     setPlayers((prev) => prev.map((t) => ({ ...t, score: 0 })));
     setCoopStats(DEFAULT_COOP);
-    setPlayedIds([]);
+    // On conserve playedIds et analyticsMap pour que les questions déjà posées ne soient jamais reposées !
     setActiveQuestionByKey({});
     setActiveQuestionSnapshots({});
     setQuestionNumber(1);
     setSelectedTheme('ALL');
   }, []);
 
-  const handleMarkVersusQuestionPlayed = useCallback((questionId: string) => {
-    incrementQuestionPlayed(questionId);
-    setPlayedIds((prev) => (prev.includes(questionId) ? prev : [...prev, questionId]));
-  }, []);
+  const handleMarkVersusQuestionPlayed = useCallback(
+    (questionId: string, questionObj?: QuizQuestionRecord) => {
+      let targetQuestion = questionObj;
+      if (!targetQuestion) {
+        for (let lvl = 1; lvl <= 10; lvl++) {
+          const found = (effectivePoolByLevel[lvl] || []).find(
+            (q) => q.id === questionId
+          );
+          if (found) {
+            targetQuestion = found;
+            break;
+          }
+        }
+      }
+
+      if (targetQuestion) {
+        const resolved = resolvePoolQuestion(targetQuestion);
+        const qKey = normalizeQuestionKey(targetQuestion.question);
+        setAnalyticsMap((prev) => markQuestionAsAsked(resolved, prev));
+        setPlayedIds((prev) => {
+          const nextSet = new Set(prev);
+          nextSet.add(questionId);
+          nextSet.add(resolved.id);
+          nextSet.add(qKey);
+          return Array.from(nextSet);
+        });
+      } else {
+        incrementQuestionPlayed(questionId);
+        setPlayedIds((prev) =>
+          prev.includes(questionId) ? prev : [...prev, questionId]
+        );
+      }
+    },
+    [effectivePoolByLevel, resolvePoolQuestion]
+  );
 
   const handleRecordQuestionOutcome = useCallback(
     (question: QuizQuestionRecord, isCorrect: boolean) => {
+      const resolved = resolvePoolQuestion(question);
       setAnalyticsMap((prev) =>
-        recordQuestionAnswerOutcome(question, isCorrect, prev)
+        recordQuestionAnswerOutcome(resolved, isCorrect, prev)
       );
     },
-    []
+    [resolvePoolQuestion]
   );
 
   const activeQuestionAnalytics = useMemo(() => {
@@ -653,18 +795,18 @@ export default function QuizHomePage() {
   );
 
   return (
-    <div className="h-[100dvh] max-h-[100dvh] w-full overflow-hidden flex flex-col justify-between select-none">
-      {/* En-tête avec barre de modes 100% visible sur mobile et desktop */}
-      <header className="shrink-0 border-b border-yellow-400/35 bg-[#050d26]/95 px-2.5 sm:px-4 py-1.5 sm:py-2">
-        <div className="mx-auto max-w-5xl flex flex-col gap-1.5">
+    <div className="h-[100dvh] max-h-[100dvh] w-full overflow-hidden flex flex-col justify-between select-none pb-[env(safe-area-inset-bottom)]">
+      {/* En-tête avec barre de modes 100% visible et lisible en mode portrait et desktop */}
+      <header className="shrink-0 border-b border-yellow-400/35 bg-[#050d26]/95 px-2 sm:px-4 py-1 sm:py-2">
+        <div className="mx-auto max-w-5xl flex flex-col gap-1 sm:gap-1.5">
           {/* Ligne 1 : Logo 7TER + Bouton Mode Enfant + Espace Admin + Son + Reset */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="relative flex h-7 w-10 sm:h-8 sm:w-12 shrink-0 items-center justify-center rounded-lg border-2 border-yellow-400 bg-gradient-to-br from-[#133282] to-[#06102b] shadow">
-                <span className="text-sm sm:text-base font-black text-yellow-400 tracking-tighter">
+          <div className="flex items-center justify-between gap-1.5">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <div className="relative flex h-6 w-9 sm:h-8 sm:w-12 shrink-0 items-center justify-center rounded-lg border-2 border-yellow-400 bg-gradient-to-br from-[#133282] to-[#06102b] shadow">
+                <span className="text-xs sm:text-base font-black text-yellow-400 tracking-tighter">
                   7
                 </span>
-                <span className="text-[8px] sm:text-[9px] font-black uppercase text-white ml-0.5">
+                <span className="text-[7px] sm:text-[9px] font-black uppercase text-white ml-0.5">
                   TER
                 </span>
               </div>
@@ -681,23 +823,23 @@ export default function QuizHomePage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
               <Link
                 href="/enfants"
-                className="inline-flex items-center gap-1 rounded-lg border border-lime-400/60 bg-gradient-to-r from-lime-400/25 to-emerald-500/25 hover:from-lime-400 hover:to-emerald-400 hover:text-slate-950 px-2.5 py-1 text-[11px] font-black text-lime-300 transition shadow-sm"
+                className="inline-flex items-center gap-1 rounded-lg border border-lime-400/60 bg-gradient-to-r from-lime-400/25 to-emerald-500/25 hover:from-lime-400 hover:to-emerald-400 hover:text-slate-950 px-2 py-1 text-[10px] sm:text-[11px] font-black text-lime-300 transition shadow-sm"
                 title="Ouvrir la page dédiée au Mode Enfant (Quiz sur images : Ferme, JO, Animaux, Sport, Pokémon)"
               >
                 <span>🎈</span>
-                <span className="hidden xs:inline sm:inline">Mode Enfant</span>
+                <span className=" sm:inline">Enfants</span>
               </Link>
 
               <Link
                 href="/admin"
-                className="inline-flex items-center gap-1 rounded-lg border border-purple-400/60 bg-gradient-to-r from-purple-500/25 to-indigo-500/25 hover:from-purple-400 hover:to-indigo-400 hover:text-slate-950 px-2 py-1 text-[11px] font-black text-purple-200 transition shadow-sm"
+                className="inline-flex items-center gap-1 rounded-lg border border-purple-400/60 bg-gradient-to-r from-purple-500/25 to-indigo-500/25 hover:from-purple-400 hover:to-indigo-400 hover:text-slate-950 px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-black text-purple-200 transition shadow-sm"
                 title="Espace Admin (Code requis) : Évaluer la difficulté, notes, statistiques des questions et base Déjà répondu"
               >
-                <ShieldCheck className="h-3.5 w-3.5 text-purple-300" />
-                <span>Admin</span>
+                <ShieldCheck className="h-3.5 w-3.5 text-purple-300 shrink-0" />
+                <span className="hidden xs:inline sm:inline">Admin</span>
               </Link>
 
               <button
@@ -712,7 +854,7 @@ export default function QuizHomePage() {
                     stopMillionsZoukMusic();
                   }
                 }}
-                className={`flex h-7 items-center justify-center gap-1 rounded-lg border px-1.5 text-[10px] font-bold transition active:scale-95 ${
+                className={`flex h-6 sm:h-7 items-center justify-center gap-1 rounded-lg border px-1.5 text-[10px] font-bold transition active:scale-95 ${
                   zoukMusicEnabled && soundEnabled
                     ? 'border-yellow-400/60 bg-yellow-400/15 text-yellow-300'
                     : 'border-blue-500/30 bg-blue-950/70 text-blue-300/50'
@@ -732,7 +874,7 @@ export default function QuizHomePage() {
                     stopMillionsZoukMusic();
                   }
                 }}
-                className={`flex h-7 w-7 items-center justify-center rounded-lg border transition ${
+                className={`flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-lg border transition ${
                   soundEnabled
                     ? 'border-yellow-400/60 bg-yellow-400/15 text-yellow-300'
                     : 'border-blue-500/30 bg-blue-950/70 text-blue-300/50'
@@ -769,7 +911,7 @@ export default function QuizHomePage() {
               <button
                 type="button"
                 onClick={handleResetAll}
-                className="inline-flex items-center gap-1 rounded-lg border border-blue-400/35 bg-blue-900/50 px-2 py-1 text-[11px] font-extrabold text-blue-100 hover:bg-yellow-400 hover:text-blue-950 transition"
+                className="inline-flex h-6 sm:h-7 items-center gap-1 rounded-lg border border-blue-400/35 bg-blue-900/50 px-1.5 sm:px-2 text-[10px] sm:text-[11px] font-extrabold text-blue-100 hover:bg-yellow-400 hover:text-blue-950 transition"
                 title="Remettre les scores et la soirée à zéro"
               >
                 <RotateCcw className="h-3 w-3" />
@@ -778,9 +920,9 @@ export default function QuizHomePage() {
             </div>
           </div>
 
-          {/* Ligne 2 : Sélecteur des 4 Catégories de Modes + Sous-modes du Quiz Classique (2 Équipes | 4 Joueurs | Ensemble) */}
+          {/* Ligne 2 : Sélecteur des 5 Catégories de Modes (Icône au-dessus du texte en portrait mobile pour 0 troncature) */}
           <div className="flex flex-col gap-1 rounded-xl bg-[#040b1e] p-1 border border-blue-500/35">
-            <div className="grid grid-cols-4 gap-1">
+            <div className="grid grid-cols-5 gap-1">
               <button
                 type="button"
                 onClick={() => {
@@ -790,7 +932,7 @@ export default function QuizHomePage() {
                     setCoopStats((prev) => ({ ...prev, status: 'playing' }));
                   }
                 }}
-                className={`inline-flex items-center justify-center gap-1 rounded-lg py-1.5 px-1.5 text-[10px] sm:text-xs font-black transition ${
+                className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 rounded-lg py-1 sm:py-1.5 px-0.5 sm:px-1.5 text-[10px] sm:text-xs font-black leading-tight transition ${
                   mode === '2_couples' || mode === '4_players' || mode === 'coop'
                     ? 'bg-yellow-400 text-blue-950 shadow'
                     : 'text-blue-200/80 hover:text-white'
@@ -798,9 +940,9 @@ export default function QuizHomePage() {
                 title="Mode de base (2 Équipes, 4 Joueurs ou Ensemble)"
               >
                 <Users className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">
+                <span className="truncate max-w-full">
                   Classique{' '}
-                  <span className="hidden sm:inline opacity-80 font-extrabold">
+                  <span className="hidden md:inline opacity-80 font-extrabold">
                     ({classicSubMode === '2_couples'
                       ? '2 Équipes'
                       : classicSubMode === '4_players'
@@ -816,7 +958,7 @@ export default function QuizHomePage() {
                   stopMillionsZoukMusic();
                   setMode('versus');
                 }}
-                className={`inline-flex items-center justify-center gap-1 rounded-lg py-1.5 px-1.5 text-[10px] sm:text-xs font-black transition ${
+                className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 rounded-lg py-1 sm:py-1.5 px-0.5 sm:px-1.5 text-[10px] sm:text-xs font-black leading-tight transition ${
                   mode === 'versus'
                     ? 'bg-gradient-to-r from-sky-300 via-sky-400 to-blue-500 text-slate-950 shadow'
                     : 'text-sky-300 hover:text-white'
@@ -824,7 +966,7 @@ export default function QuizHomePage() {
                 title="Salon Versus Multi-Téléphones : Timer 10s à points dégressifs"
               >
                 <Swords className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">Versus 10s</span>
+                <span className="truncate max-w-full">Versus 10s</span>
               </button>
 
               <button
@@ -835,7 +977,7 @@ export default function QuizHomePage() {
                     startMillionsZoukMusic(true, 1);
                   }
                 }}
-                className={`inline-flex items-center justify-center gap-1 rounded-lg py-1.5 px-1.5 text-[10px] sm:text-xs font-black transition ${
+                className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 rounded-lg py-1 sm:py-1.5 px-0.5 sm:px-1.5 text-[10px] sm:text-xs font-black leading-tight transition ${
                   mode === 'millions'
                     ? 'bg-gradient-to-r from-amber-300 via-yellow-400 to-orange-500 text-blue-950 shadow'
                     : 'text-amber-300 hover:text-white'
@@ -843,7 +985,7 @@ export default function QuizHomePage() {
                 title="Qui veut gagner des Millions : 15 paliers, 2 paliers de sécurité et 4 Jokers !"
               >
                 <Gem className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">Millions</span>
+                <span className="truncate max-w-full">Millions</span>
               </button>
 
               <button
@@ -852,7 +994,7 @@ export default function QuizHomePage() {
                   stopMillionsZoukMusic();
                   setMode('wikipedia');
                 }}
-                className={`inline-flex items-center justify-center gap-1 rounded-lg py-1.5 px-1.5 text-[10px] sm:text-xs font-black transition ${
+                className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 rounded-lg py-1 sm:py-1.5 px-0.5 sm:px-1.5 text-[10px] sm:text-xs font-black leading-tight transition ${
                   mode === 'wikipedia'
                     ? 'bg-gradient-to-r from-white via-slate-100 to-sky-200 text-slate-950 shadow'
                     : 'text-emerald-300 hover:text-white'
@@ -860,7 +1002,24 @@ export default function QuizHomePage() {
                 title="Mode Wikipédia : Une image principale issue de Wikipédia au hasard, devinez le titre de la page !"
               >
                 <Globe className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">Wikipédia</span>
+                <span className="truncate max-w-full">Wikipédia</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  stopMillionsZoukMusic();
+                  setMode('code_route');
+                }}
+                className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 rounded-lg py-1 sm:py-1.5 px-0.5 sm:px-1.5 text-[10px] sm:text-xs font-black leading-tight transition ${
+                  mode === 'code_route'
+                    ? 'bg-gradient-to-r from-rose-500 via-red-500 to-amber-500 text-white shadow'
+                    : 'text-rose-300 hover:text-white'
+                }`}
+                title="Section Code de la Route : 100% questions avec images (panneaux, priorités, intersections, voyants, pièges examen) !"
+              >
+                <Car className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate max-w-full">Code Route</span>
               </button>
             </div>
 
@@ -931,7 +1090,7 @@ export default function QuizHomePage() {
       </header>
 
       {/* Cockpit Principal Sans Scroll (occupe exactement le reste de la hauteur 100dvh) */}
-      <main className="mx-auto w-full max-w-5xl flex-1 min-h-0 flex flex-col justify-between gap-2 px-2.5 py-2 sm:px-4 sm:py-3">
+      <main className="mx-auto w-full max-w-5xl flex-1 min-h-0 flex flex-col justify-between gap-1.5 sm:gap-2 px-2 py-1.5 sm:px-4 sm:py-2.5">
         {mode === 'versus' ? (
           <VersusMode
             poolByLevel={effectivePoolByLevel}
@@ -964,6 +1123,20 @@ export default function QuizHomePage() {
           />
         ) : mode === 'wikipedia' ? (
           <WikipediaMode
+            teams={activeTeams}
+            teamMode={wikiTeamMode}
+            onToggleTeamMode={() =>
+              setClassicSubMode((prev) =>
+                prev === '4_players' ? '2_couples' : '4_players'
+              )
+            }
+            onUpdateScore={handleUpdateScore}
+            onRenameTeam={handleRenameTeam}
+            lastScoredId={lastScoredId}
+            soundEnabled={soundEnabled}
+          />
+        ) : mode === 'code_route' ? (
+          <CodeRouteMode
             teams={activeTeams}
             teamMode={wikiTeamMode}
             onToggleTeamMode={() =>

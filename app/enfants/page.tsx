@@ -399,41 +399,41 @@ export default function KidsQuizPage() {
     !isRevealed;
 
   return (
-    <div className="h-[100dvh] max-h-[100dvh] w-full overflow-hidden flex flex-col justify-between select-none bg-gradient-to-b from-[#0b1f4d] via-[#08173a] to-[#040b1e]">
+    <div className="h-[100dvh] max-h-[100dvh] w-full overflow-hidden flex flex-col justify-between select-none bg-gradient-to-b from-[#0b1f4d] via-[#08173a] to-[#040b1e] pb-[env(safe-area-inset-bottom)]">
       {/* 1. HEADER MODE ENFANT */}
-      <header className="shrink-0 border-b border-yellow-400/40 bg-[#050d26]/95 px-2.5 sm:px-4 py-2">
-        <div className="mx-auto max-w-5xl flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
+      <header className="shrink-0 border-b border-yellow-400/40 bg-[#050d26]/95 px-2.5 sm:px-4 py-1.5 sm:py-2">
+        <div className="mx-auto max-w-5xl flex items-center justify-between gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
             <Link
               href="/"
-              className="inline-flex items-center gap-1 rounded-xl border border-blue-400/40 bg-blue-950/80 hover:bg-yellow-400 hover:text-blue-950 px-2.5 py-1.5 text-xs font-black text-blue-100 transition"
+              className="inline-flex items-center gap-1 rounded-xl border border-blue-400/40 bg-blue-950/80 hover:bg-yellow-400 hover:text-blue-950 px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs font-black text-blue-100 transition shrink-0"
               title="Retourner au Quiz des Trentenaires"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Quiz Adultes</span>
             </Link>
 
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span className="text-lg sm:text-xl">🎈</span>
-              <h1 className="text-sm sm:text-lg font-black uppercase tracking-tight text-white truncate">
+            <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
+              <span className="text-base sm:text-xl">🎈</span>
+              <h1 className="text-xs sm:text-lg font-black uppercase tracking-tight text-white truncate">
                 QUIZ <span className="text-yellow-400">ENFANTS</span>
               </h1>
             </div>
           </div>
 
           {/* Compteur d'étoiles + Option Ombre Pokémon + Son + Reset */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <div className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-yellow-300 to-amber-500 px-3 py-1 text-xs font-black text-blue-950 shadow">
-              <Star className="h-3.5 w-3.5 fill-blue-950" />
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+            <div className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-yellow-300 to-amber-500 px-2.5 sm:px-3 py-1 text-[11px] sm:text-xs font-black text-blue-950 shadow">
+              <Star className="h-3 w-3 sm:h-3.5 sm:w-3.5 fill-blue-950" />
               <span>
-                {totalStars} étoile{totalStars > 1 ? 's' : ''}
+                {totalStars} <span className="hidden xs:inline">étoile{totalStars > 1 ? 's' : ''}</span>
               </span>
             </div>
 
             <button
               type="button"
               onClick={() => setPokemonMysteryMode((m) => !m)}
-              className={`hidden md:inline-flex items-center gap-1 rounded-xl border px-2.5 py-1 text-[11px] font-black transition ${
+              className={`inline-flex items-center gap-1 rounded-xl border px-2 sm:px-2.5 py-1 text-[10px] sm:text-[11px] font-black transition ${
                 pokemonMysteryMode
                   ? 'border-yellow-300 bg-yellow-400 text-blue-950'
                   : 'border-blue-400/35 bg-blue-950/70 text-blue-200 hover:text-yellow-300'
@@ -441,13 +441,14 @@ export default function KidsQuizPage() {
               title="Cacher les Pokémon en ombre chinoise avant la réponse"
             >
               <Eye className="h-3.5 w-3.5" />
-              <span>Ombre Pokémon</span>
+              <span className="hidden sm:inline">Ombre Pokémon</span>
+              <span className="sm:hidden">Ombre</span>
             </button>
 
             <button
               type="button"
               onClick={() => setSoundEnabled((s) => !s)}
-              className={`flex h-8 w-8 items-center justify-center rounded-xl border transition ${
+              className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl border transition ${
                 soundEnabled
                   ? 'border-yellow-400/60 bg-yellow-400/15 text-yellow-300'
                   : 'border-blue-500/30 bg-blue-950/70 text-blue-300/50'
@@ -455,16 +456,16 @@ export default function KidsQuizPage() {
               title={soundEnabled ? 'Couper le son' : 'Activer le son'}
             >
               {soundEnabled ? (
-                <Volume2 className="h-4 w-4 text-yellow-400" />
+                <Volume2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-400" />
               ) : (
-                <VolumeX className="h-4 w-4" />
+                <VolumeX className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               )}
             </button>
 
             <button
               type="button"
               onClick={handleResetKids}
-              className="inline-flex items-center gap-1 rounded-xl border border-blue-400/35 bg-blue-900/50 px-2.5 py-1.5 text-xs font-black text-blue-100 hover:bg-yellow-400 hover:text-blue-950 transition"
+              className="flex h-7 w-7 sm:h-8 sm:w-auto sm:px-2.5 items-center justify-center rounded-xl border border-blue-400/35 bg-blue-900/50 text-xs font-black text-blue-100 hover:bg-yellow-400 hover:text-blue-950 transition"
               title="Recommencer à zéro"
             >
               <RotateCcw className="h-3.5 w-3.5" />
@@ -474,10 +475,10 @@ export default function KidsQuizPage() {
       </header>
 
       {/* 2. CONTENU PRINCIPAL SANS SCROLL */}
-      <main className="mx-auto w-full max-w-5xl flex-1 min-h-0 flex flex-col justify-between gap-2 px-2.5 py-2 sm:px-4 sm:py-3">
+      <main className="mx-auto w-full max-w-5xl flex-1 min-h-0 flex flex-col justify-between gap-1.5 sm:gap-2 px-2 py-1.5 sm:px-4 sm:py-3 overflow-hidden">
         {/* A. BARRE DES THÈMES ILLUSTRÉS (Tous, Ferme, Animaux, JO, Sport, Pokémon) */}
-        <section className="shrink-0 rounded-2xl border border-blue-400/35 bg-[#091942]/90 p-2 shadow-lg space-y-2">
-          <div className="grid grid-cols-6 gap-1.5">
+        <section className="shrink-0 rounded-2xl border border-blue-400/35 bg-[#091942]/90 p-1.5 sm:p-2 shadow-lg space-y-1.5">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 sm:gap-1.5">
             {KIDS_THEMES_META.map((th) => {
               const active = selectedTheme === th.id;
               return (
@@ -488,16 +489,16 @@ export default function KidsQuizPage() {
                     setSelectedTheme(th.id);
                     setCurrentIndex(0);
                   }}
-                  className={`flex flex-col sm:flex-row items-center justify-center gap-1 rounded-xl border-2 py-1.5 px-1.5 text-xs sm:text-sm font-black transition-all ${
+                  className={`flex flex-row items-center justify-center gap-1 rounded-xl border-2 py-1 sm:py-1.5 px-1.5 text-xs sm:text-sm font-black transition-all ${
                     active
-                      ? `bg-gradient-to-r ${th.colorClass} scale-[1.03] shadow-md`
+                      ? `bg-gradient-to-r ${th.colorClass} scale-[1.02] shadow-md`
                       : 'border-blue-500/30 bg-[#05102e]/90 text-blue-100 hover:border-yellow-400/60'
                   }`}
                 >
-                  <span className="text-base sm:text-lg leading-none">
+                  <span className="text-sm sm:text-lg leading-none shrink-0">
                     {th.emoji}
                   </span>
-                  <span className="truncate text-[10px] sm:text-xs font-black">
+                  <span className="truncate text-[11px] sm:text-xs font-black">
                     {th.label}
                   </span>
                 </button>
@@ -506,14 +507,14 @@ export default function KidsQuizPage() {
           </div>
 
           {/* Mini-compteur d'étoiles par enfant (cliquable pour renommer) */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pt-0.5">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
             {kidPlayers.map((kid) => (
               <div
                 key={kid.id}
-                className="flex items-center justify-between gap-2 rounded-xl border border-yellow-400/40 bg-[#05102e]/90 px-2.5 py-1 min-w-[140px] shrink-0"
+                className="flex items-center justify-between gap-1.5 sm:gap-2 rounded-xl border border-yellow-400/40 bg-[#05102e]/90 px-2 sm:px-2.5 py-1 min-w-[128px] sm:min-w-[140px] shrink-0"
               >
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="text-base">{kid.avatar}</span>
+                <div className="flex items-center gap-1 min-w-0">
+                  <span className="text-sm sm:text-base">{kid.avatar}</span>
                   {editingKidId === kid.id ? (
                     <input
                       type="text"
@@ -547,7 +548,7 @@ export default function KidsQuizPage() {
                       }}
                       autoFocus
                       maxLength={14}
-                      className="w-20 rounded border border-yellow-400 bg-blue-950 px-1 py-0.5 text-xs font-bold text-white outline-none"
+                      className="w-16 sm:w-20 rounded border border-yellow-400 bg-blue-950 px-1 py-0.5 text-xs font-bold text-white outline-none"
                     />
                   ) : (
                     <button
@@ -556,7 +557,7 @@ export default function KidsQuizPage() {
                         setEditingKidId(kid.id);
                         setDraftKidName(kid.name);
                       }}
-                      className="truncate text-xs font-extrabold text-white hover:text-yellow-300"
+                      className="truncate text-[11px] sm:text-xs font-extrabold text-white hover:text-yellow-300"
                       title="Cliquer pour changer le prénom"
                     >
                       {kid.name}
@@ -564,8 +565,8 @@ export default function KidsQuizPage() {
                   )}
                 </div>
 
-                <div className="flex items-center gap-1">
-                  <span className="text-xs font-black text-yellow-300">
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="text-[11px] sm:text-xs font-black text-yellow-300">
                     ⭐ {kid.stars}
                   </span>
                   <button
@@ -591,10 +592,10 @@ export default function KidsQuizPage() {
               <button
                 type="button"
                 onClick={handleAddKidPlayer}
-                className="inline-flex items-center gap-1 rounded-xl border border-dashed border-yellow-400/50 px-2.5 py-1 text-xs font-extrabold text-yellow-300 hover:bg-yellow-400/15 shrink-0"
+                className="inline-flex items-center gap-1 rounded-xl border border-dashed border-yellow-400/50 px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-extrabold text-yellow-300 hover:bg-yellow-400/15 shrink-0"
               >
                 <Plus className="h-3.5 w-3.5" />
-                <span>Ajouter un enfant</span>
+                <span>+ Enfant</span>
               </button>
             )}
           </div>
@@ -604,19 +605,19 @@ export default function KidsQuizPage() {
         {currentQuestion && (
           <section
             key={currentQuestion.id}
-            className="relative flex-1 min-h-0 flex flex-col justify-between gap-2 overflow-hidden rounded-2xl border-2 border-yellow-400/55 bg-gradient-to-b from-[#0b1d48]/95 via-[#081538]/95 to-[#050d26]/95 p-3 sm:p-4 shadow-2xl animate-fadeIn"
+            className="relative flex-1 min-h-0 flex flex-col justify-between gap-1.5 sm:gap-2 overflow-hidden rounded-2xl border-2 border-yellow-400/55 bg-gradient-to-b from-[#0b1d48]/95 via-[#081538]/95 to-[#050d26]/95 p-2.5 sm:p-4 shadow-2xl animate-fadeIn"
           >
-            {/* 1. CADRE IMAGE / ILLUSTRATION VISUELLE + ÉNONCÉ */}
-            <div className="shrink-0 grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
-              {/* Cadre Image Illustré (5 colonnes sur tablette/desktop) */}
+            {/* 1. CADRE IMAGE / ILLUSTRATION VISUELLE + ÉNONCÉ (Côte à côte même en portrait pour garder une vue compacte) */}
+            <div className="shrink-0 grid grid-cols-12 gap-2 sm:gap-2.5 items-stretch">
+              {/* Cadre Image Illustré (5 colonnes) */}
               <div
-                className={`sm:col-span-5 relative flex flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-white/25 bg-gradient-to-br ${currentQuestion.visual.bgGradient} p-3 min-h-[130px] sm:min-h-[165px] shadow-xl`}
+                className={`col-span-5 relative flex flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-white/25 bg-gradient-to-br ${currentQuestion.visual.bgGradient} p-2 sm:p-3 min-h-[108px] sm:min-h-[165px] shadow-xl`}
               >
                 {/* Emojis de décor flottants */}
-                <span className="absolute top-2 left-3 text-xl sm:text-2xl opacity-80 select-none">
+                <span className="absolute top-1.5 left-2 sm:top-2 sm:left-3 text-sm sm:text-2xl opacity-80 select-none">
                   {currentQuestion.visual.decorEmojis[0]}
                 </span>
-                <span className="absolute top-2 right-3 text-xl sm:text-2xl opacity-80 select-none">
+                <span className="absolute top-1.5 right-2 sm:top-2 sm:right-3 text-sm sm:text-2xl opacity-80 select-none">
                   {currentQuestion.visual.decorEmojis[1]}
                 </span>
 
@@ -626,7 +627,7 @@ export default function KidsQuizPage() {
                     src={currentQuestion.visual.imageUrl}
                     alt={currentQuestion.theme}
                     onError={() => setImgError(true)}
-                    className={`h-24 sm:h-32 w-auto object-contain drop-shadow-2xl transition-all duration-500 ${
+                    className={`h-16 sm:h-32 w-auto object-contain drop-shadow-2xl transition-all duration-500 ${
                       shouldSilhouette
                         ? 'brightness-0 contrast-200'
                         : 'scale-105'
@@ -637,44 +638,44 @@ export default function KidsQuizPage() {
                     currentQuestion.visual.specialSvg === 'podium') ? (
                   <SpecialVisualSvg type={currentQuestion.visual.specialSvg} />
                 ) : (
-                  <div className="text-6xl sm:text-7xl drop-shadow-xl transform hover:scale-110 transition">
+                  <div className="text-4xl sm:text-7xl drop-shadow-xl transform hover:scale-110 transition">
                     {currentQuestion.visual.mainEmoji}
                   </div>
                 )}
 
-                <span className="mt-1.5 rounded-full bg-black/45 backdrop-blur-sm border border-white/20 px-3 py-0.5 text-[11px] font-black text-white shadow">
+                <span className="mt-1 sm:mt-1.5 rounded-full bg-black/45 backdrop-blur-sm border border-white/20 px-2 sm:px-3 py-0.5 text-[9px] sm:text-[11px] font-black text-white shadow truncate max-w-full">
                   {shouldSilhouette
-                    ? '❓ Quel est ce Pokémon ?'
+                    ? '❓ Quel Pokémon ?'
                     : currentQuestion.visual.badgeLabel}
                 </span>
               </div>
 
               {/* Énoncé + Bouton Écouter la question (7 colonnes) */}
-              <div className="sm:col-span-7 flex flex-col justify-between gap-2 rounded-2xl border border-blue-400/35 bg-[#040b1e]/90 p-3 sm:p-4 h-full">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-yellow-400 px-3 py-0.5 text-xs font-black uppercase text-blue-950">
+              <div className="col-span-7 flex flex-col justify-between gap-1.5 sm:gap-2 rounded-2xl border border-blue-400/35 bg-[#040b1e]/90 p-2.5 sm:p-4 h-full">
+                <div className="flex items-center justify-between gap-1.5">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-yellow-400 px-2 sm:px-3 py-0.5 text-[10px] sm:text-xs font-black uppercase text-blue-950 truncate">
                     {currentQuestion.theme}
                   </span>
 
                   <button
                     type="button"
                     onClick={handleSpeakQuestion}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-sky-400/50 bg-sky-500/20 hover:bg-sky-400 hover:text-slate-950 px-3 py-1 text-xs font-black text-sky-200 transition active:scale-95"
+                    className="inline-flex items-center gap-1 rounded-xl border border-sky-400/50 bg-sky-500/20 hover:bg-sky-400 hover:text-slate-950 px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-black text-sky-200 transition active:scale-95 shrink-0"
                     title="Lire la question à voix haute"
                   >
-                    <Speech className="h-4 w-4" />
+                    <Speech className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     <span>🔊 Écouter</span>
                   </button>
                 </div>
 
-                <h2 className="text-base sm:text-xl font-black text-white leading-snug my-auto">
+                <h2 className="text-xs sm:text-xl font-black text-white leading-snug my-auto">
                   {currentQuestion.question}
                 </h2>
 
-                <div className="text-[11px] font-bold text-blue-200/75 flex items-center justify-between">
-                  <span>Touchez la bonne image / réponse !</span>
-                  <span>
-                    Question {(currentIndex % filteredQuestions.length) + 1} /{' '}
+                <div className="text-[10px] sm:text-[11px] font-bold text-blue-200/75 flex items-center justify-between gap-1">
+                  <span className="hidden sm:inline">Touchez la bonne réponse !</span>
+                  <span className="ml-auto">
+                    Q. {(currentIndex % filteredQuestions.length) + 1}/
                     {filteredQuestions.length}
                   </span>
                 </div>
@@ -683,8 +684,8 @@ export default function KidsQuizPage() {
 
             {/* 2. LES 4 GROS BOUTONS DE RÉPONSE ENFANTS */}
             <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
-              <div className="my-auto space-y-2.5 py-1">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
+              <div className="my-auto space-y-2 py-0.5 sm:py-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2.5">
                   {currentQuestion.options.map((opt, idx) => {
                     const isCorrect = idx === currentQuestion.correct_index;
                     const isChosen = idx === selectedOption;
@@ -715,28 +716,28 @@ export default function KidsQuizPage() {
                         type="button"
                         onClick={() => handleSelectOption(idx)}
                         disabled={isRevealed}
-                        className={`flex items-center justify-between gap-3 rounded-2xl border-2 px-4 py-3 text-left transition-all ${cardStyle} ${
+                        className={`flex items-center justify-between gap-2.5 sm:gap-3 rounded-2xl border-2 px-3 py-2 sm:px-4 sm:py-3 text-left transition-all ${cardStyle} ${
                           !isRevealed
                             ? 'active:scale-95 cursor-pointer shadow-md'
                             : 'cursor-default'
                         }`}
                       >
-                        <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                           <span
-                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-sm font-black shadow ${letterStyle}`}
+                            className={`flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl text-xs sm:text-sm font-black shadow ${letterStyle}`}
                           >
                             {['A', 'B', 'C', 'D'][idx]}
                           </span>
-                          <span className="text-base sm:text-lg font-extrabold leading-snug">
+                          <span className="text-sm sm:text-lg font-extrabold leading-snug">
                             {opt}
                           </span>
                         </div>
 
                         {isRevealed && isCorrect && (
-                          <CheckCircle2 className="h-6 w-6 shrink-0 text-emerald-400" />
+                          <CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6 shrink-0 text-emerald-400" />
                         )}
                         {isRevealed && isChosen && !isCorrect && (
-                          <XCircle className="h-6 w-6 shrink-0 text-rose-400" />
+                          <XCircle className="h-5 w-5 sm:h-6 sm:w-6 shrink-0 text-rose-400" />
                         )}
                       </button>
                     );
@@ -746,7 +747,7 @@ export default function KidsQuizPage() {
                 {/* Explication bienveillante pour les enfants */}
                 {isRevealed && (
                   <div
-                    className={`rounded-2xl border-2 px-3.5 py-2.5 shadow-lg animate-fadeIn ${
+                    className={`rounded-2xl border-2 px-3 py-2 sm:px-3.5 sm:py-2.5 shadow-lg animate-fadeIn ${
                       selectedOption === currentQuestion.correct_index
                         ? 'border-emerald-400 bg-emerald-950/50'
                         : 'border-amber-400 bg-amber-950/40'
@@ -766,20 +767,20 @@ export default function KidsQuizPage() {
             </div>
 
             {/* 3. BARRE DU BAS : DONNER UNE ÉTOILE À UN ENFANT + QUESTION SUIVANTE */}
-            <div className="shrink-0 pt-2 border-t border-blue-500/30 flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-xs font-black text-yellow-300">
-                  ⭐ +1 pour :
+            <div className="shrink-0 pt-1.5 sm:pt-2 border-t border-blue-500/30 flex items-center justify-between gap-1.5 sm:gap-2">
+              <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar min-w-0">
+                <span className="text-[11px] sm:text-xs font-black text-yellow-300 shrink-0">
+                  ⭐ +1 :
                 </span>
                 {kidPlayers.map((kid) => (
                   <button
                     key={kid.id}
                     type="button"
                     onClick={() => handleUpdateKidStars(kid.id, 1)}
-                    className="inline-flex items-center gap-1 rounded-xl border border-yellow-400/50 bg-blue-950/90 hover:bg-yellow-400 hover:text-blue-950 px-2.5 py-1 text-xs font-black text-white transition active:scale-95"
+                    className="shrink-0 inline-flex items-center gap-1 rounded-xl border border-yellow-400/50 bg-blue-950/90 hover:bg-yellow-400 hover:text-blue-950 px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-black text-white transition active:scale-95"
                   >
                     <span>{kid.avatar}</span>
-                    <span>{kid.name}</span>
+                    <span className="truncate max-w-[65px] sm:max-w-[100px]">{kid.name}</span>
                   </button>
                 ))}
               </div>
@@ -787,10 +788,11 @@ export default function KidsQuizPage() {
               <button
                 type="button"
                 onClick={handleNextQuestion}
-                className="shimmer-btn relative overflow-hidden inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 hover:from-yellow-200 hover:to-yellow-400 px-5 py-2 text-xs sm:text-sm font-black uppercase tracking-wide text-blue-950 shadow-lg shadow-yellow-400/25 active:scale-95 transition ml-auto"
+                className="shimmer-btn shrink-0 relative overflow-hidden inline-flex items-center gap-1.5 sm:gap-2 rounded-xl bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 hover:from-yellow-200 hover:to-yellow-400 px-3.5 sm:px-5 py-1.5 sm:py-2 text-xs sm:text-sm font-black uppercase tracking-wide text-blue-950 shadow-lg shadow-yellow-400/25 active:scale-95 transition ml-auto"
               >
-                <span>Question Suivante</span>
-                <ArrowRight className="h-4 w-4 stroke-[2.5]" />
+                <span className="sm:hidden">Suivante</span>
+                <span className="hidden sm:inline">Question Suivante</span>
+                <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 stroke-[2.5]" />
               </button>
             </div>
           </section>
