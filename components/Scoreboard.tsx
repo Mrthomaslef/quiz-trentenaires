@@ -12,7 +12,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-export type GameMode = '2_couples' | '4_players' | 'coop';
+export type GameMode = '2_couples' | '4_players' | 'coop' | 'versus' | 'millions';
 
 export interface PlayerScore {
   id: string;

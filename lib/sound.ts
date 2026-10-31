@@ -93,3 +93,81 @@ export function playTickSound(enabled = true, urgent = false) {
   osc.start(now);
   osc.stop(now + 0.07);
 }
+
+export function playLockSound(enabled = true) {
+  if (!enabled) return;
+  const ctx = getCtx();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(660, now);
+  osc.frequency.exponentialRampToValueAtTime(990, now + 0.08);
+  gain.gain.setValueAtTime(0.14, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + 0.12);
+}
+
+export function playCountdownBeep(enabled = true, isGo = false) {
+  if (!enabled) return;
+  const ctx = getCtx();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(isGo ? 1046.5 : 523.25, now);
+  gain.gain.setValueAtTime(isGo ? 0.18 : 0.11, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + (isGo ? 0.25 : 0.12));
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + (isGo ? 0.26 : 0.13));
+}
+
+export function playSuspenseSound(enabled = true) {
+  if (!enabled) return;
+  const ctx = getCtx();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  // Note grave dramatique style "C'est votre dernier mot ?"
+  const freqs = [146.83, 220]; // D3 + A3
+  freqs.forEach((f) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(f, now);
+    gain.gain.setValueAtTime(0.11, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.48);
+  });
+}
+
+export function playJokerSound(enabled = true) {
+  if (!enabled) return;
+  const ctx = getCtx();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  const notes = [440, 554.37, 659.25, 880]; // Arpège A majeur
+  notes.forEach((f, idx) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(f, now + idx * 0.055);
+    gain.gain.setValueAtTime(0.12, now + idx * 0.055);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.055 + 0.18);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now + idx * 0.055);
+    osc.stop(now + idx * 0.055 + 0.2);
+  });
+}
+
+

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import Link from 'next/link';
 import Scoreboard, {
   type GameMode,
   type PlayerScore,
@@ -8,6 +9,8 @@ import Scoreboard, {
 } from '@/components/Scoreboard';
 import DifficultySelector from '@/components/DifficultySelector';
 import QuestionCard from '@/components/QuestionCard';
+import VersusMode from '@/components/VersusMode';
+import MillionsMode from '@/components/MillionsMode';
 import {
   fetchAllQuestionsFromSupabase,
   incrementQuestionPlayed,
@@ -23,6 +26,8 @@ import {
   Users,
   User,
   Flame,
+  Swords,
+  Gem,
 } from 'lucide-react';
 import { playPointSound } from '@/lib/sound';
 
@@ -80,6 +85,7 @@ export default function QuizHomePage() {
   const [selectedLevel, setSelectedLevel] = useState<number>(3);
   const [selectedTheme, setSelectedTheme] = useState<string>('ALL');
   const [mode, setMode] = useState<GameMode>('2_couples');
+  const [initialRoomCode, setInitialRoomCode] = useState<string | null>(null);
   const [couples, setCouples] = useState<PlayerScore[]>(DEFAULT_COUPLES);
   const [players, setPlayers] = useState<PlayerScore[]>(DEFAULT_PLAYERS);
   const [coopStats, setCoopStats] = useState<CoopStats>(DEFAULT_COOP);
@@ -97,9 +103,21 @@ export default function QuizHomePage() {
       if (
         savedMode === '2_couples' ||
         savedMode === '4_players' ||
-        savedMode === 'coop'
+        savedMode === 'coop' ||
+        savedMode === 'versus' ||
+        savedMode === 'millions'
       ) {
         setMode(savedMode);
+      }
+
+      // Si l'URL contient ?room=XXXX, basculer automatiquement en mode Versus
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const roomParam = params.get('room');
+        if (roomParam && roomParam.trim().length > 0) {
+          setInitialRoomCode(roomParam.trim().toUpperCase());
+          setMode('versus');
+        }
       }
 
       const savedCouples = localStorage.getItem(STORAGE_KEYS.COUPLES);
@@ -172,10 +190,18 @@ export default function QuizHomePage() {
             const merged: Record<number, QuizQuestionRecord[]> = {};
             for (let lvl = 1; lvl <= 10; lvl++) {
               const remoteList = remoteGrouped[lvl] || [];
-              merged[lvl] =
-                remoteList.length > 0
-                  ? shuffleQuestions(remoteList)
-                  : prev[lvl] || [];
+              const localList = prev[lvl] || [];
+              if (remoteList.length > 0) {
+                const seenQuestions = new Set(
+                  remoteList.map((q) => q.question.trim().toLowerCase())
+                );
+                const extraLocal = localList.filter(
+                  (q) => !seenQuestions.has(q.question.trim().toLowerCase())
+                );
+                merged[lvl] = shuffleQuestions([...remoteList, ...extraLocal]);
+              } else {
+                merged[lvl] = localList;
+              }
             }
             return merged;
           });
@@ -372,6 +398,11 @@ export default function QuizHomePage() {
     setSelectedTheme('ALL');
   }, []);
 
+  const handleMarkVersusQuestionPlayed = useCallback((questionId: string) => {
+    incrementQuestionPlayed(questionId);
+    setPlayedIds((prev) => (prev.includes(questionId) ? prev : [...prev, questionId]));
+  }, []);
+
   const totalPoolCount = useMemo(
     () =>
       Object.values(poolByLevel).reduce((sum, arr) => sum + arr.length, 0),
@@ -380,122 +411,163 @@ export default function QuizHomePage() {
 
   return (
     <div className="h-[100dvh] max-h-[100dvh] w-full overflow-hidden flex flex-col justify-between select-none">
-      {/* En-tête ultra-compact 1 ligne */}
-      <header className="shrink-0 border-b border-yellow-400/35 bg-[#050d26]/95 px-2.5 sm:px-3 py-2">
-        <div className="mx-auto max-w-5xl flex items-center justify-between gap-2">
-          {/* Logo Plaque "7 TER" + Titre */}
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="relative flex h-8 w-11 sm:w-12 shrink-0 items-center justify-center rounded-lg border-2 border-yellow-400 bg-gradient-to-br from-[#133282] to-[#06102b] shadow">
-              <span className="text-base font-black text-yellow-400 tracking-tighter">
-                7
-              </span>
-              <span className="text-[9px] font-black uppercase text-white ml-0.5">
-                TER
-              </span>
-            </div>
-
-            <div className="min-w-0 hidden sm:block">
-              <div className="flex items-center gap-1.5">
-                <h1 className="text-sm sm:text-lg font-black uppercase tracking-tight text-white truncate">
-                  QUIZ du <span className="text-yellow-400">7TER</span>
-                </h1>
-                <span className="hidden lg:inline-flex items-center gap-1 rounded-full bg-yellow-400/15 border border-yellow-400/40 px-2 py-0.5 text-[10px] font-bold text-yellow-300">
-                  {totalPoolCount} questions
+      {/* En-tête avec barre de modes 100% visible sur mobile et desktop */}
+      <header className="shrink-0 border-b border-yellow-400/35 bg-[#050d26]/95 px-2.5 sm:px-4 py-1.5 sm:py-2">
+        <div className="mx-auto max-w-5xl flex flex-col gap-1.5">
+          {/* Ligne 1 : Logo 7TER + Bouton Mode Enfant + Son + Reset */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="relative flex h-7 w-10 sm:h-8 sm:w-12 shrink-0 items-center justify-center rounded-lg border-2 border-yellow-400 bg-gradient-to-br from-[#133282] to-[#06102b] shadow">
+                <span className="text-sm sm:text-base font-black text-yellow-400 tracking-tighter">
+                  7
+                </span>
+                <span className="text-[8px] sm:text-[9px] font-black uppercase text-white ml-0.5">
+                  TER
                 </span>
               </div>
+
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <h1 className="text-xs sm:text-lg font-black uppercase tracking-tight text-white truncate">
+                    QUIZ du <span className="text-yellow-400">7TER</span>
+                  </h1>
+                  <span className="hidden md:inline-flex items-center gap-1 rounded-full bg-yellow-400/15 border border-yellow-400/40 px-2 py-0.5 text-[10px] font-bold text-yellow-300">
+                    {totalPoolCount} questions
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Link
+                href="/enfants"
+                className="inline-flex items-center gap-1 rounded-lg border border-lime-400/60 bg-gradient-to-r from-lime-400/25 to-emerald-500/25 hover:from-lime-400 hover:to-emerald-400 hover:text-slate-950 px-2.5 py-1 text-[11px] font-black text-lime-300 transition shadow-sm"
+                title="Ouvrir la page dédiée au Mode Enfant (Quiz sur images : Ferme, JO, Animaux, Sport, Pokémon)"
+              >
+                <span>🎈</span>
+                <span>Mode Enfant</span>
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => setSoundEnabled((s) => !s)}
+                className={`flex h-7 w-7 items-center justify-center rounded-lg border transition ${
+                  soundEnabled
+                    ? 'border-yellow-400/60 bg-yellow-400/15 text-yellow-300'
+                    : 'border-blue-500/30 bg-blue-950/70 text-blue-300/50'
+                }`}
+                title={soundEnabled ? 'Couper le son' : 'Activer le son'}
+              >
+                {soundEnabled ? (
+                  <Volume2 className="h-3.5 w-3.5 text-yellow-400" />
+                ) : (
+                  <VolumeX className="h-3.5 w-3.5" />
+                )}
+              </button>
+
+              <span
+                className={`hidden md:inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-bold ${
+                  dbSynced
+                    ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-300'
+                    : 'border-sky-400/40 bg-sky-500/15 text-sky-300'
+                }`}
+              >
+                {dbSynced ? (
+                  <>
+                    <Database className="h-3 w-3" />
+                    <span>Live</span>
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-3 w-3" />
+                    <span>&lt;10ms</span>
+                  </>
+                )}
+              </span>
+
+              <button
+                type="button"
+                onClick={handleResetAll}
+                className="inline-flex items-center gap-1 rounded-lg border border-blue-400/35 bg-blue-900/50 px-2 py-1 text-[11px] font-extrabold text-blue-100 hover:bg-yellow-400 hover:text-blue-950 transition"
+                title="Remettre les scores et la soirée à zéro"
+              >
+                <RotateCcw className="h-3 w-3" />
+                <span className="hidden sm:inline">Reset</span>
+              </button>
             </div>
           </div>
 
-          {/* Contrôles rapides Header : Mode 2 Couples / 4 Solo / Ensemble 1->10 + Son + Reset */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <div className="inline-flex rounded-lg bg-[#040b1e] p-0.5 border border-blue-500/30">
-              <button
-                type="button"
-                onClick={() => setMode('2_couples')}
-                className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-extrabold transition ${
-                  mode === '2_couples'
-                    ? 'bg-yellow-400 text-blue-950'
-                    : 'text-blue-200/75 hover:text-white'
-                }`}
-              >
-                <Users className="h-3 w-3" />
-                <span>2 Couples</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('4_players')}
-                className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-extrabold transition ${
-                  mode === '4_players'
-                    ? 'bg-yellow-400 text-blue-950'
-                    : 'text-blue-200/75 hover:text-white'
-                }`}
-              >
-                <User className="h-3 w-3" />
-                <span>4 Solo</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMode('coop');
-                  setCoopStats((prev) => ({ ...prev, status: 'playing' }));
-                }}
-                className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-extrabold transition ${
-                  mode === 'coop'
-                    ? 'bg-gradient-to-r from-yellow-300 to-amber-500 text-blue-950 shadow'
-                    : 'text-yellow-300/90 hover:text-yellow-300'
-                }`}
-                title="Mode coopératif à 4 : réussir les 10 niveaux d'affilée sans erreur"
-              >
-                <Flame className="h-3 w-3" />
-                <span>Ensemble 1→10</span>
-              </button>
-            </div>
-
+          {/* Ligne 2 : Sélecteur des 5 Modes de Jeu (2 Couples | 4 Solo | Ensemble | Versus 10s | Millions) */}
+          <div className="grid grid-cols-5 gap-1 rounded-xl bg-[#040b1e] p-1 border border-blue-500/35">
             <button
               type="button"
-              onClick={() => setSoundEnabled((s) => !s)}
-              className={`flex h-7 w-7 items-center justify-center rounded-lg border transition ${
-                soundEnabled
-                  ? 'border-yellow-400/60 bg-yellow-400/15 text-yellow-300'
-                  : 'border-blue-500/30 bg-blue-950/70 text-blue-300/50'
+              onClick={() => setMode('2_couples')}
+              className={`inline-flex items-center justify-center gap-1 rounded-lg py-1.5 px-1 text-[10px] sm:text-xs font-black transition ${
+                mode === '2_couples'
+                  ? 'bg-yellow-400 text-blue-950 shadow'
+                  : 'text-blue-200/80 hover:text-white'
               }`}
-              title={soundEnabled ? 'Couper le son' : 'Activer le son'}
             >
-              {soundEnabled ? (
-                <Volume2 className="h-3.5 w-3.5 text-yellow-400" />
-              ) : (
-                <VolumeX className="h-3.5 w-3.5" />
-              )}
+              <Users className="h-3 w-3 shrink-0" />
+              <span className="truncate">2 Couples</span>
             </button>
 
-            <span
-              className={`hidden md:inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-bold ${
-                dbSynced
-                  ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-300'
-                  : 'border-sky-400/40 bg-sky-500/15 text-sky-300'
+            <button
+              type="button"
+              onClick={() => setMode('4_players')}
+              className={`inline-flex items-center justify-center gap-1 rounded-lg py-1.5 px-1 text-[10px] sm:text-xs font-black transition ${
+                mode === '4_players'
+                  ? 'bg-yellow-400 text-blue-950 shadow'
+                  : 'text-blue-200/80 hover:text-white'
               }`}
             >
-              {dbSynced ? (
-                <>
-                  <Database className="h-3 w-3" />
-                  <span>Live</span>
-                </>
-              ) : (
-                <>
-                  <Zap className="h-3 w-3" />
-                  <span>&lt;10ms</span>
-                </>
-              )}
-            </span>
+              <User className="h-3 w-3 shrink-0" />
+              <span className="truncate">4 Solo</span>
+            </button>
 
             <button
               type="button"
-              onClick={handleResetAll}
-              className="inline-flex items-center gap-1 rounded-lg border border-blue-400/35 bg-blue-900/50 px-2 py-1 text-[11px] font-extrabold text-blue-100 hover:bg-yellow-400 hover:text-blue-950 transition"
-              title="Remettre les scores et la soirée à zéro"
+              onClick={() => {
+                setMode('coop');
+                setCoopStats((prev) => ({ ...prev, status: 'playing' }));
+              }}
+              className={`inline-flex items-center justify-center gap-1 rounded-lg py-1.5 px-1 text-[10px] sm:text-xs font-black transition ${
+                mode === 'coop'
+                  ? 'bg-gradient-to-r from-yellow-300 to-amber-500 text-blue-950 shadow'
+                  : 'text-yellow-300/90 hover:text-yellow-300'
+              }`}
+              title="Mode coopératif à 4 : réussir les 10 niveaux d'affilée sans erreur"
             >
-              <RotateCcw className="h-3 w-3" />
-              <span className="hidden sm:inline">Reset</span>
+              <Flame className="h-3 w-3 shrink-0" />
+              <span className="truncate">Ensemble</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMode('versus')}
+              className={`inline-flex items-center justify-center gap-1 rounded-lg py-1.5 px-1 text-[10px] sm:text-xs font-black transition ${
+                mode === 'versus'
+                  ? 'bg-gradient-to-r from-sky-300 via-sky-400 to-blue-500 text-slate-950 shadow'
+                  : 'text-sky-300 hover:text-white'
+              }`}
+              title="Salon Versus Multi-Téléphones : Timer 10s à points dégressifs"
+            >
+              <Swords className="h-3 w-3 shrink-0" />
+              <span className="truncate">Versus 10s</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMode('millions')}
+              className={`inline-flex items-center justify-center gap-1 rounded-lg py-1.5 px-1 text-[10px] sm:text-xs font-black transition ${
+                mode === 'millions'
+                  ? 'bg-gradient-to-r from-amber-300 via-yellow-400 to-orange-500 text-blue-950 shadow'
+                  : 'text-amber-300 hover:text-white'
+              }`}
+              title="Qui veut gagner des Millions : 15 paliers, 2 paliers de sécurité et 4 Jokers !"
+            >
+              <Gem className="h-3 w-3 shrink-0" />
+              <span className="truncate">Millions</span>
             </button>
           </div>
         </div>
@@ -503,52 +575,73 @@ export default function QuizHomePage() {
 
       {/* Cockpit Principal Sans Scroll (occupe exactement le reste de la hauteur 100dvh) */}
       <main className="mx-auto w-full max-w-5xl flex-1 min-h-0 flex flex-col justify-between gap-2 px-2.5 py-2 sm:px-4 sm:py-3">
-        {/* 1. Bandeau des scores OU Tour d'Ascension 1->10 en mode Ensemble */}
-        <Scoreboard
-          mode={mode}
-          teams={activeTeams}
-          onUpdateScore={handleUpdateScore}
-          onRenameTeam={handleRenameTeam}
-          lastScoredId={lastScoredId}
-          coopStats={coopStats}
-        />
-
-        {/* 2. Barre de niveau 1-10 (affichée en mode Duel/Solo ; en mode Ensemble la progression est automatique 1->10) */}
-        {mode !== 'coop' && (
-          <DifficultySelector
-            selectedLevel={selectedLevel}
-            onSelectLevel={(lvl) => {
-              setSelectedLevel(lvl);
-              setSelectedTheme('ALL');
-            }}
-            countsByLevel={countsByLevel}
-            doublePoints={doublePoints}
-            onToggleDoublePoints={() => setDoublePoints((d) => !d)}
-            timerEnabled={timerEnabled}
-            onToggleTimer={() => setTimerEnabled((t) => !t)}
+        {mode === 'versus' ? (
+          <VersusMode
+            poolByLevel={poolByLevel}
+            playedIds={playedIds}
+            onMarkQuestionPlayed={handleMarkVersusQuestionPlayed}
             soundEnabled={soundEnabled}
-            availableThemes={availableThemesInLevel}
-            selectedTheme={selectedTheme}
-            onSelectTheme={setSelectedTheme}
+            initialRoomCode={initialRoomCode}
           />
-        )}
+        ) : mode === 'millions' ? (
+          <MillionsMode
+            poolByLevel={poolByLevel}
+            playedIds={playedIds}
+            onMarkQuestionPlayed={handleMarkVersusQuestionPlayed}
+            soundEnabled={soundEnabled}
+          />
+        ) : (
+          <>
+            {/* 1. Bandeau des scores OU Tour d'Ascension 1->10 en mode Ensemble */}
+            <Scoreboard
+              mode={mode}
+              teams={activeTeams}
+              onUpdateScore={handleUpdateScore}
+              onRenameTeam={handleRenameTeam}
+              lastScoredId={lastScoredId}
+              coopStats={coopStats}
+            />
 
-        {/* 3. Carte Question flexible (flex-1 min-h-0) avec boutons toujours visibles en bas */}
-        <QuestionCard
-          question={activeQuestion}
-          onNextQuestion={handleNextQuestion}
-          onAwardPoint={handleUpdateScore}
-          teams={activeTeams}
-          questionNumber={questionNumber}
-          remainingInLevel={unplayedInCurrentLevel.length || currentLevelQuestions.length}
-          totalInLevel={currentLevelQuestions.length}
-          doublePoints={doublePoints}
-          timerEnabled={timerEnabled}
-          soundEnabled={soundEnabled}
-          isCoopMode={mode === 'coop'}
-          coopStats={coopStats}
-          onCoopAnswer={handleCoopAnswer}
-        />
+            {/* 2. Barre de niveau 1-10 (affichée en mode Duel/Solo ; en mode Ensemble la progression est automatique 1->10) */}
+            {mode !== 'coop' && (
+              <DifficultySelector
+                selectedLevel={selectedLevel}
+                onSelectLevel={(lvl) => {
+                  setSelectedLevel(lvl);
+                  setSelectedTheme('ALL');
+                }}
+                countsByLevel={countsByLevel}
+                doublePoints={doublePoints}
+                onToggleDoublePoints={() => setDoublePoints((d) => !d)}
+                timerEnabled={timerEnabled}
+                onToggleTimer={() => setTimerEnabled((t) => !t)}
+                soundEnabled={soundEnabled}
+                availableThemes={availableThemesInLevel}
+                selectedTheme={selectedTheme}
+                onSelectTheme={setSelectedTheme}
+              />
+            )}
+
+            {/* 3. Carte Question flexible (flex-1 min-h-0) avec boutons toujours visibles en bas */}
+            <QuestionCard
+              question={activeQuestion}
+              onNextQuestion={handleNextQuestion}
+              onAwardPoint={handleUpdateScore}
+              teams={activeTeams}
+              questionNumber={questionNumber}
+              remainingInLevel={
+                unplayedInCurrentLevel.length || currentLevelQuestions.length
+              }
+              totalInLevel={currentLevelQuestions.length}
+              doublePoints={doublePoints}
+              timerEnabled={timerEnabled}
+              soundEnabled={soundEnabled}
+              isCoopMode={mode === 'coop'}
+              coopStats={coopStats}
+              onCoopAnswer={handleCoopAnswer}
+            />
+          </>
+        )}
       </main>
     </div>
   );
