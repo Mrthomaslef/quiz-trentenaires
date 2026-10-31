@@ -301,8 +301,34 @@ export default function MillionsMode({
   useEffect(() => {
     const handleResize = () => centerCurrentStepInScroll('auto');
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
   }, [centerCurrentStepInScroll]);
+
+  // Recentrage dès que la taille réelle de la pyramide change (passage en
+  // paysage, colonne qui apparaît, tête de l'animateur qui prend de la place…)
+  const hasQuestion = Boolean(currentQuestion);
+  useEffect(() => {
+    if (!hasQuestion || typeof ResizeObserver === 'undefined') return;
+    let rafId = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => centerCurrentStepInScroll('auto'));
+    });
+    if (desktopLadderScrollRef.current) {
+      observer.observe(desktopLadderScrollRef.current);
+    }
+    if (ladderScrollRef.current) {
+      observer.observe(ladderScrollRef.current);
+    }
+    return () => {
+      cancelAnimationFrame(rafId);
+      observer.disconnect();
+    };
+  }, [hasQuestion, centerCurrentStepInScroll]);
 
   // Chargement des records et de la partie en cours depuis localStorage (pour ne pas changer de question au rafraîchissement)
   useEffect(() => {
@@ -1522,7 +1548,7 @@ export default function MillionsMode({
                 ref={(el) => {
                   desktopStepItemRefs.current[item.step] = el;
                 }}
-                className={`flex items-center justify-between rounded-lg border px-2.5 py-1 text-xs transition ${rowStyle}`}
+                className={`shrink-0 flex items-center justify-between rounded-lg border px-2.5 py-1 ls:py-0.5 text-xs ls:text-[11px] transition ${rowStyle}`}
               >
                 <div className="flex items-center gap-1.5">
                   <span className="w-5 font-mono text-[11px] font-black opacity-80">
