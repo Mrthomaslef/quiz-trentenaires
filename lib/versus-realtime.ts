@@ -1,6 +1,11 @@
 import { supabase, type QuizQuestionRecord } from './supabase';
 
-export type VersusPhase = 'lobby' | 'countdown' | 'question' | 'reveal';
+export type VersusPhase =
+  | 'lobby'
+  | 'countdown'
+  | 'question'
+  | 'reveal'
+  | 'finished';
 
 export interface VersusPlayer {
   id: string;
@@ -29,6 +34,7 @@ export interface VersusRoomState {
   selectedLevel: number;
   selectedTheme: string;
   doublePoints: boolean;
+  totalQuestions: number; // Choisi de 5 en 5 par l'hôte (5, 10, 15, 20, 25, 30)
   questionNumber: number;
   currentQuestion: QuizQuestionRecord | null;
   questionStartedAt: number; // Host timestamp for reference

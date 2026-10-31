@@ -33,6 +33,9 @@ import {
   Dices,
   Tag,
   Radio,
+  RotateCcw,
+  UserCheck,
+  X,
 } from 'lucide-react';
 import {
   playCorrectSound,
@@ -52,6 +55,9 @@ interface VersusModeProps {
 }
 
 const OPTION_LETTERS = ['A', 'B', 'C', 'D'] as const;
+
+// Paliers de nombre de questions sélectionnables de 5 en 5 par l'hôte
+const QUESTION_STEPS_5 = [5, 10, 15, 20, 25, 30] as const;
 
 const PLAYER_BADGE_COLORS = [
   'bg-yellow-400 text-blue-950 border-yellow-300',
@@ -95,9 +101,17 @@ export default function VersusMode({
 }: VersusModeProps) {
   const [playerId, setPlayerId] = useState<string>('');
   const [playerName, setPlayerName] = useState<string>('');
+  const [hostQuestionCount, setHostQuestionCount] = useState<number>(10);
   const [joinCodeInput, setJoinCodeInput] = useState<string>(
     initialRoomCode ? extractRoomCodeFromInput(initialRoomCode) : ''
   );
+
+  // Pop-up de choix du nom au moment où un participant rejoint le salon
+  const [pendingJoinCode, setPendingJoinCode] = useState<string | null>(null);
+  const [joinPopupName, setJoinPopupName] = useState<string>('');
+  const [joinPopupError, setJoinPopupError] = useState<string | null>(null);
+  const joinNameInputRef = useRef<HTMLInputElement | null>(null);
+
   const [activeRoomCode, setActiveRoomCode] = useState<string | null>(null);
   const [isHost, setIsHost] = useState<boolean>(false);
   const [isConnected, setIsConnected] = useState<boolean>(false);
@@ -158,6 +172,7 @@ export default function VersusMode({
       if (savedName) {
         playerNameRef.current = savedName;
         setPlayerName(savedName);
+        setJoinPopupName(savedName);
       }
     } catch {
       const fallbackId = createFreshPlayerId();
@@ -166,11 +181,28 @@ export default function VersusMode({
     }
   }, []);
 
+  // Si l'URL contient ?room=XXXX, pré-remplir et ouvrir directement le pop-up de pseudo pour rejoindre
   useEffect(() => {
     if (initialRoomCode && !activeRoomCode) {
-      setJoinCodeInput(extractRoomCodeFromInput(initialRoomCode));
+      const clean = extractRoomCodeFromInput(initialRoomCode);
+      if (clean.length >= 3) {
+        setJoinCodeInput(clean);
+        setPendingJoinCode(clean);
+        setJoinPopupError(null);
+      }
     }
   }, [initialRoomCode, activeRoomCode]);
+
+  // Focus automatique sur le champ pseudo à l'ouverture du pop-up
+  useEffect(() => {
+    if (pendingJoinCode) {
+      const timer = setTimeout(() => {
+        joinNameInputRef.current?.focus();
+        joinNameInputRef.current?.select();
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+  }, [pendingJoinCode]);
 
   const savePlayerName = (name: string) => {
     playerNameRef.current = name;
@@ -676,6 +708,7 @@ export default function VersusMode({
       selectedLevel: 3,
       selectedTheme: 'ALL',
       doublePoints: false,
+      totalQuestions: hostQuestionCount,
       questionNumber: 0,
       currentQuestion: null,
       questionStartedAt: 0,
@@ -693,21 +726,38 @@ export default function VersusMode({
     setActiveRoomCode(code);
   };
 
-  const handleJoinRoom = (e: React.FormEvent) => {
+  // Étape 1 pour rejoindre : valide le code de salon et ouvre le Pop-up de choix du pseudo
+  const handleOpenJoinPopup = (e: React.FormEvent) => {
     e.preventDefault();
     const code = extractRoomCodeFromInput(joinCodeInput);
     if (code.length < 3) {
       setErrorMsg('Entrez un code de salon valide (ex: 7T42).');
       return;
     }
-    const cleanName = playerName.trim() || 'Joueur';
-    savePlayerName(cleanName);
     setErrorMsg(null);
+    setJoinPopupName(playerName);
+    setJoinPopupError(null);
+    setPendingJoinCode(code);
+  };
+
+  // Étape 2 pour rejoindre : valide le pseudo saisi dans le Pop-up et entre dans le salon
+  const handleConfirmJoinWithName = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pendingJoinCode) return;
+    const cleanName = joinPopupName.trim();
+    if (cleanName.length < 1) {
+      setJoinPopupError('Choisis ton nom / pseudo pour rejoindre le salon !');
+      return;
+    }
+    savePlayerName(cleanName);
+    setJoinPopupError(null);
+    const targetCode = pendingJoinCode;
+    setPendingJoinCode(null);
     isHostRef.current = false;
     roomStateRef.current = null;
     setIsHost(false);
     setRoomState(null);
-    setActiveRoomCode(code);
+    setActiveRoomCode(targetCode);
   };
 
   const handleLeaveRoom = () => {
@@ -729,6 +779,21 @@ export default function VersusMode({
   const handleStartNextQuestion = () => {
     if (!isHost || !roomStateRef.current) return;
     const current = roomStateRef.current;
+    const targetTotal = current.totalQuestions || 10;
+
+    // Si on a atteint le nombre total de questions choisies, passer à l'écran de Podium final
+    if (current.phase === 'reveal' && current.questionNumber >= targetTotal) {
+      playPointSound(soundEnabled);
+      commitHostRoomState((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          phase: 'finished',
+        };
+      });
+      return;
+    }
+
     const nextQ = pickQuestionForLevel(
       current.selectedLevel,
       current.selectedTheme
@@ -747,6 +812,27 @@ export default function VersusMode({
         currentQuestion: nextQ,
         questionStartedAt: Date.now(),
         answers: {},
+      };
+    });
+  };
+
+  const handleRestartMatchInSalon = () => {
+    if (!isHost || !roomStateRef.current) return;
+    playPointSound(soundEnabled);
+    commitHostRoomState((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        phase: 'lobby',
+        questionNumber: 0,
+        currentQuestion: null,
+        answers: {},
+        players: prev.players.map((p) => ({
+          ...p,
+          score: 0,
+          lastDelta: 0,
+          streak: 0,
+        })),
       };
     });
   };
@@ -829,7 +915,10 @@ export default function VersusMode({
 
   const handleHostUpdateSettings = (
     partial: Partial<
-      Pick<VersusRoomState, 'selectedLevel' | 'selectedTheme' | 'doublePoints'>
+      Pick<
+        VersusRoomState,
+        'selectedLevel' | 'selectedTheme' | 'doublePoints' | 'totalQuestions'
+      >
     >
   ) => {
     if (!isHost) return;
@@ -923,14 +1012,21 @@ export default function VersusMode({
     return [...effectivePlayers].sort((a, b) => b.score - a.score);
   }, [effectivePlayers]);
 
+  const totalQuestionsTarget = roomState?.totalQuestions || 10;
+  const isLastQuestionOfMatch =
+    Boolean(roomState) &&
+    roomState!.questionNumber >= totalQuestionsTarget;
+
   // ============================================================================
   // 1. ÉCRAN D'ACCUEIL DU MODE VERSUS (CRÉER OU REJOINDRE UN SALON)
   // ============================================================================
   if (!activeRoomCode) {
-    const hasPrefilledCode = Boolean(initialRoomCode && joinCodeInput.length >= 3);
+    const hasPrefilledCode = Boolean(
+      initialRoomCode && joinCodeInput.length >= 3
+    );
 
     return (
-      <section className="flex-1 min-h-0 flex flex-col justify-center overflow-y-auto rounded-2xl border-2 border-yellow-400/50 bg-gradient-to-b from-[#0b1d48]/95 via-[#081538]/95 to-[#050d26]/95 p-3.5 sm:p-6 shadow-2xl backdrop-blur-md animate-fadeIn">
+      <section className="relative flex-1 min-h-0 flex flex-col justify-center overflow-y-auto rounded-2xl border-2 border-yellow-400/50 bg-gradient-to-b from-[#0b1d48]/95 via-[#081538]/95 to-[#050d26]/95 p-3.5 sm:p-6 shadow-2xl backdrop-blur-md animate-fadeIn">
         <div className="mx-auto w-full max-w-2xl space-y-4 my-auto">
           {/* En-tête Mode Versus */}
           <div className="text-center space-y-1.5">
@@ -949,65 +1045,97 @@ export default function VersusMode({
             </p>
           </div>
 
-          {/* Champ Pseudo commun */}
-          <div className="rounded-xl border border-blue-400/35 bg-[#040b1e]/90 p-3 sm:p-4">
-            <label
-              htmlFor="versus-pseudo"
-              className="block text-[11px] font-black uppercase tracking-wider text-yellow-300 mb-1.5"
-            >
-              Ton Pseudo pour la soirée
-            </label>
-            <input
-              id="versus-pseudo"
-              type="text"
-              value={playerName}
-              onChange={(e) => savePlayerName(e.target.value)}
-              placeholder="Ex: Thomas, Julie, Le Boss du 90s..."
-              maxLength={18}
-              className="w-full rounded-xl border-2 border-blue-500/40 focus:border-yellow-400 bg-blue-950/80 px-3.5 py-2.5 text-sm sm:text-base font-extrabold text-white placeholder-blue-300/40 outline-none transition"
-            />
-          </div>
-
-          {/* Grille 2 colonnes : Créer un salon VS Rejoindre un salon */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* Carte Créer */}
+          {/* Grille 2 colonnes : Créer un salon (avec choix de 5 en 5) VS Rejoindre un salon (avec Pop-up pseudo) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            {/* Carte Créer un Salon (Hôte) */}
             <div
               className={`flex flex-col justify-between rounded-xl border-2 border-yellow-400/60 bg-gradient-to-b from-yellow-400/15 to-[#061233] p-4 space-y-3 ${
                 hasPrefilledCode ? 'order-2 sm:order-1' : ''
               }`}
             >
-              <div className="space-y-1">
+              <div className="space-y-2.5">
                 <div className="flex items-center gap-1.5 text-yellow-300 font-black text-sm uppercase">
                   <Crown className="h-4 w-4 text-yellow-400" />
                   <span>Héberger un Salon</span>
                 </div>
-                <p className="text-xs text-blue-100/80 leading-relaxed">
-                  Génère un code à 4 lettres pour inviter la table. Tu peux
-                  jouer ET lancer les questions depuis ton écran.
-                </p>
+
+                {/* Pseudo de l'hôte */}
+                <div>
+                  <label
+                    htmlFor="versus-host-pseudo"
+                    className="block text-[10px] font-black uppercase tracking-wider text-blue-200/90 mb-1"
+                  >
+                    Ton Nom d’Hôte
+                  </label>
+                  <input
+                    id="versus-host-pseudo"
+                    type="text"
+                    value={playerName}
+                    onChange={(e) => savePlayerName(e.target.value)}
+                    placeholder="Ex: Thomas..."
+                    maxLength={18}
+                    className="w-full rounded-xl border border-blue-400/40 focus:border-yellow-400 bg-[#040b1e]/90 px-3 py-2 text-xs sm:text-sm font-extrabold text-white placeholder-blue-300/40 outline-none transition"
+                  />
+                </div>
+
+                {/* Choix du nombre de questions de 5 en 5 */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-yellow-300">
+                      Nombre de questions (5 en 5)
+                    </span>
+                    <span className="rounded-md bg-yellow-400/20 border border-yellow-400/50 px-1.5 py-0.5 text-[10px] font-black text-yellow-300">
+                      {hostQuestionCount} questions
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-6 gap-1">
+                    {QUESTION_STEPS_5.map((count) => {
+                      const active = hostQuestionCount === count;
+                      return (
+                        <button
+                          key={count}
+                          type="button"
+                          onClick={() => setHostQuestionCount(count)}
+                          className={`rounded-lg py-1.5 text-xs font-black border transition ${
+                            active
+                              ? 'bg-yellow-400 text-blue-950 border-white shadow scale-105'
+                              : 'bg-[#040b1e]/90 text-blue-200 border-blue-500/35 hover:border-yellow-400/60'
+                          }`}
+                        >
+                          {count}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
+
               <button
                 type="button"
                 onClick={handleCreateRoom}
                 className="shimmer-btn relative overflow-hidden w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 hover:from-yellow-200 hover:to-yellow-400 px-4 py-3 text-xs sm:text-sm font-black uppercase tracking-wide text-blue-950 shadow-lg shadow-yellow-400/25 active:scale-95 transition"
               >
                 <Play className="h-4 w-4 fill-blue-950" />
-                <span>Créer un Salon Local</span>
+                <span>Créer le Salon ({hostQuestionCount} Q.)</span>
               </button>
             </div>
 
-            {/* Carte Rejoindre */}
+            {/* Carte Rejoindre un Salon (Participants) */}
             <form
-              onSubmit={handleJoinRoom}
+              onSubmit={handleOpenJoinPopup}
               className={`flex flex-col justify-between rounded-xl border-2 border-sky-400/50 bg-gradient-to-b from-sky-500/15 to-[#061233] p-4 space-y-3 ${
                 hasPrefilledCode ? 'order-1 sm:order-2 ring-2 ring-sky-400/60' : ''
               }`}
             >
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 <div className="flex items-center gap-1.5 text-sky-300 font-black text-sm uppercase">
                   <Users className="h-4 w-4 text-sky-400" />
                   <span>Rejoindre avec un Code</span>
                 </div>
+                <p className="text-xs text-blue-100/80 leading-relaxed">
+                  Entre le code à 4 caractères affiché sur l’écran de l’hôte. Tu
+                  choisiras ton pseudo dans la fenêtre suivante.
+                </p>
                 <input
                   type="text"
                   value={joinCodeInput}
@@ -1019,7 +1147,7 @@ export default function VersusMode({
                   autoCapitalize="characters"
                   autoCorrect="off"
                   spellCheck={false}
-                  className="w-full rounded-xl border-2 border-sky-400/40 focus:border-sky-300 bg-[#040b1e] px-3 py-2 text-center font-mono text-lg font-black tracking-widest uppercase text-yellow-300 placeholder-blue-300/35 outline-none"
+                  className="w-full rounded-xl border-2 border-sky-400/40 focus:border-sky-300 bg-[#040b1e] px-3 py-2.5 text-center font-mono text-xl font-black tracking-widest uppercase text-yellow-300 placeholder-blue-300/35 outline-none"
                 />
               </div>
               <button
@@ -1042,6 +1170,82 @@ export default function VersusMode({
             </p>
           )}
         </div>
+
+        {/* POP-UP MODAL : CHOIX DU NOM DU PARTICIPANT AU MOMENT DE REJOINDRE */}
+        {pendingJoinCode && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
+            <div className="relative w-full max-w-md rounded-2xl border-2 border-yellow-400 bg-gradient-to-b from-[#0d2256] via-[#09183e] to-[#050d26] p-5 sm:p-6 shadow-2xl space-y-4">
+              <button
+                type="button"
+                onClick={() => setPendingJoinCode(null)}
+                className="absolute top-3.5 right-3.5 flex h-8 w-8 items-center justify-center rounded-lg border border-blue-400/30 bg-blue-950/80 text-blue-200 hover:text-white transition"
+                title="Fermer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+
+              <div className="text-center space-y-1.5">
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-yellow-400 px-3 py-1 text-xs font-black uppercase tracking-wider text-blue-950 shadow">
+                  <UserCheck className="h-3.5 w-3.5" />
+                  <span>SALON #{pendingJoinCode}</span>
+                </div>
+                <h3 className="text-xl font-black text-white">
+                  Choisis ton nom de joueur
+                </h3>
+                <p className="text-xs text-blue-200/80">
+                  Ce pseudo s’affichera en direct sur tous les téléphones du
+                  salon.
+                </p>
+              </div>
+
+              <form onSubmit={handleConfirmJoinWithName} className="space-y-3.5">
+                <div>
+                  <label
+                    htmlFor="popup-player-name"
+                    className="block text-[11px] font-black uppercase tracking-wider text-yellow-300 mb-1.5"
+                  >
+                    Ton Pseudo
+                  </label>
+                  <input
+                    ref={joinNameInputRef}
+                    id="popup-player-name"
+                    type="text"
+                    value={joinPopupName}
+                    onChange={(e) => {
+                      setJoinPopupName(e.target.value);
+                      if (joinPopupError) setJoinPopupError(null);
+                    }}
+                    placeholder="Ex: Julie, Alex, Le Boss..."
+                    maxLength={18}
+                    className="w-full rounded-xl border-2 border-yellow-400/70 focus:border-yellow-300 bg-[#040b1e] px-4 py-3 text-base font-extrabold text-white placeholder-blue-300/40 outline-none shadow-inner"
+                  />
+                  {joinPopupError && (
+                    <p className="mt-1.5 text-xs font-bold text-rose-400">
+                      {joinPopupError}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setPendingJoinCode(null)}
+                    className="flex-1 rounded-xl border border-blue-400/35 bg-blue-950/80 hover:bg-blue-900 px-4 py-3 text-xs font-extrabold uppercase text-blue-200 transition"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    className="shimmer-btn flex-[2] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 hover:from-yellow-200 hover:to-yellow-400 px-4 py-3 text-xs sm:text-sm font-black uppercase tracking-wide text-blue-950 shadow-lg shadow-yellow-400/25 active:scale-95 transition"
+                  >
+                    <span>Entrer dans le Salon</span>
+                    <ArrowRight className="h-4 w-4 stroke-[2.5]" />
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </section>
     );
   }
@@ -1060,9 +1264,9 @@ export default function VersusMode({
             …
           </h3>
           <p className="text-xs text-blue-200/75 max-w-sm">
-            En attente du signal de l’hôte. Vérifie que le code{' '}
-            <strong className="text-white">{activeRoomCode}</strong> est bien
-            ouvert sur l’écran hôte.
+            Bienvenue <strong className="text-yellow-300">{playerName}</strong> !
+            En attente du signal de l’hôte sur le salon{' '}
+            <strong className="text-white">#{activeRoomCode}</strong>.
           </p>
         </div>
         <button
@@ -1083,7 +1287,7 @@ export default function VersusMode({
   const effectiveSelectedIdx = myAnswer ? myAnswer.optionIndex : localLockedOption;
 
   // ============================================================================
-  // 2. SALON ACTIF : BANDEAU JOUEURS + ZONE CENTRALE (LOBBY / 3-2-1 / 10S / REVEAL)
+  // 2. SALON ACTIF : BANDEAU JOUEURS + ZONE CENTRALE (LOBBY / 3-2-1 / 10S / REVEAL / PODIUM)
   // ============================================================================
   return (
     <div className="flex-1 min-h-0 flex flex-col justify-between gap-2">
@@ -1140,6 +1344,12 @@ export default function VersusMode({
                 }`}
               />
               <span>{effectivePlayers.length} j.</span>
+            </span>
+
+            <span className="inline-flex items-center rounded-full bg-blue-950/90 border border-blue-400/35 px-2 py-0.5 text-[10px] font-black text-yellow-300">
+              {roomState.questionNumber > 0
+                ? `Q. ${roomState.questionNumber}/${totalQuestionsTarget}`
+                : `${totalQuestionsTarget} Q.`}
             </span>
           </div>
 
@@ -1251,26 +1461,30 @@ export default function VersusMode({
          ==================================================================== */}
       {roomState.phase === 'lobby' && (
         <section className="flex-1 min-h-0 flex flex-col justify-between overflow-y-auto rounded-2xl border-2 border-blue-500/45 bg-gradient-to-b from-[#0b1d48]/95 via-[#081538]/95 to-[#050d26]/95 p-3.5 sm:p-5 shadow-2xl">
-          <div className="my-auto mx-auto w-full max-w-2xl space-y-4 text-center">
+          <div className="my-auto mx-auto w-full max-w-2xl space-y-3.5 text-center">
             <div className="space-y-1">
               <span className="text-[11px] font-black uppercase tracking-widest text-yellow-300">
                 Code du Salon à partager autour de la table
               </span>
               <div className="flex items-center justify-center gap-2">
-                <span className="rounded-2xl border-2 border-yellow-400 bg-[#040b1e] px-6 py-2 font-mono text-3xl sm:text-5xl font-black tracking-[0.2em] text-yellow-400 shadow-inner">
+                <span className="rounded-2xl border-2 border-yellow-400 bg-[#040b1e] px-6 py-1.5 font-mono text-3xl sm:text-5xl font-black tracking-[0.2em] text-yellow-400 shadow-inner">
                   {roomState.roomCode}
                 </span>
               </div>
-              <p className="text-xs text-blue-200/80 pt-1">
+              <p className="text-xs text-blue-200/80 pt-0.5">
                 Ouvrez le jeu sur chaque téléphone → Mode{' '}
-                <strong className="text-yellow-300">Versus</strong> → Entrez le
-                code <strong className="text-white">{roomState.roomCode}</strong>
+                <strong className="text-yellow-300">Versus</strong> → Code{' '}
+                <strong className="text-white">{roomState.roomCode}</strong> ·
+                Partie en{' '}
+                <strong className="text-yellow-300">
+                  {totalQuestionsTarget} questions
+                </strong>
               </p>
             </div>
 
             {/* Règle de score dégressif en 10s */}
             <div className="grid grid-cols-3 gap-2 text-left">
-              <div className="rounded-xl border border-yellow-400/35 bg-blue-950/70 p-2.5">
+              <div className="rounded-xl border border-yellow-400/35 bg-blue-950/70 p-2">
                 <div className="flex items-center gap-1 text-yellow-300 font-black text-xs">
                   <Timer className="h-3.5 w-3.5" />
                   <span>10 Secondes</span>
@@ -1280,7 +1494,7 @@ export default function VersusMode({
                   (10s) en continu.
                 </p>
               </div>
-              <div className="rounded-xl border border-emerald-400/35 bg-blue-950/70 p-2.5">
+              <div className="rounded-xl border border-emerald-400/35 bg-blue-950/70 p-2">
                 <div className="flex items-center gap-1 text-emerald-300 font-black text-xs">
                   <Trophy className="h-3.5 w-3.5" />
                   <span>Bonus 1er</span>
@@ -1290,24 +1504,53 @@ export default function VersusMode({
                   <strong>+150 pts</strong> bonus !
                 </p>
               </div>
-              <div className="rounded-xl border border-sky-400/35 bg-blue-950/70 p-2.5">
+              <div className="rounded-xl border border-sky-400/35 bg-blue-950/70 p-2">
                 <div className="flex items-center gap-1 text-sky-300 font-black text-xs">
                   <Zap className="h-3.5 w-3.5" />
-                  <span>1 Seul Essai</span>
+                  <span>{totalQuestionsTarget} Questions</span>
                 </div>
                 <p className="text-[11px] text-blue-100/80 mt-0.5">
-                  Une mauvaise réponse rapporte <strong>0 pt</strong> sur la
-                  manche.
+                  Podium final à l’issue des{' '}
+                  <strong>{totalQuestionsTarget} manches</strong>.
                 </p>
               </div>
             </div>
 
-            {/* Sélecteur de Niveau pour l'Hôte */}
+            {/* Sélecteurs pour l'Hôte (Nombre de questions de 5 en 5 + Difficulté) */}
             {isHost ? (
               <div className="rounded-xl border border-blue-400/35 bg-[#040b1e]/90 p-3 space-y-2.5">
+                {/* Choix du nombre de questions de 5 en 5 */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-blue-500/25">
+                  <span className="text-xs font-black uppercase text-sky-300">
+                    Nombre de questions (de 5 en 5) :
+                  </span>
+                  <div className="flex items-center gap-1">
+                    {QUESTION_STEPS_5.map((count) => {
+                      const active = totalQuestionsTarget === count;
+                      return (
+                        <button
+                          key={count}
+                          type="button"
+                          onClick={() =>
+                            handleHostUpdateSettings({ totalQuestions: count })
+                          }
+                          className={`rounded-lg px-2.5 py-1 text-xs font-black border transition ${
+                            active
+                              ? 'bg-sky-400 text-slate-950 border-white scale-105'
+                              : 'bg-blue-950/80 text-blue-200 border-blue-500/30 hover:border-sky-400/50'
+                          }`}
+                        >
+                          {count}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Choix de la difficulté */}
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black uppercase text-yellow-300">
-                    Choisir la Difficulté (Niveau {roomState.selectedLevel}/10)
+                    Difficulté (Niveau {roomState.selectedLevel}/10)
                   </span>
                   <div className="flex items-center gap-1.5">
                     <button
@@ -1361,7 +1604,11 @@ export default function VersusMode({
               </div>
             ) : (
               <div className="rounded-xl border border-blue-400/30 bg-[#040b1e]/80 p-3 text-xs font-bold text-blue-200">
-                🎯 L’hôte prépare la prochaine question (Niveau{' '}
+                🎯 L’hôte prépare la partie (
+                <span className="text-sky-300 font-black">
+                  {totalQuestionsTarget} questions
+                </span>{' '}
+                · Niveau{' '}
                 <span className="text-yellow-300 font-black">
                   {roomState.selectedLevel}/10
                 </span>
@@ -1383,7 +1630,9 @@ export default function VersusMode({
                 className="shimmer-btn relative overflow-hidden inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 px-5 py-2.5 text-xs sm:text-sm font-black uppercase tracking-wide text-blue-950 shadow-lg shadow-yellow-400/25 active:scale-95 transition"
               >
                 <Play className="h-4 w-4 fill-blue-950" />
-                <span>Lancer le Sprint 10s !</span>
+                <span>
+                  Lancer la Partie ({totalQuestionsTarget} Q.) !
+                </span>
               </button>
             )}
           </div>
@@ -1398,8 +1647,8 @@ export default function VersusMode({
           <div className="inline-flex items-center gap-2 rounded-full bg-yellow-400/20 border border-yellow-400 px-3.5 py-1 text-xs font-black uppercase text-yellow-300">
             <Tag className="h-3.5 w-3.5" />
             <span>
-              Question #{roomState.questionNumber} · Niv. {question.difficulty}{' '}
-              · {question.theme}
+              Question {roomState.questionNumber}/{totalQuestionsTarget} · Niv.{' '}
+              {question.difficulty} · {question.theme}
             </span>
           </div>
           <div className="flex h-28 w-28 sm:h-32 sm:w-32 items-center justify-center rounded-full border-4 border-yellow-400 bg-[#040b1e] shadow-2xl animate-pulse-gold">
@@ -1440,6 +1689,9 @@ export default function VersusMode({
                         }`}
                       >
                         {(remainingMs / 1000).toFixed(1)}s
+                      </span>
+                      <span className="text-[11px] font-bold text-blue-200/75 ml-1">
+                        · Q. {roomState.questionNumber}/{totalQuestionsTarget}
                       </span>
                     </div>
 
@@ -1483,7 +1735,7 @@ export default function VersusMode({
                     )}
                   </div>
                   <span className="text-[11px] font-bold text-blue-200/75">
-                    Manche #{roomState.questionNumber}
+                    Manche {roomState.questionNumber}/{totalQuestionsTarget}
                   </span>
                 </div>
               )}
@@ -1664,69 +1916,91 @@ export default function VersusMode({
               </div>
             </div>
 
-            {/* 3. BARRE DU BAS : CONTRÔLES HÔTE POUR LA QUESTION SUIVANTE */}
+            {/* 3. BARRE DU BAS : CONTRÔLES HÔTE POUR LA QUESTION SUIVANTE OU LE PODIUM */}
             <div className="shrink-0 pt-2 border-t border-blue-500/30 flex items-center justify-between gap-2 flex-wrap">
               {roomState.phase === 'reveal' ? (
                 isHost ? (
                   <>
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <span className="text-[11px] font-black text-yellow-300 mr-1">
-                        Niv. :
-                      </span>
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((lvl) => (
+                    {!isLastQuestionOfMatch ? (
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <span className="text-[11px] font-black text-yellow-300 mr-1">
+                          Niv. :
+                        </span>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((lvl) => (
+                          <button
+                            key={lvl}
+                            type="button"
+                            onClick={() =>
+                              handleHostUpdateSettings({ selectedLevel: lvl })
+                            }
+                            className={`h-6 w-6 rounded-md text-[11px] font-black border transition ${
+                              roomState.selectedLevel === lvl
+                                ? 'bg-yellow-400 text-blue-950 border-white'
+                                : 'bg-blue-950 text-blue-200 border-blue-500/30 hover:border-yellow-400'
+                            }`}
+                          >
+                            {lvl}
+                          </button>
+                        ))}
                         <button
-                          key={lvl}
+                          type="button"
+                          onClick={handleSpinRandomLevel}
+                          className="ml-1 inline-flex items-center gap-1 rounded-md border border-yellow-400/60 bg-yellow-400/15 px-2 py-1 text-[11px] font-black text-yellow-300 hover:bg-yellow-400 hover:text-blue-950 transition"
+                          title="Niveau aléatoire"
+                        >
+                          <Dices className="h-3 w-3" />
+                        </button>
+                        <button
                           type="button"
                           onClick={() =>
-                            handleHostUpdateSettings({ selectedLevel: lvl })
+                            handleHostUpdateSettings({
+                              doublePoints: !roomState.doublePoints,
+                            })
                           }
-                          className={`h-6 w-6 rounded-md text-[11px] font-black border transition ${
-                            roomState.selectedLevel === lvl
+                          className={`inline-flex items-center gap-0.5 rounded-md border px-2 py-1 text-[11px] font-black transition ${
+                            roomState.doublePoints
                               ? 'bg-yellow-400 text-blue-950 border-white'
-                              : 'bg-blue-950 text-blue-200 border-blue-500/30 hover:border-yellow-400'
+                              : 'bg-blue-950 text-blue-200 border-blue-500/30'
                           }`}
                         >
-                          {lvl}
+                          x2
                         </button>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={handleSpinRandomLevel}
-                        className="ml-1 inline-flex items-center gap-1 rounded-md border border-yellow-400/60 bg-yellow-400/15 px-2 py-1 text-[11px] font-black text-yellow-300 hover:bg-yellow-400 hover:text-blue-950 transition"
-                        title="Niveau aléatoire"
-                      >
-                        <Dices className="h-3 w-3" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleHostUpdateSettings({
-                            doublePoints: !roomState.doublePoints,
-                          })
-                        }
-                        className={`inline-flex items-center gap-0.5 rounded-md border px-2 py-1 text-[11px] font-black transition ${
-                          roomState.doublePoints
-                            ? 'bg-yellow-400 text-blue-950 border-white'
-                            : 'bg-blue-950 text-blue-200 border-blue-500/30'
-                        }`}
-                      >
-                        x2
-                      </button>
-                    </div>
+                      </div>
+                    ) : (
+                      <span className="text-xs font-black text-yellow-300">
+                        🏁 Manche {roomState.questionNumber}/
+                        {totalQuestionsTarget} terminée !
+                      </span>
+                    )}
 
                     <button
                       type="button"
                       onClick={handleStartNextQuestion}
                       className="shimmer-btn relative overflow-hidden inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 hover:from-yellow-200 hover:to-yellow-400 px-4 py-2 text-xs sm:text-sm font-black uppercase tracking-wide text-blue-950 shadow-lg shadow-yellow-400/25 active:scale-95 transition-all ml-auto"
                     >
-                      <span>Suivante (10s)</span>
-                      <ArrowRight className="h-4 w-4 stroke-[2.5]" />
+                      {isLastQuestionOfMatch ? (
+                        <>
+                          <Trophy className="h-4 w-4" />
+                          <span>Voir le Podium Final</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>
+                            Suivante ({roomState.questionNumber + 1}/
+                            {totalQuestionsTarget})
+                          </span>
+                          <ArrowRight className="h-4 w-4 stroke-[2.5]" />
+                        </>
+                      )}
                     </button>
                   </>
                 ) : (
                   <span className="text-xs font-bold text-blue-200/85">
-                    ⏳ En attente de l’hôte pour lancer le prochain sprint de
-                    10s…
+                    {isLastQuestionOfMatch
+                      ? '🏁 Dernière question terminée ! En attente de l’affichage du podium final…'
+                      : `⏳ En attente de l’hôte pour la question ${
+                          roomState.questionNumber + 1
+                        }/${totalQuestionsTarget}…`}
                   </span>
                 )
               ) : (
@@ -1744,6 +2018,99 @@ export default function VersusMode({
             </div>
           </section>
         )}
+
+      {/* ====================================================================
+          PHASE E : PODIUM FINAL À L'ISSUE DU NOMBRE DE QUESTIONS CHOISI
+         ==================================================================== */}
+      {roomState.phase === 'finished' && (
+        <section className="flex-1 min-h-0 flex flex-col justify-between overflow-y-auto rounded-2xl border-2 border-yellow-400 bg-gradient-to-b from-[#0b1d48]/95 via-[#081538]/95 to-[#050d26]/95 p-4 sm:p-6 shadow-2xl animate-fadeIn">
+          <div className="my-auto mx-auto w-full max-w-xl space-y-4 text-center">
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-yellow-400 px-3 py-1 text-xs font-black uppercase text-blue-950 shadow">
+                <Trophy className="h-3.5 w-3.5" />
+                <span>Podium Final · {totalQuestionsTarget} Questions</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black text-white">
+                {sortedPlayers[0]
+                  ? `🏆 Victoire de ${sortedPlayers[0].name} !`
+                  : 'Partie terminée !'}
+              </h2>
+            </div>
+
+            <div className="space-y-2 text-left">
+              {sortedPlayers.map((p, idx) => {
+                const medal =
+                  idx === 0
+                    ? '🥇'
+                    : idx === 1
+                    ? '🥈'
+                    : idx === 2
+                    ? '🥉'
+                    : `#${idx + 1}`;
+                return (
+                  <div
+                    key={p.id}
+                    className={`flex items-center justify-between rounded-xl border px-3.5 py-2.5 ${
+                      idx === 0
+                        ? 'border-yellow-400 bg-yellow-400/15 ring-1 ring-yellow-400/50'
+                        : 'border-blue-400/30 bg-[#040b1e]/90'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-lg font-black">{medal}</span>
+                      <span className="text-sm sm:text-base font-extrabold text-white">
+                        {p.name}
+                      </span>
+                    </div>
+                    <span className="font-mono text-sm sm:text-base font-black text-yellow-300">
+                      {p.score} pts
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {isHost ? (
+              <div className="pt-2 space-y-3">
+                <div className="flex flex-wrap items-center justify-center gap-1.5">
+                  <span className="text-xs font-black uppercase text-sky-300 mr-1">
+                    Prochaine partie (5 en 5) :
+                  </span>
+                  {QUESTION_STEPS_5.map((count) => (
+                    <button
+                      key={count}
+                      type="button"
+                      onClick={() =>
+                        handleHostUpdateSettings({ totalQuestions: count })
+                      }
+                      className={`rounded-lg px-2.5 py-1 text-xs font-black border transition ${
+                        totalQuestionsTarget === count
+                          ? 'bg-sky-400 text-slate-950 border-white'
+                          : 'bg-blue-950 text-blue-200 border-blue-500/35'
+                      }`}
+                    >
+                      {count} Q.
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleRestartMatchInSalon}
+                  className="shimmer-btn inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 px-6 py-3 text-xs sm:text-sm font-black uppercase text-blue-950 shadow-lg active:scale-95 transition"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  <span>Nouvelle Partie dans ce Salon</span>
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs font-bold text-blue-200/80">
+                En attente de l’hôte pour relancer une nouvelle partie…
+              </p>
+            )}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
