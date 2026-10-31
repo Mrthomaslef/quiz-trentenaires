@@ -17,7 +17,7 @@ import {
   XCircle,
   Lightbulb,
   Tag,
-  HelpCircle,
+  Music,
 } from 'lucide-react';
 import {
   playCorrectSound,
@@ -25,6 +25,9 @@ import {
   playSuspenseSound,
   playJokerSound,
   playPointSound,
+  startMillionsZoukMusic,
+  stopMillionsZoukMusic,
+  setMillionsZoukStep,
 } from '@/lib/sound';
 
 interface MillionsModeProps {
@@ -138,12 +141,29 @@ export default function MillionsMode({
     friendName: string;
     message: string;
   } | null>(null);
+  const [zoukMusicEnabled, setZoukMusicEnabled] = useState<boolean>(true);
 
   const [stats, setStats] = useState<MillionsRecord>({
     bestAmount: 0,
     millionWins: 0,
     gamesPlayed: 1,
   });
+
+  // Lancement / arrêt automatique de la musique Zouk "Qui veut gagner des millions"
+  useEffect(() => {
+    if (soundEnabled && zoukMusicEnabled && runStatus === 'playing') {
+      startMillionsZoukMusic(true, currentStep);
+    } else {
+      stopMillionsZoukMusic();
+    }
+    return () => {
+      stopMillionsZoukMusic();
+    };
+  }, [soundEnabled, zoukMusicEnabled, runStatus]);
+
+  useEffect(() => {
+    setMillionsZoukStep(currentStep);
+  }, [currentStep]);
 
   // Chargement des records depuis localStorage
   useEffect(() => {
@@ -485,8 +505,8 @@ export default function MillionsMode({
         {/* 1. BARRE SUPÉRIEURE : LES 4 JOKERS + INFOS GAIN EN JEU */}
         <section className="shrink-0 rounded-2xl border-2 border-yellow-400/50 bg-gradient-to-r from-[#091b46]/95 via-[#071436]/95 to-[#091b46]/95 px-3 py-2 shadow-xl space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            {/* Gain de la question actuelle */}
-            <div className="flex items-center gap-2">
+            {/* Gain de la question actuelle + Toggle Musique Zouk */}
+            <div className="flex items-center gap-1.5 flex-wrap">
               <span className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 px-2.5 py-1 text-xs sm:text-sm font-black uppercase text-blue-950 shadow">
                 <Banknote className="h-4 w-4" />
                 <span>
@@ -494,10 +514,24 @@ export default function MillionsMode({
                 </span>
               </span>
 
-              <span className="hidden sm:inline-flex items-center gap-1 rounded-lg border border-blue-400/35 bg-blue-950/80 px-2 py-1 text-[11px] font-bold text-blue-200">
+              <button
+                type="button"
+                onClick={() => setZoukMusicEnabled((z) => !z)}
+                className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-black transition active:scale-95 ${
+                  zoukMusicEnabled && soundEnabled
+                    ? 'border-emerald-400 bg-emerald-500/20 text-emerald-300 shadow'
+                    : 'border-blue-500/35 bg-blue-950/70 text-blue-300/60'
+                }`}
+                title="Activer / couper le thème Qui veut gagner des millions version Zouk Antillais"
+              >
+                <Music className="h-3.5 w-3.5" />
+                <span>🌴 Zouk {zoukMusicEnabled && soundEnabled ? 'ON' : 'OFF'}</span>
+              </button>
+
+              <span className="hidden md:inline-flex items-center gap-1 rounded-lg border border-blue-400/35 bg-blue-950/80 px-2 py-1 text-[11px] font-bold text-blue-200">
                 <ShieldCheck className="h-3.5 w-3.5 text-yellow-400" />
                 <span>
-                  Palier garanti : {formatEuros(guaranteedSafeHavenAmount)}
+                  Garanti : {formatEuros(guaranteedSafeHavenAmount)}
                 </span>
               </span>
             </div>
