@@ -12,7 +12,13 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-export type GameMode = '2_couples' | '4_players' | 'coop' | 'versus' | 'millions';
+export type GameMode =
+  | '2_couples'
+  | '4_players'
+  | 'coop'
+  | 'versus'
+  | 'millions'
+  | 'wikipedia';
 
 export interface PlayerScore {
   id: string;
@@ -226,7 +232,7 @@ export default function Scoreboard({
                         badgeColors[idx % badgeColors.length]
                       }`}
                     >
-                      {mode === '4_players' ? `J${playerNumber}` : `C${playerNumber}`}
+                      {mode === '4_players' ? `J${playerNumber}` : `E${playerNumber}`}
                     </span>
 
                     {isLeader && (

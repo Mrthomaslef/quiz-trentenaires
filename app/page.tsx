@@ -11,6 +11,7 @@ import DifficultySelector from '@/components/DifficultySelector';
 import QuestionCard from '@/components/QuestionCard';
 import VersusMode from '@/components/VersusMode';
 import MillionsMode from '@/components/MillionsMode';
+import WikipediaMode from '@/components/WikipediaMode';
 import {
   fetchAllQuestionsFromSupabase,
   incrementQuestionPlayed,
@@ -40,6 +41,7 @@ import {
   Gem,
   Music,
   ShieldCheck,
+  Globe,
 } from 'lucide-react';
 import {
   playPointSound,
@@ -62,8 +64,8 @@ const STORAGE_KEYS = {
 };
 
 const DEFAULT_COUPLES: PlayerScore[] = [
-  { id: 'c1', name: 'Couple 1', score: 0 },
-  { id: 'c2', name: 'Couple 2', score: 0 },
+  { id: 'c1', name: 'Équipe 1', score: 0 },
+  { id: 'c2', name: 'Équipe 2', score: 0 },
 ];
 
 const DEFAULT_PLAYERS: PlayerScore[] = [
@@ -80,6 +82,8 @@ const DEFAULT_COOP: CoopStats = {
   victories: 0,
   status: 'playing',
 };
+
+type ClassicSubMode = '2_couples' | '4_players' | 'coop';
 
 function shuffleQuestions(list: QuizQuestionRecord[]): QuizQuestionRecord[] {
   const arr = [...list];
@@ -104,6 +108,7 @@ export default function QuizHomePage() {
   const [selectedLevel, setSelectedLevel] = useState<number>(3);
   const [selectedTheme, setSelectedTheme] = useState<string>('ALL');
   const [mode, setMode] = useState<GameMode>('2_couples');
+  const [classicSubMode, setClassicSubMode] = useState<ClassicSubMode>('2_couples');
   const [initialRoomCode, setInitialRoomCode] = useState<string | null>(null);
   const [couples, setCouples] = useState<PlayerScore[]>(DEFAULT_COUPLES);
   const [players, setPlayers] = useState<PlayerScore[]>(DEFAULT_PLAYERS);
@@ -120,19 +125,34 @@ export default function QuizHomePage() {
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [zoukMusicEnabled, setZoukMusicEnabled] = useState<boolean>(true);
   const [lastScoredId, setLastScoredId] = useState<string | null>(null);
+  const [analyticsMap, setAnalyticsMap] = useState<QuestionAnalyticsMap>({});
+  const [adminSettings, setAdminSettings] = useState<AdminSettings>(
+    DEFAULT_ADMIN_SETTINGS
+  );
   const [hydrated, setHydrated] = useState<boolean>(false);
 
   useEffect(() => {
     try {
+      setAnalyticsMap(loadQuestionAnalytics());
+      setAdminSettings(loadAdminSettings());
+
       const savedMode = localStorage.getItem(STORAGE_KEYS.MODE) as GameMode | null;
       if (
         savedMode === '2_couples' ||
         savedMode === '4_players' ||
         savedMode === 'coop' ||
         savedMode === 'versus' ||
-        savedMode === 'millions'
+        savedMode === 'millions' ||
+        savedMode === 'wikipedia'
       ) {
         setMode(savedMode);
+        if (
+          savedMode === '2_couples' ||
+          savedMode === '4_players' ||
+          savedMode === 'coop'
+        ) {
+          setClassicSubMode(savedMode);
+        }
       }
 
       // Si l'URL contient ?room=XXXX, basculer automatiquement en mode Versus
@@ -148,7 +168,17 @@ export default function QuizHomePage() {
       const savedCouples = localStorage.getItem(STORAGE_KEYS.COUPLES);
       if (savedCouples) {
         const parsed = JSON.parse(savedCouples);
-        if (Array.isArray(parsed) && parsed.length === 2) setCouples(parsed);
+        if (Array.isArray(parsed) && parsed.length === 2) {
+          setCouples(
+            parsed.map((item: PlayerScore, idx: number) => ({
+              ...item,
+              name:
+                item.name === `Couple ${idx + 1}`
+                  ? `Équipe ${idx + 1}`
+                  : item.name,
+            }))
+          );
+        }
       }
 
       const savedPlayers = localStorage.getItem(STORAGE_KEYS.PLAYERS);
@@ -312,30 +342,98 @@ export default function QuizHomePage() {
 
   const playedSet = useMemo(() => new Set(playedIds), [playedIds]);
 
+  // Applique les éventuels reclassements de difficulté faits dans l'Espace Admin
+  const effectivePoolByLevel = useMemo(() => {
+    const hasOverrides = Object.values(analyticsMap).some(
+      (entry) => typeof entry?.difficultyOverride === 'number'
+    );
+    if (!hasOverrides) return poolByLevel;
+
+    const regrouped: Record<number, QuizQuestionRecord[]> = {};
+    for (let lvl = 1; lvl <= 10; lvl++) {
+      regrouped[lvl] = [];
+    }
+
+    for (let lvl = 1; lvl <= 10; lvl++) {
+      for (const q of poolByLevel[lvl] || []) {
+        const entry = getQuestionAnalytics(
+          q,
+          analyticsMap,
+          adminSettings.autoArchiveThreshold
+        );
+        const targetLvl = entry.difficultyOverride ?? q.difficulty;
+        const clampedLvl = Math.max(1, Math.min(10, targetLvl));
+        regrouped[clampedLvl].push({
+          ...q,
+          difficulty: clampedLvl,
+        });
+      }
+    }
+    return regrouped;
+  }, [poolByLevel, analyticsMap, adminSettings.autoArchiveThreshold]);
+
   const countsByLevel = useMemo(() => {
     const stats: Record<number, { total: number; remaining: number }> = {};
     for (let lvl = 1; lvl <= 10; lvl++) {
-      const list = poolByLevel[lvl] || [];
-      const remaining = list.filter((q) => !playedSet.has(q.id)).length;
+      const list = effectivePoolByLevel[lvl] || [];
+      const freshRemaining = list.filter((q) => {
+        if (playedSet.has(q.id)) return false;
+        const entry = getQuestionAnalytics(
+          q,
+          analyticsMap,
+          adminSettings.autoArchiveThreshold
+        );
+        return !entry.inAlreadyAnsweredPool;
+      }).length;
+      const unplayedSession = list.filter((q) => !playedSet.has(q.id)).length;
       stats[lvl] = {
         total: list.length,
-        remaining: remaining > 0 ? remaining : list.length,
+        remaining:
+          freshRemaining > 0
+            ? freshRemaining
+            : unplayedSession > 0
+            ? unplayedSession
+            : list.length,
       };
     }
     return stats;
-  }, [poolByLevel, playedSet]);
+  }, [
+    effectivePoolByLevel,
+    playedSet,
+    analyticsMap,
+    adminSettings.autoArchiveThreshold,
+  ]);
 
   const currentLevelQuestions = useMemo(() => {
-    const allInLevel = poolByLevel[effectiveLevel] || [];
-    if (selectedTheme === 'ALL' || mode === 'coop') return allInLevel;
-    const filtered = allInLevel.filter((q) => q.theme === selectedTheme);
-    return filtered.length > 0 ? filtered : allInLevel;
-  }, [poolByLevel, effectiveLevel, selectedTheme, mode]);
+    const allInLevel = effectivePoolByLevel[effectiveLevel] || [];
+    const baseList =
+      selectedTheme === 'ALL' || mode === 'coop'
+        ? allInLevel
+        : (() => {
+            const filtered = allInLevel.filter((q) => q.theme === selectedTheme);
+            return filtered.length > 0 ? filtered : allInLevel;
+          })();
+    // Les questions dans la base "Déjà répondu" (répondues plusieurs fois) sont reléguées en fin de file pour être moins proposées
+    return prioritizeQuestionsByAnalytics(
+      baseList,
+      playedSet,
+      analyticsMap,
+      adminSettings.autoArchiveThreshold
+    );
+  }, [
+    effectivePoolByLevel,
+    effectiveLevel,
+    selectedTheme,
+    mode,
+    playedSet,
+    analyticsMap,
+    adminSettings.autoArchiveThreshold,
+  ]);
 
   const availableThemesInLevel = useMemo(() => {
-    const allInLevel = poolByLevel[effectiveLevel] || [];
+    const allInLevel = effectivePoolByLevel[effectiveLevel] || [];
     return Array.from(new Set(allInLevel.map((q) => q.theme)));
-  }, [poolByLevel, effectiveLevel]);
+  }, [effectivePoolByLevel, effectiveLevel]);
 
   const unplayedInCurrentLevel = useMemo(() => {
     return currentLevelQuestions.filter((q) => !playedSet.has(q.id));
@@ -466,7 +564,12 @@ export default function QuizHomePage() {
     mode,
   ]);
 
-  const activeTeams = mode === '2_couples' ? couples : players;
+  const wikiTeamMode: '2_couples' | '4_players' =
+    classicSubMode === '4_players' ? '4_players' : '2_couples';
+  const isTwoCouplesScore =
+    mode === '2_couples' ||
+    (mode === 'wikipedia' && wikiTeamMode === '2_couples');
+  const activeTeams = isTwoCouplesScore ? couples : players;
 
   const handleUpdateScore = useCallback(
     (id: string, delta: number) => {
@@ -477,7 +580,7 @@ export default function QuizHomePage() {
           setLastScoredId((prev) => (prev === id ? null : prev));
         }, 900);
       }
-      if (mode === '2_couples') {
+      if (isTwoCouplesScore) {
         setCouples((prev) =>
           prev.map((t) =>
             t.id === id ? { ...t, score: Math.max(0, t.score + delta) } : t
@@ -491,12 +594,12 @@ export default function QuizHomePage() {
         );
       }
     },
-    [mode, soundEnabled]
+    [isTwoCouplesScore, soundEnabled]
   );
 
   const handleRenameTeam = useCallback(
     (id: string, newName: string) => {
-      if (mode === '2_couples') {
+      if (isTwoCouplesScore) {
         setCouples((prev) =>
           prev.map((t) => (t.id === id ? { ...t, name: newName } : t))
         );
@@ -506,7 +609,7 @@ export default function QuizHomePage() {
         );
       }
     },
-    [mode]
+    [isTwoCouplesScore]
   );
 
   const handleResetAll = useCallback(() => {
@@ -525,6 +628,24 @@ export default function QuizHomePage() {
     setPlayedIds((prev) => (prev.includes(questionId) ? prev : [...prev, questionId]));
   }, []);
 
+  const handleRecordQuestionOutcome = useCallback(
+    (question: QuizQuestionRecord, isCorrect: boolean) => {
+      setAnalyticsMap((prev) =>
+        recordQuestionAnswerOutcome(question, isCorrect, prev)
+      );
+    },
+    []
+  );
+
+  const activeQuestionAnalytics = useMemo(() => {
+    if (!activeQuestion) return null;
+    return getQuestionAnalytics(
+      activeQuestion,
+      analyticsMap,
+      adminSettings.autoArchiveThreshold
+    );
+  }, [activeQuestion, analyticsMap, adminSettings.autoArchiveThreshold]);
+
   const totalPoolCount = useMemo(
     () =>
       Object.values(poolByLevel).reduce((sum, arr) => sum + arr.length, 0),
@@ -536,7 +657,7 @@ export default function QuizHomePage() {
       {/* En-tête avec barre de modes 100% visible sur mobile et desktop */}
       <header className="shrink-0 border-b border-yellow-400/35 bg-[#050d26]/95 px-2.5 sm:px-4 py-1.5 sm:py-2">
         <div className="mx-auto max-w-5xl flex flex-col gap-1.5">
-          {/* Ligne 1 : Logo 7TER + Bouton Mode Enfant + Son + Reset */}
+          {/* Ligne 1 : Logo 7TER + Bouton Mode Enfant + Espace Admin + Son + Reset */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <div className="relative flex h-7 w-10 sm:h-8 sm:w-12 shrink-0 items-center justify-center rounded-lg border-2 border-yellow-400 bg-gradient-to-br from-[#133282] to-[#06102b] shadow">
@@ -567,7 +688,16 @@ export default function QuizHomePage() {
                 title="Ouvrir la page dédiée au Mode Enfant (Quiz sur images : Ferme, JO, Animaux, Sport, Pokémon)"
               >
                 <span>🎈</span>
-                <span>Mode Enfant</span>
+                <span className="hidden xs:inline sm:inline">Mode Enfant</span>
+              </Link>
+
+              <Link
+                href="/admin"
+                className="inline-flex items-center gap-1 rounded-lg border border-purple-400/60 bg-gradient-to-r from-purple-500/25 to-indigo-500/25 hover:from-purple-400 hover:to-indigo-400 hover:text-slate-950 px-2 py-1 text-[11px] font-black text-purple-200 transition shadow-sm"
+                title="Espace Admin (Code requis) : Évaluer la difficulté, notes, statistiques des questions et base Déjà répondu"
+              >
+                <ShieldCheck className="h-3.5 w-3.5 text-purple-300" />
+                <span>Admin</span>
               </Link>
 
               <button
@@ -648,93 +778,154 @@ export default function QuizHomePage() {
             </div>
           </div>
 
-          {/* Ligne 2 : Sélecteur des 5 Modes de Jeu (2 Couples | 4 Solo | Ensemble | Versus 10s | Millions) */}
-          <div className="grid grid-cols-5 gap-1 rounded-xl bg-[#040b1e] p-1 border border-blue-500/35">
-            <button
-              type="button"
-              onClick={() => {
-                stopMillionsZoukMusic();
-                setMode('2_couples');
-              }}
-              className={`inline-flex items-center justify-center gap-1 rounded-lg py-1.5 px-1 text-[10px] sm:text-xs font-black transition ${
-                mode === '2_couples'
-                  ? 'bg-yellow-400 text-blue-950 shadow'
-                  : 'text-blue-200/80 hover:text-white'
-              }`}
-            >
-              <Users className="h-3 w-3 shrink-0" />
-              <span className="truncate">2 Couples</span>
-            </button>
+          {/* Ligne 2 : Sélecteur des 4 Catégories de Modes + Sous-modes du Quiz Classique (2 Équipes | 4 Joueurs | Ensemble) */}
+          <div className="flex flex-col gap-1 rounded-xl bg-[#040b1e] p-1 border border-blue-500/35">
+            <div className="grid grid-cols-4 gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  stopMillionsZoukMusic();
+                  setMode(classicSubMode);
+                  if (classicSubMode === 'coop') {
+                    setCoopStats((prev) => ({ ...prev, status: 'playing' }));
+                  }
+                }}
+                className={`inline-flex items-center justify-center gap-1 rounded-lg py-1.5 px-1.5 text-[10px] sm:text-xs font-black transition ${
+                  mode === '2_couples' || mode === '4_players' || mode === 'coop'
+                    ? 'bg-yellow-400 text-blue-950 shadow'
+                    : 'text-blue-200/80 hover:text-white'
+                }`}
+                title="Mode de base (2 Équipes, 4 Joueurs ou Ensemble)"
+              >
+                <Users className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">
+                  Classique{' '}
+                  <span className="hidden sm:inline opacity-80 font-extrabold">
+                    ({classicSubMode === '2_couples'
+                      ? '2 Équipes'
+                      : classicSubMode === '4_players'
+                      ? '4 Joueurs'
+                      : 'Ensemble'})
+                  </span>
+                </span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                stopMillionsZoukMusic();
-                setMode('4_players');
-              }}
-              className={`inline-flex items-center justify-center gap-1 rounded-lg py-1.5 px-1 text-[10px] sm:text-xs font-black transition ${
-                mode === '4_players'
-                  ? 'bg-yellow-400 text-blue-950 shadow'
-                  : 'text-blue-200/80 hover:text-white'
-              }`}
-            >
-              <User className="h-3 w-3 shrink-0" />
-              <span className="truncate">4 Solo</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => {
+                  stopMillionsZoukMusic();
+                  setMode('versus');
+                }}
+                className={`inline-flex items-center justify-center gap-1 rounded-lg py-1.5 px-1.5 text-[10px] sm:text-xs font-black transition ${
+                  mode === 'versus'
+                    ? 'bg-gradient-to-r from-sky-300 via-sky-400 to-blue-500 text-slate-950 shadow'
+                    : 'text-sky-300 hover:text-white'
+                }`}
+                title="Salon Versus Multi-Téléphones : Timer 10s à points dégressifs"
+              >
+                <Swords className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">Versus 10s</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                stopMillionsZoukMusic();
-                setMode('coop');
-                setCoopStats((prev) => ({ ...prev, status: 'playing' }));
-              }}
-              className={`inline-flex items-center justify-center gap-1 rounded-lg py-1.5 px-1 text-[10px] sm:text-xs font-black transition ${
-                mode === 'coop'
-                  ? 'bg-gradient-to-r from-yellow-300 to-amber-500 text-blue-950 shadow'
-                  : 'text-yellow-300/90 hover:text-yellow-300'
-              }`}
-              title="Mode coopératif à 4 : réussir les 10 niveaux d'affilée sans erreur"
-            >
-              <Flame className="h-3 w-3 shrink-0" />
-              <span className="truncate">Ensemble</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('millions');
+                  if (soundEnabled && zoukMusicEnabled) {
+                    startMillionsZoukMusic(true, 1);
+                  }
+                }}
+                className={`inline-flex items-center justify-center gap-1 rounded-lg py-1.5 px-1.5 text-[10px] sm:text-xs font-black transition ${
+                  mode === 'millions'
+                    ? 'bg-gradient-to-r from-amber-300 via-yellow-400 to-orange-500 text-blue-950 shadow'
+                    : 'text-amber-300 hover:text-white'
+                }`}
+                title="Qui veut gagner des Millions : 15 paliers, 2 paliers de sécurité et 4 Jokers !"
+              >
+                <Gem className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">Millions</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                stopMillionsZoukMusic();
-                setMode('versus');
-              }}
-              className={`inline-flex items-center justify-center gap-1 rounded-lg py-1.5 px-1 text-[10px] sm:text-xs font-black transition ${
-                mode === 'versus'
-                  ? 'bg-gradient-to-r from-sky-300 via-sky-400 to-blue-500 text-slate-950 shadow'
-                  : 'text-sky-300 hover:text-white'
-              }`}
-              title="Salon Versus Multi-Téléphones : Timer 10s à points dégressifs"
-            >
-              <Swords className="h-3 w-3 shrink-0" />
-              <span className="truncate">Versus 10s</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => {
+                  stopMillionsZoukMusic();
+                  setMode('wikipedia');
+                }}
+                className={`inline-flex items-center justify-center gap-1 rounded-lg py-1.5 px-1.5 text-[10px] sm:text-xs font-black transition ${
+                  mode === 'wikipedia'
+                    ? 'bg-gradient-to-r from-white via-slate-100 to-sky-200 text-slate-950 shadow'
+                    : 'text-emerald-300 hover:text-white'
+                }`}
+                title="Mode Wikipédia : Une image principale issue de Wikipédia au hasard, devinez le titre de la page !"
+              >
+                <Globe className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">Wikipédia</span>
+              </button>
+            </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setMode('millions');
-                if (soundEnabled && zoukMusicEnabled) {
-                  startMillionsZoukMusic(true, 1);
-                }
-              }}
-              className={`inline-flex items-center justify-center gap-1 rounded-lg py-1.5 px-1 text-[10px] sm:text-xs font-black transition ${
-                mode === 'millions'
-                  ? 'bg-gradient-to-r from-amber-300 via-yellow-400 to-orange-500 text-blue-950 shadow'
-                  : 'text-amber-300 hover:text-white'
-              }`}
-              title="Qui veut gagner des Millions : 15 paliers, 2 paliers de sécurité et 4 Jokers !"
-            >
-              <Gem className="h-3 w-3 shrink-0" />
-              <span className="truncate">Millions</span>
-            </button>
+            {/* Sous-modes de la catégorie Classique : 2 Équipes | 4 Joueurs | Ensemble */}
+            {(mode === '2_couples' || mode === '4_players' || mode === 'coop') && (
+              <div className="flex items-center gap-1 pt-0.5 border-t border-blue-500/25">
+                <span className="hidden sm:inline-block px-2 text-[10px] font-extrabold uppercase tracking-wider text-blue-300/80 shrink-0">
+                  Sous-mode :
+                </span>
+                <div className="grid grid-cols-3 gap-1 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      stopMillionsZoukMusic();
+                      setClassicSubMode('2_couples');
+                      setMode('2_couples');
+                    }}
+                    className={`inline-flex items-center justify-center gap-1 rounded-md py-1 px-1.5 text-[10px] sm:text-[11px] font-black transition ${
+                      mode === '2_couples'
+                        ? 'bg-blue-500/35 border border-yellow-400/80 text-yellow-300 shadow-sm'
+                        : 'text-blue-200/70 hover:text-white hover:bg-blue-900/30 border border-transparent'
+                    }`}
+                  >
+                    <Users className="h-3 w-3 shrink-0" />
+                    <span className="truncate">2 Équipes</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      stopMillionsZoukMusic();
+                      setClassicSubMode('4_players');
+                      setMode('4_players');
+                    }}
+                    className={`inline-flex items-center justify-center gap-1 rounded-md py-1 px-1.5 text-[10px] sm:text-[11px] font-black transition ${
+                      mode === '4_players'
+                        ? 'bg-blue-500/35 border border-yellow-400/80 text-yellow-300 shadow-sm'
+                        : 'text-blue-200/70 hover:text-white hover:bg-blue-900/30 border border-transparent'
+                    }`}
+                  >
+                    <User className="h-3 w-3 shrink-0" />
+                    <span className="truncate">4 Joueurs</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      stopMillionsZoukMusic();
+                      setClassicSubMode('coop');
+                      setMode('coop');
+                      setCoopStats((prev) => ({ ...prev, status: 'playing' }));
+                    }}
+                    className={`inline-flex items-center justify-center gap-1 rounded-md py-1 px-1.5 text-[10px] sm:text-[11px] font-black transition ${
+                      mode === 'coop'
+                        ? 'bg-amber-500/25 border border-amber-400/80 text-yellow-300 shadow-sm'
+                        : 'text-yellow-300/75 hover:text-yellow-300 hover:bg-blue-900/30 border border-transparent'
+                    }`}
+                    title="Mode coopératif : réussir les 10 niveaux d'affilée sans erreur"
+                  >
+                    <Flame className="h-3 w-3 shrink-0" />
+                    <span className="truncate">Ensemble</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -743,17 +934,21 @@ export default function QuizHomePage() {
       <main className="mx-auto w-full max-w-5xl flex-1 min-h-0 flex flex-col justify-between gap-2 px-2.5 py-2 sm:px-4 sm:py-3">
         {mode === 'versus' ? (
           <VersusMode
-            poolByLevel={poolByLevel}
+            poolByLevel={effectivePoolByLevel}
             playedIds={playedIds}
             onMarkQuestionPlayed={handleMarkVersusQuestionPlayed}
+            onRecordOutcome={handleRecordQuestionOutcome}
+            analyticsMap={analyticsMap}
             soundEnabled={soundEnabled}
             initialRoomCode={initialRoomCode}
           />
         ) : mode === 'millions' ? (
           <MillionsMode
-            poolByLevel={poolByLevel}
+            poolByLevel={effectivePoolByLevel}
             playedIds={playedIds}
             onMarkQuestionPlayed={handleMarkVersusQuestionPlayed}
+            onRecordOutcome={handleRecordQuestionOutcome}
+            analyticsMap={analyticsMap}
             soundEnabled={soundEnabled}
             zoukMusicEnabled={zoukMusicEnabled}
             onToggleZoukMusic={() => {
@@ -766,6 +961,20 @@ export default function QuizHomePage() {
                 stopMillionsZoukMusic();
               }
             }}
+          />
+        ) : mode === 'wikipedia' ? (
+          <WikipediaMode
+            teams={activeTeams}
+            teamMode={wikiTeamMode}
+            onToggleTeamMode={() =>
+              setClassicSubMode((prev) =>
+                prev === '4_players' ? '2_couples' : '4_players'
+              )
+            }
+            onUpdateScore={handleUpdateScore}
+            onRenameTeam={handleRenameTeam}
+            lastScoredId={lastScoredId}
+            soundEnabled={soundEnabled}
           />
         ) : (
           <>
@@ -819,6 +1028,11 @@ export default function QuizHomePage() {
               isCoopMode={mode === 'coop'}
               coopStats={coopStats}
               onCoopAnswer={handleCoopAnswer}
+              onRecordOutcome={handleRecordQuestionOutcome}
+              alreadyAnsweredCount={activeQuestionAnalytics?.timesAnswered ?? 0}
+              isAlreadyAnsweredPool={Boolean(
+                activeQuestionAnalytics?.inAlreadyAnsweredPool
+              )}
             />
           </>
         )}
