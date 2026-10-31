@@ -854,9 +854,13 @@ export default function MillionsMode({
               <button
                 type="button"
                 onClick={handleUseFiftyFifty}
-                disabled={!jokers.fiftyFifty || runStatus !== 'playing'}
+                disabled={
+                  !jokers.fiftyFifty ||
+                  runStatus !== 'playing' ||
+                  isSuspenseLock
+                }
                 className={`inline-flex items-center justify-center gap-1 rounded-full border-2 px-2 sm:px-2.5 py-1 text-[10px] sm:text-xs font-black transition ${
-                  jokers.fiftyFifty
+                  jokers.fiftyFifty && !isSuspenseLock
                     ? 'border-yellow-400 bg-gradient-to-b from-blue-800 to-blue-950 text-yellow-300 hover:bg-yellow-400 hover:text-blue-950 shadow cursor-pointer active:scale-95'
                     : 'border-blue-900/40 bg-blue-950/40 text-blue-400/30 line-through cursor-not-allowed'
                 }`}
@@ -869,9 +873,11 @@ export default function MillionsMode({
               <button
                 type="button"
                 onClick={handleUseAudience}
-                disabled={!jokers.audience || runStatus !== 'playing'}
+                disabled={
+                  !jokers.audience || runStatus !== 'playing' || isSuspenseLock
+                }
                 className={`inline-flex items-center justify-center gap-1 rounded-full border-2 px-2 sm:px-2.5 py-1 text-[10px] sm:text-xs font-black transition ${
-                  jokers.audience
+                  jokers.audience && !isSuspenseLock
                     ? 'border-yellow-400 bg-gradient-to-b from-blue-800 to-blue-950 text-yellow-300 hover:bg-yellow-400 hover:text-blue-950 shadow cursor-pointer active:scale-95'
                     : 'border-blue-900/40 bg-blue-950/40 text-blue-400/30 line-through cursor-not-allowed'
                 }`}
@@ -884,9 +890,13 @@ export default function MillionsMode({
               <button
                 type="button"
                 onClick={handleUsePhoneFriend}
-                disabled={!jokers.phoneFriend || runStatus !== 'playing'}
+                disabled={
+                  !jokers.phoneFriend ||
+                  runStatus !== 'playing' ||
+                  isSuspenseLock
+                }
                 className={`inline-flex items-center justify-center gap-1 rounded-full border-2 px-2 sm:px-2.5 py-1 text-[10px] sm:text-xs font-black transition ${
-                  jokers.phoneFriend
+                  jokers.phoneFriend && !isSuspenseLock
                     ? 'border-yellow-400 bg-gradient-to-b from-blue-800 to-blue-950 text-yellow-300 hover:bg-yellow-400 hover:text-blue-950 shadow cursor-pointer active:scale-95'
                     : 'border-blue-900/40 bg-blue-950/40 text-blue-400/30 line-through cursor-not-allowed'
                 }`}
@@ -899,9 +909,13 @@ export default function MillionsMode({
               <button
                 type="button"
                 onClick={handleUseSwitchQuestion}
-                disabled={!jokers.switchQuestion || runStatus !== 'playing'}
+                disabled={
+                  !jokers.switchQuestion ||
+                  runStatus !== 'playing' ||
+                  isSuspenseLock
+                }
                 className={`inline-flex items-center justify-center gap-1 rounded-full border-2 px-2 sm:px-2.5 py-1 text-[10px] sm:text-xs font-black transition ${
-                  jokers.switchQuestion
+                  jokers.switchQuestion && !isSuspenseLock
                     ? 'border-yellow-400 bg-gradient-to-b from-blue-800 to-blue-950 text-yellow-300 hover:bg-yellow-400 hover:text-blue-950 shadow cursor-pointer active:scale-95'
                     : 'border-blue-900/40 bg-blue-950/40 text-blue-400/30 line-through cursor-not-allowed'
                 }`}

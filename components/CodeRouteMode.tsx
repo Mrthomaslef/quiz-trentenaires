@@ -483,8 +483,7 @@ export default function CodeRouteMode({
                     {currentQuestion.theme}
                   </span>
                   <span className="text-[10px] sm:text-xs font-bold text-blue-300/80 shrink-0">
-                    Diapo {(currentIndex % filteredQuestions.length) + 1} /{' '}
-                    {filteredQuestions.length}
+                    {filteredQuestions.length} diapo{filteredQuestions.length > 1 ? 's' : ''} restante{filteredQuestions.length > 1 ? 's' : ''}
                   </span>
                 </div>
                 <h2 className="text-xs sm:text-base font-black text-white leading-snug">

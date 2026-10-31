@@ -61,7 +61,7 @@ function SpecialVisualSvg({ type }: { type?: string }) {
     return (
       <svg
         viewBox="0 0 320 130"
-        className="h-24 sm:h-32 w-auto drop-shadow-xl"
+        className="h-16 sm:h-32 w-auto drop-shadow-xl"
         aria-label="Les 5 anneaux olympiques"
       >
         {/* Rangée du haut : Bleu, Noir, Rouge */}
@@ -114,7 +114,7 @@ function SpecialVisualSvg({ type }: { type?: string }) {
     return (
       <svg
         viewBox="0 0 260 125"
-        className="h-24 sm:h-32 w-auto drop-shadow-xl"
+        className="h-16 sm:h-32 w-auto drop-shadow-xl"
         aria-label="Podium olympique"
       >
         {/* 2e place Argent */}
@@ -199,12 +199,14 @@ function SpecialVisualSvg({ type }: { type?: string }) {
 }
 
 const STORAGE_KIDS_STATE = '7ter:kids:state:v1';
+const STORAGE_KIDS_PLAYED = '7ter:kids:played_ids:v1';
 
 export default function KidsQuizPage() {
   const [selectedTheme, setSelectedTheme] = useState<'ALL' | KidsTheme>('ALL');
   const [questions, setQuestions] = useState<KidsQuestion[]>(() =>
     shuffleList(KIDS_QUESTIONS)
   );
+  const [playedIds, setPlayedIds] = useState<string[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [totalStars, setTotalStars] = useState<number>(0);
@@ -219,6 +221,14 @@ export default function KidsQuizPage() {
   // Restauration de la question et des étoiles en cours pour qu'un rafraîchissement de page ne change pas la question
   useEffect(() => {
     try {
+      const savedPlayed = localStorage.getItem(STORAGE_KIDS_PLAYED);
+      if (savedPlayed) {
+        const parsedPlayed = JSON.parse(savedPlayed);
+        if (Array.isArray(parsedPlayed)) {
+          setPlayedIds(parsedPlayed);
+        }
+      }
+
       const saved = localStorage.getItem(STORAGE_KIDS_STATE);
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -242,6 +252,11 @@ export default function KidsQuizPage() {
           if (restored.length > 0) {
             setQuestions(restored);
           }
+        }
+        if (Array.isArray(parsed?.playedIds) && parsed.playedIds.length > 0) {
+          setPlayedIds((prev) =>
+            Array.from(new Set([...prev, ...parsed.playedIds]))
+          );
         }
         if (typeof parsed?.currentIndex === 'number' && parsed.currentIndex >= 0) {
           setCurrentIndex(parsed.currentIndex);
@@ -272,10 +287,12 @@ export default function KidsQuizPage() {
   useEffect(() => {
     if (!hydratedKids) return;
     try {
+      localStorage.setItem(STORAGE_KIDS_PLAYED, JSON.stringify(playedIds));
       localStorage.setItem(
         STORAGE_KIDS_STATE,
         JSON.stringify({
           questionIds: questions.map((q) => q.id),
+          playedIds,
           currentIndex,
           selectedTheme,
           totalStars,
@@ -290,6 +307,7 @@ export default function KidsQuizPage() {
   }, [
     hydratedKids,
     questions,
+    playedIds,
     currentIndex,
     selectedTheme,
     totalStars,
@@ -298,11 +316,17 @@ export default function KidsQuizPage() {
     pokemonMysteryMode,
   ]);
 
-  // Filtrage par thème
+  const playedSet = useMemo(() => new Set(playedIds), [playedIds]);
+
+  // Filtrage par thème en excluant les questions déjà posées
   const filteredQuestions = useMemo(() => {
-    if (selectedTheme === 'ALL') return questions;
-    return questions.filter((q) => q.theme === selectedTheme);
-  }, [questions, selectedTheme]);
+    const byTheme =
+      selectedTheme === 'ALL'
+        ? questions
+        : questions.filter((q) => q.theme === selectedTheme);
+    const unplayed = byTheme.filter((q) => !playedSet.has(q.id));
+    return unplayed.length > 0 ? unplayed : byTheme;
+  }, [questions, selectedTheme, playedSet]);
 
   const currentQuestion = useMemo(() => {
     if (filteredQuestions.length === 0) return null;
@@ -353,9 +377,14 @@ export default function KidsQuizPage() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
+    if (currentQuestion) {
+      setPlayedIds((prev) =>
+        prev.includes(currentQuestion.id) ? prev : [...prev, currentQuestion.id]
+      );
+    }
     setSelectedOption(null);
     setImgError(false);
-    setCurrentIndex((i) => i + 1);
+    setCurrentIndex(0);
   };
 
   const handleUpdateKidStars = (id: string, delta: number) => {
@@ -387,6 +416,11 @@ export default function KidsQuizPage() {
   const handleResetKids = () => {
     setTotalStars(0);
     setKidPlayers((prev) => prev.map((k) => ({ ...k, stars: 0 })));
+    if (currentQuestion) {
+      setPlayedIds((prev) =>
+        prev.includes(currentQuestion.id) ? prev : [...prev, currentQuestion.id]
+      );
+    }
     setQuestions(shuffleList(KIDS_QUESTIONS));
     setCurrentIndex(0);
     setSelectedOption(null);

@@ -1143,6 +1143,32 @@ function buildOptionsForChallenge(
 }
 
 const OPTION_LETTERS = ['A', 'B', 'C', 'D'] as const;
+const STORAGE_WIKI_SEEN = '7ter:wiki:seen_pages:v1';
+
+function loadSeenWikiKeys(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = localStorage.getItem(STORAGE_WIKI_SEEN);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return new Set(parsed.map((v) => String(v)));
+    }
+  } catch {
+    // Ignore storage errors
+  }
+  return new Set();
+}
+
+function saveSeenWikiKeys(keys: Set<string>): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const arr = Array.from(keys).slice(-2000);
+    localStorage.setItem(STORAGE_WIKI_SEEN, JSON.stringify(arr));
+  } catch {
+    // Ignore storage errors
+  }
+}
 
 export default function WikipediaMode({
   teams,
@@ -1154,10 +1180,24 @@ export default function WikipediaMode({
   soundEnabled,
 }: WikipediaModeProps) {
   const [sourceMode, setSourceMode] = useState<WikiSourceMode>('mix');
+  const seenPageIdsRef = useRef<Set<string>>(new Set());
+  const allFallbacksSeenOnMountRef = useRef<boolean>(false);
+
   const [queue, setQueue] = useState<WikiPageChallenge[]>(() => {
-    const shuffled = [...INSTANT_FALLBACK_CHALLENGES].sort(
-      () => Math.random() - 0.5
+    const persistedSeen = loadSeenWikiKeys();
+    seenPageIdsRef.current = persistedSeen;
+
+    const unseenFallbacks = INSTANT_FALLBACK_CHALLENGES.filter(
+      (c) =>
+        !persistedSeen.has(String(c.pageid)) &&
+        !persistedSeen.has(`title:${c.title.toLowerCase()}`)
     );
+    if (unseenFallbacks.length === 0) {
+      allFallbacksSeenOnMountRef.current = true;
+    }
+    const basePool =
+      unseenFallbacks.length > 0 ? unseenFallbacks : INSTANT_FALLBACK_CHALLENGES;
+    const shuffled = [...basePool].sort(() => Math.random() - 0.5);
     return shuffled.map((item) => {
       const { options, correctIndex } = buildOptionsForChallenge(
         item.title,
@@ -1206,12 +1246,17 @@ export default function WikipediaMode({
   } | null>(null);
   const lastTapRef = useRef<number>(0);
 
-  const seenPageIdsRef = useRef<Set<string>>(
-    new Set(INSTANT_FALLBACK_CHALLENGES.map((c) => String(c.pageid)))
-  );
   const fetchingRef = useRef<boolean>(false);
 
   const currentChallenge = queue[currentIndex] || null;
+
+  const markChallengeSeen = useCallback((challenge: WikiPageChallenge | null) => {
+    if (!challenge) return;
+    seenPageIdsRef.current.add(String(challenge.pageid));
+    seenPageIdsRef.current.add(`title:${challenge.title.toLowerCase()}`);
+    seenPageIdsRef.current.add(`title:${challenge.cleanTitle.toLowerCase()}`);
+    saveSeenWikiKeys(seenPageIdsRef.current);
+  }, []);
 
   // Points gagnables selon l'aide utilisée :
   // - Cash sans QCM ni indice = 3 pts
