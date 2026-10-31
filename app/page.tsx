@@ -19,6 +19,7 @@ import {
   type QuizQuestionRecord,
 } from '@/lib/supabase';
 import { getAllLocalSeedQuestionsGrouped } from '@/lib/seed-data';
+import { createAndSaveTenRandomQuestions } from '@/lib/bonus-shop-questions';
 import {
   loadQuestionAnalytics,
   loadAdminSettings,
@@ -943,21 +944,14 @@ export default function QuizHomePage() {
         }
       }
 
-      const res = await fetch('/api/questions/buy-pack', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pseudo: userPseudo || 'Joueur',
-          excludeKeys: existingKeys,
-        }),
+      const newQuestions = await createAndSaveTenRandomQuestions({
+        pseudo: userPseudo || 'Joueur',
+        excludeKeys: existingKeys,
       });
 
-      const data = await res.json();
-      if (!res.ok || !Array.isArray(data?.questions) || data.questions.length === 0) {
-        throw new Error(data?.error || 'Impossible de générer le pack de 10 questions.');
+      if (!Array.isArray(newQuestions) || newQuestions.length === 0) {
+        throw new Error('Impossible de générer le pack de 10 questions.');
       }
-
-      const newQuestions: QuizQuestionRecord[] = data.questions;
 
       // Débiter la cagnotte
       setCagnotteBalance((prev) => {

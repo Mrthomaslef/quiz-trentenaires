@@ -1914,7 +1914,7 @@ export default function WikipediaMode({
   }
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col justify-between gap-1.5 sm:gap-2 overflow-hidden">
+    <div className="flex-1 min-h-0 flex flex-col justify-between gap-1.5 ls:gap-1 sm:gap-2 overflow-hidden">
       {/* 1. Bandeau des scores (2 Couples ou 4 Joueurs) */}
       <Scoreboard
         mode={teamMode}
@@ -1924,14 +1924,14 @@ export default function WikipediaMode({
         lastScoredId={lastScoredId}
       />
 
-      {/* 2. Barre de contrôle Wikipédia compacte sur 1 ligne en portrait */}
-      <div className="shrink-0 flex items-center justify-between gap-1 rounded-xl border border-blue-500/35 bg-[#071436]/95 px-2 py-1 sm:px-2.5 sm:py-1.5 shadow-md">
+      {/* 2. Barre de contrôle Wikipédia compacte sur 1 ligne */}
+      <div className="shrink-0 flex items-center justify-between gap-1 rounded-xl border border-blue-500/35 bg-[#071436]/95 px-2 py-1 ls:py-0.5 sm:px-2.5 sm:py-1.5 shadow-md">
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="inline-flex items-center gap-1 rounded-lg bg-white px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-black text-slate-900 shadow-sm shrink-0">
-            <Globe className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-blue-700" />
+          <span className="inline-flex items-center gap-1 rounded-lg bg-white px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs ls:text-[10px] font-black text-slate-900 shadow-sm shrink-0">
+            <Globe className="h-3 w-3 sm:h-3.5 sm:w-3.5 ls:h-3 ls:w-3 text-blue-700" />
             <span>WIKIPÉDIA</span>
           </span>
-          <span className="text-[10px] sm:text-xs font-extrabold text-blue-200 hidden md:inline truncate">
+          <span className="text-[10px] sm:text-xs font-extrabold text-blue-200 hidden md:inline ls:hidden lg:inline truncate">
             Devinez le titre de la page à partir de son image principale !
           </span>
         </div>
@@ -1941,7 +1941,7 @@ export default function WikipediaMode({
             <button
               type="button"
               onClick={() => handleChangeSourceMode('mix')}
-              className={`inline-flex items-center gap-1 rounded-md px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] font-black transition ${
+              className={`inline-flex items-center gap-1 rounded-md px-1.5 sm:px-2 ls:px-1.5 py-0.5 sm:py-1 ls:py-0.5 text-[10px] font-black transition ${
                 sourceMode === 'mix'
                   ? 'bg-yellow-400 text-blue-950 shadow'
                   : 'text-blue-200 hover:text-white'
@@ -1954,7 +1954,7 @@ export default function WikipediaMode({
             <button
               type="button"
               onClick={() => handleChangeSourceMode('random')}
-              className={`inline-flex items-center gap-1 rounded-md px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] font-black transition ${
+              className={`inline-flex items-center gap-1 rounded-md px-1.5 sm:px-2 ls:px-1.5 py-0.5 sm:py-1 ls:py-0.5 text-[10px] font-black transition ${
                 sourceMode === 'random'
                   ? 'bg-sky-400 text-slate-950 shadow'
                   : 'text-sky-300 hover:text-white'
@@ -1967,7 +1967,7 @@ export default function WikipediaMode({
             <button
               type="button"
               onClick={() => handleChangeSourceMode('popular')}
-              className={`inline-flex items-center gap-1 rounded-md px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] font-black transition ${
+              className={`inline-flex items-center gap-1 rounded-md px-1.5 sm:px-2 ls:px-1.5 py-0.5 sm:py-1 ls:py-0.5 text-[10px] font-black transition ${
                 sourceMode === 'popular'
                   ? 'bg-emerald-400 text-slate-950 shadow'
                   : 'text-emerald-300 hover:text-white'
@@ -1982,7 +1982,7 @@ export default function WikipediaMode({
           <button
             type="button"
             onClick={onToggleTeamMode}
-            className="inline-flex items-center gap-1 rounded-lg border border-blue-400/35 bg-blue-950/80 hover:bg-blue-900 px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] font-extrabold text-blue-100 transition"
+            className="inline-flex items-center gap-1 rounded-lg border border-blue-400/35 bg-blue-950/80 hover:bg-blue-900 px-1.5 sm:px-2 ls:px-1.5 py-0.5 sm:py-1 ls:py-0.5 text-[10px] font-extrabold text-blue-100 transition"
             title="Basculer l'affichage des scores entre 2 Équipes et 4 Joueurs"
           >
             {teamMode === '2_couples' ? (
@@ -2000,16 +2000,16 @@ export default function WikipediaMode({
         </div>
       </div>
 
-      {/* 3. Carte principale Wikipédia (optimisée portrait : zone centrale adaptative + barre du bas toujours fixe) */}
-      <section className="flex-1 min-h-0 flex flex-col justify-between rounded-2xl border-2 border-yellow-400/45 bg-gradient-to-b from-[#0b1f52]/95 via-[#07153a]/95 to-[#050e29]/95 p-2 sm:p-4 shadow-2xl overflow-hidden">
+      {/* 3. Carte principale Wikipédia (portrait empilé / paysage côte à côte) */}
+      <section className="flex-1 min-h-0 flex flex-col justify-between rounded-2xl border-2 border-yellow-400/45 bg-gradient-to-b from-[#0b1f52]/95 via-[#07153a]/95 to-[#050e29]/95 p-2 ls:p-1.5 sm:p-4 shadow-2xl overflow-hidden">
         {/* En-tête de la carte : Numéro de page + Badge Points + Boutons d'aide (Indices / QCM) */}
-        <div className="shrink-0 flex flex-wrap items-center justify-between gap-1 mb-1.5">
+        <div className="shrink-0 flex flex-wrap items-center justify-between gap-1 mb-1.5 ls:mb-1">
           <div className="flex items-center gap-1">
-            <span className="rounded-lg bg-yellow-400 px-2 py-0.5 text-[10px] sm:text-xs font-black uppercase text-blue-950 shadow">
+            <span className="rounded-lg bg-yellow-400 px-2 py-0.5 text-[10px] sm:text-xs ls:text-[10px] font-black uppercase text-blue-950 shadow">
               Page #{roundNumber}
             </span>
             <span
-              className={`rounded-lg border px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-black ${
+              className={`rounded-lg border px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs ls:text-[10px] font-black ${
                 currentChallenge.sourceType === 'random'
                   ? 'border-sky-400/50 bg-sky-500/15 text-sky-300'
                   : 'border-emerald-400/50 bg-emerald-500/15 text-emerald-300'
@@ -2019,7 +2019,7 @@ export default function WikipediaMode({
                 ? '🎲 Aléatoire'
                 : '⭐ Classique'}
             </span>
-            <span className="rounded-lg border border-yellow-400/50 bg-yellow-400/15 px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-black text-yellow-300">
+            <span className="rounded-lg border border-yellow-400/50 bg-yellow-400/15 px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs ls:text-[10px] font-black text-yellow-300">
               +{currentPointValue} pt{currentPointValue > 1 ? 's' : ''}
             </span>
           </div>
@@ -2030,10 +2030,10 @@ export default function WikipediaMode({
                 type="button"
                 onClick={handleUnlockNextHint}
                 disabled={hintLevel >= 3}
-                className="inline-flex items-center gap-1 rounded-lg border border-amber-400/50 bg-amber-500/20 hover:bg-amber-400 hover:text-slate-950 disabled:opacity-40 px-2 py-1 text-[10px] sm:text-xs font-black text-amber-300 transition"
+                className="inline-flex items-center gap-1 rounded-lg border border-amber-400/50 bg-amber-500/20 hover:bg-amber-400 hover:text-slate-950 disabled:opacity-40 px-2 py-1 ls:py-0.5 text-[10px] sm:text-xs ls:text-[10px] font-black text-amber-300 transition"
                 title="Débloquer un indice progressif (1: Catégorie, 2: Extrait caviardé, 3: Initiales)"
               >
-                <Lightbulb className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                <Lightbulb className="h-3 w-3 sm:h-3.5 sm:w-3.5 ls:h-3 ls:w-3" />
                 <span>
                   {hintLevel === 0
                     ? 'Indice (1/3)'
@@ -2052,10 +2052,10 @@ export default function WikipediaMode({
                     playJokerSound(soundEnabled);
                     setShowQcm(true);
                   }}
-                  className="inline-flex items-center gap-1 rounded-lg border border-sky-400/50 bg-sky-500/20 hover:bg-sky-400 hover:text-slate-950 px-2 py-1 text-[10px] sm:text-xs font-black text-sky-300 transition"
+                  className="inline-flex items-center gap-1 rounded-lg border border-sky-400/50 bg-sky-500/20 hover:bg-sky-400 hover:text-slate-950 px-2 py-1 ls:py-0.5 text-[10px] sm:text-xs ls:text-[10px] font-black text-sky-300 transition"
                   title="Afficher 4 propositions de titres Wikipédia (passe le gain à 1 pt)"
                 >
-                  <Grid className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  <Grid className="h-3 w-3 sm:h-3.5 sm:w-3.5 ls:h-3 ls:w-3" />
                   <span>4 Choix (1 pt)</span>
                 </button>
               )}
@@ -2063,10 +2063,10 @@ export default function WikipediaMode({
           )}
         </div>
 
-        {/* Zone Centrale Scrollable : Image principale Wikipédia + Indices éventuels */}
+        {/* Zone Centrale Scrollable : Image principale Wikipédia + Indices éventuels (côte à côte en paysage et desktop) */}
         <div className="flex-1 min-h-0 overflow-y-auto pr-0.5">
-          <div className="min-h-full flex flex-col md:flex-row items-center justify-center gap-2 sm:gap-3">
-            {/* Cadre Photo Wikipédia avec hauteur adaptative en mode portrait */}
+          <div className="min-h-full flex flex-col landscape:flex-row md:flex-row items-center justify-center gap-2 ls:gap-2 sm:gap-3">
+            {/* Cadre Photo Wikipédia avec hauteur adaptative portrait & paysage */}
             <div
               data-no-pull-refresh="true"
               onWheel={handleImageWheel}
@@ -2088,9 +2088,9 @@ export default function WikipediaMode({
               }}
               className={`relative flex-1 w-full h-full ${
                 hintLevel > 0 || revealed
-                  ? 'min-h-[125px] max-h-[21dvh] sm:max-h-[26dvh] md:max-h-[44dvh]'
-                  : 'min-h-[165px] max-h-[32dvh] sm:max-h-[36dvh] md:max-h-[44dvh]'
-              } flex items-center justify-center rounded-xl border border-blue-400/35 bg-[#03091a]/90 p-1.5 overflow-hidden select-none group transition-all ${
+                  ? 'min-h-[125px] ls:min-h-[110px] max-h-[21dvh] sm:max-h-[26dvh] landscape:max-h-[42dvh] ls:max-h-[38dvh] md:max-h-[44dvh]'
+                  : 'min-h-[165px] ls:min-h-[120px] max-h-[32dvh] sm:max-h-[36dvh] landscape:max-h-[44dvh] ls:max-h-[40dvh] md:max-h-[44dvh]'
+              } flex items-center justify-center rounded-xl border border-blue-400/35 bg-[#03091a]/90 p-1.5 ls:p-1 overflow-hidden select-none group transition-all ${
                 zoomScale > 1
                   ? isDraggingZoom
                     ? 'cursor-grabbing touch-none'
@@ -2202,9 +2202,9 @@ export default function WikipediaMode({
               </div>
             </div>
 
-            {/* Panneau latéral (ou sous l'image en portrait) : Indices débloqués OU Résultat complet une fois révélé */}
+            {/* Panneau latéral en paysage/desktop (ou sous l'image en portrait) : Indices débloqués OU Résultat complet */}
             {(hintLevel > 0 || revealed) && (
-              <div className="w-full md:w-2/5 shrink-0 flex flex-col gap-1 sm:gap-1.5 rounded-xl border border-blue-400/35 bg-blue-950/65 p-2 sm:p-2.5 text-left">
+              <div className="w-full landscape:w-5/12 md:w-2/5 shrink-0 flex flex-col gap-1 sm:gap-1.5 ls:gap-1 rounded-xl border border-blue-400/35 bg-blue-950/65 p-2 ls:p-1.5 sm:p-2.5 text-left">
                 {!revealed ? (
                   <>
                     <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-black uppercase text-amber-300">
@@ -2213,40 +2213,40 @@ export default function WikipediaMode({
                     </div>
 
                     {hintLevel >= 1 && (
-                      <div className="rounded-lg bg-[#050f2c] border border-amber-400/30 px-2 py-1">
+                      <div className="rounded-lg bg-[#050f2c] border border-amber-400/30 px-2 py-1 ls:py-0.5">
                         <span className="text-[9px] sm:text-[10px] font-black uppercase text-amber-400 block">
                           Indice 1 — Description :
                         </span>
-                        <p className="text-[11px] sm:text-xs font-bold text-white leading-snug">
+                        <p className="text-[11px] sm:text-xs ls:text-[10px] font-bold text-white leading-snug">
                           {redactedDescription}
                         </p>
                       </div>
                     )}
 
                     {hintLevel >= 2 && (
-                      <div className="rounded-lg bg-[#050f2c] border border-sky-400/30 px-2 py-1">
+                      <div className="rounded-lg bg-[#050f2c] border border-sky-400/30 px-2 py-1 ls:py-0.5">
                         <span className="text-[9px] sm:text-[10px] font-black uppercase text-sky-400 block">
                           Indice 2 — Extrait caviardé :
                         </span>
-                        <p className="text-[10px] sm:text-[11px] leading-snug text-blue-100 line-clamp-2 sm:line-clamp-3">
+                        <p className="text-[10px] sm:text-[11px] ls:text-[10px] leading-snug text-blue-100 line-clamp-2 sm:line-clamp-3 ls:line-clamp-2">
                           {redactedExtract}
                         </p>
                       </div>
                     )}
 
                     {hintLevel >= 3 && (
-                      <div className="rounded-lg bg-[#050f2c] border border-emerald-400/30 px-2 py-1">
+                      <div className="rounded-lg bg-[#050f2c] border border-emerald-400/30 px-2 py-1 ls:py-0.5">
                         <span className="text-[9px] sm:text-[10px] font-black uppercase text-emerald-400 block">
                           Indice 3 — Structure du titre :
                         </span>
-                        <p className="font-mono text-xs sm:text-sm font-black tracking-wider text-yellow-300">
+                        <p className="font-mono text-xs sm:text-sm ls:text-xs font-black tracking-wider text-yellow-300">
                           {initialsMask}
                         </p>
                       </div>
                     )}
                   </>
                 ) : (
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 ls:gap-0.5">
                     <div className="flex items-center justify-between gap-2">
                       <span
                         className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-black uppercase ${
@@ -2286,17 +2286,17 @@ export default function WikipediaMode({
                       </a>
                     </div>
 
-                    <h2 className="text-sm sm:text-xl font-black text-yellow-300 leading-tight">
+                    <h2 className="text-sm sm:text-xl ls:text-sm font-black text-yellow-300 leading-tight">
                       {currentChallenge.title}
                     </h2>
 
                     {currentChallenge.description && (
-                      <p className="text-[10px] sm:text-[11px] font-bold text-sky-200 leading-snug">
+                      <p className="text-[10px] sm:text-[11px] ls:text-[10px] font-bold text-sky-200 leading-snug">
                         {currentChallenge.description}
                       </p>
                     )}
 
-                    <p className="text-[10px] sm:text-[11px] leading-snug text-blue-100/90 line-clamp-2 sm:line-clamp-3">
+                    <p className="text-[10px] sm:text-[11px] ls:text-[10px] leading-snug text-blue-100/90 line-clamp-2 sm:line-clamp-3 ls:line-clamp-2">
                       {currentChallenge.extract}
                     </p>
                   </div>
@@ -2306,24 +2306,24 @@ export default function WikipediaMode({
           </div>
         </div>
 
-        {/* Zone du bas FIXE (shrink-0) : Saisie Cash / QCM 4 choix (2x2 en portrait) / Attribution des points & Page suivante */}
-        <div className="shrink-0 pt-1.5 mt-1.5 border-t border-blue-500/30 flex flex-col gap-1.5">
+        {/* Zone du bas FIXE (shrink-0) : Saisie Cash / QCM 4 choix / Attribution des points & Page suivante */}
+        <div className="shrink-0 pt-1.5 mt-1.5 ls:pt-1 ls:mt-1 border-t border-blue-500/30 flex flex-col gap-1.5 ls:gap-1">
           {!revealed ? (
             <>
-              {/* Si le mode QCM 4 choix est activé : Grille 2x2 dès le mode portrait mobile */}
+              {/* Si le mode QCM 4 choix est activé : Grille 2x2 */}
               {showQcm ? (
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="grid grid-cols-2 gap-1.5 ls:gap-1">
                   {currentChallenge.options.map((opt, idx) => (
                     <button
                       key={opt}
                       type="button"
                       onClick={() => handleSelectQcmOption(idx)}
-                      className="flex items-center gap-1.5 sm:gap-2 rounded-xl border border-blue-400/45 bg-blue-950/85 hover:border-yellow-400 hover:bg-blue-900/90 px-2.5 py-2 text-left transition active:scale-[0.99]"
+                      className="flex items-center gap-1.5 sm:gap-2 rounded-xl border border-blue-400/45 bg-blue-950/85 hover:border-yellow-400 hover:bg-blue-900/90 px-2.5 py-2 ls:px-2 ls:py-1 text-left transition active:scale-[0.99]"
                     >
-                      <span className="flex h-5 w-5 sm:h-6 sm:w-6 shrink-0 items-center justify-center rounded-md sm:rounded-lg bg-yellow-400 text-[10px] sm:text-xs font-black text-blue-950">
+                      <span className="flex h-5 w-5 sm:h-6 sm:w-6 ls:h-5 ls:w-5 shrink-0 items-center justify-center rounded-md sm:rounded-lg bg-yellow-400 text-[10px] sm:text-xs ls:text-[10px] font-black text-blue-950">
                         {OPTION_LETTERS[idx]}
                       </span>
-                      <span className="text-[11px] sm:text-sm font-extrabold text-white line-clamp-2 leading-tight">
+                      <span className="text-[11px] sm:text-sm ls:text-xs font-extrabold text-white line-clamp-2 ls:line-clamp-1 leading-tight">
                         {opt}
                       </span>
                     </button>
@@ -2331,9 +2331,9 @@ export default function WikipediaMode({
                 </div>
               ) : (
                 /* Formulaire de saisie Cash + Bouton Révéler à l'oral */
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-1.5 ls:gap-1">
                   {wrongAttemptMessage && (
-                    <div className="flex items-center gap-1.5 rounded-lg border border-rose-400/50 bg-rose-500/20 px-2.5 py-1 text-[11px] font-bold text-rose-200 animate-shake">
+                    <div className="flex items-center gap-1.5 rounded-lg border border-rose-400/50 bg-rose-500/20 px-2.5 py-1 ls:py-0.5 text-[11px] ls:text-[10px] font-bold text-rose-200 animate-shake">
                       <XCircle className="h-3.5 w-3.5 shrink-0 text-rose-400" />
                       <span className="truncate">
                         {wrongAttemptMessage} Essayez encore ou passez en 4 Choix !
@@ -2343,7 +2343,7 @@ export default function WikipediaMode({
 
                   <form
                     onSubmit={handleCashSubmit}
-                    className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5"
+                    className="flex flex-col landscape:flex-row sm:flex-row items-stretch landscape:items-center sm:items-center gap-1.5 ls:gap-1"
                   >
                     <div className="relative flex-1">
                       <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-blue-300/70" />

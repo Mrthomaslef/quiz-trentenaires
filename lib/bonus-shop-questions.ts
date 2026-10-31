@@ -1,4 +1,7 @@
 import type { RawSeedQuestion } from './questions-part1';
+import { validateQuestionBatch, type ValidatedQuestion } from './generator';
+import { insertValidatedQuestions, type QuizQuestionRecord } from './supabase';
+import { normalizeQuestionKey } from './question-analytics';
 
 export const BONUS_SHOP_QUESTIONS: RawSeedQuestion[] = [
   // ============================================================================
@@ -244,4 +247,264 @@ export const BONUS_SHOP_QUESTIONS: RawSeedQuestion[] = [
     correct_index: 3,
     explanation: 'Ne parvenant pas à départager Sydney et Melbourne, le gouvernement australien a fait construire de toutes pièces la ville nouvelle de Canberra dans les terres.',
   },
+  {
+    difficulty: 1,
+    theme: 'Pop Culture 90/2000',
+    question: 'Dans « Pokémon Rouge et Bleu » sur Game Boy, quels sont les trois Pokémon de départ proposés par le Professeur Chen ?',
+    options: [
+      'Pikachu, Évoli et Mélofée',
+      'Bulbizarre, Salamèche et Carapuce',
+      'Germignon, Héricendre et Kaiminus',
+      'Arcko, Poussifeu et Gobou',
+    ],
+    correct_index: 1,
+    explanation: 'À Bourg Palette, le Professeur Chen propose au joueur de choisir entre Bulbizarre (Plante), Salamèche (Feu) et Carapuce (Eau).',
+  },
+  {
+    difficulty: 2,
+    theme: 'Séries TV',
+    question: 'Dans la série « Malcolm », quel est le prénom du père de famille, incarné par Bryan Cranston avant son rôle dans Breaking Bad ?',
+    options: ['Hal', 'Craig', 'Otto', 'Francis'],
+    correct_index: 0,
+    explanation: 'Hal, père aimant, impulsif et totalement dépassé par ses garçons et sa femme Lois, est l’un des rôles comiques les plus cultes des années 2000.',
+  },
+  {
+    difficulty: 3,
+    theme: 'Musique',
+    question: 'Quel boys band français a connu un triomphe phénoménal en 1996 avec le tube « Partir un jour » ?',
+    options: ['Alliage', 'Worlds Apart', '2Be3', 'G-Squad'],
+    correct_index: 2,
+    explanation: 'Formé par Filip Nikolic, Adel Kachermi et Frank Delay, originaires de Longjumeau, le groupe 2Be3 (« To Be Free ») a vendu des millions de disques.',
+  },
+  {
+    difficulty: 4,
+    theme: 'Jeux Vidéo',
+    question: 'Dans « Les Sims », quel mot en langage « Simlish » signifie « Bonjour » ou « Salut » ?',
+    options: ['Sul Sul', 'Dag Dag', 'Nooboo', 'Lalo'],
+    correct_index: 0,
+    explanation: 'En Simlish, la langue imaginaire créée par Will Wright pour Les Sims, « Sul Sul ! » veut dire Bonjour et « Dag Dag ! » signifie Au revoir.',
+  },
+  {
+    difficulty: 5,
+    theme: 'Cinéma',
+    question: 'Dans « Le Seigneur des Anneaux », combien de membres composent la Communauté de l’Anneau formée à Fondcombe ?',
+    options: ['7 membres', '8 membres', '9 membres', '12 membres'],
+    correct_index: 2,
+    explanation: 'Les 9 Marcheurs (Frodon, Sam, Merry, Pippin, Gandalf, Aragorn, Legolas, Gimli et Boromir) font face aux 9 Cavaliers Noirs (les Nazgûl).',
+  },
+  {
+    difficulty: 6,
+    theme: 'Gastronomie',
+    question: 'Quel fromage AOP du Jura est reconnaissable à la fine ligne horizontale de cendre végétale noire qui traverse le milieu de sa pâte ?',
+    options: ['Le Comté', 'Le Morbier', 'Le Mont d’Or', 'Le Beaufort'],
+    correct_index: 1,
+    explanation: 'Autrefois, les fermiers jurassiens recouvraient la traite du soir d’une fine couche de suie pour la protéger avant d’y ajouter la traite du matin.',
+  },
+  {
+    difficulty: 7,
+    theme: 'Histoire',
+    question: 'Quelle reine de France a prononcé, selon la légende popularisée par Jean-Jacques Rousseau, « S’ils n’ont pas de pain, qu’ils mangent de la brioche » ?',
+    options: ['Anne d’Autriche', 'Marie-Antoinette', 'Catherine de Médicis', 'Joséphine de Beauharnais'],
+    correct_index: 1,
+    explanation: 'Bien qu’attribuée à Marie-Antoinette par la propagande révolutionnaire, la phrase figure déjà dans Les Confessions de Rousseau écrites quand elle était enfant.',
+  },
+  {
+    difficulty: 8,
+    theme: 'Sciences',
+    question: 'Quelle planète du Système solaire possède le plus grand volcan connu, baptisé Olympus Mons, qui culmine à plus de 21 kilomètres d’altitude ?',
+    options: ['Vénus', 'Mars', 'Mercure', 'Terre'],
+    correct_index: 1,
+    explanation: 'Situé sur Mars, le volcan bouclier Olympus Mons mesure environ 21,9 km de haut, soit près de trois fois la hauteur de l’Everest !',
+  },
+  {
+    difficulty: 9,
+    theme: 'Littérature & Contes',
+    question: 'Quel est le véritable nom de plume de Jean-Baptiste Poquelin, dramaturge immortel du XVIIe siècle ?',
+    options: ['Corneille', 'Racine', 'Molière', 'La Fontaine'],
+    correct_index: 2,
+    explanation: 'Baptisé à Paris en janvier 1622, Jean-Baptiste Poquelin prit le pseudonyme de Molière à l’âge de 22 ans à l’époque de l’Illustre Théâtre.',
+  },
+  {
+    difficulty: 10,
+    theme: 'Arts & Architecture',
+    question: 'Dans quel musée madrilène est conservé le célèbre tableau « Guernica » peint par Pablo Picasso en 1937 ?',
+    options: ['Le Musée du Prado', 'Le Musée Reina Sofía', 'Le Musée Thyssen-Bornemisza', 'Le Musée Guggenheim'],
+    correct_index: 1,
+    explanation: 'Longtemps exposé au MoMA de New York selon la volonté de Picasso tant que Franco était au pouvoir, Guernica est aujourd’hui le joyau du musée Reina Sofía à Madrid.',
+  },
+  {
+    difficulty: 1,
+    theme: 'Jeux de Société & Jouets',
+    question: 'Dans le jeu « Qui est-ce ? », quel accessoire physique ou trait du visage permet d’éliminer d’un coup toute une série de personnages ?',
+    options: [
+      'A-t-il des lunettes ou un chapeau ?',
+      'Quel est son signe astrologique ?',
+      'Dans quelle ville habite-t-il ?',
+      'Quel est son plat préféré ?',
+    ],
+    correct_index: 0,
+    explanation: 'Les questions sur les lunettes, la moustache, les cheveux blonds ou le chapeau sont les grands classiques stratégiques de « Qui est-ce ? ».',
+  },
+  {
+    difficulty: 2,
+    theme: 'Émissions TV & Télé-réalité',
+    question: 'Quel animateur présentait « Qui veut gagner des millions ? » lors de son lancement culte sur TF1 en juillet 2000 ?',
+    options: ['Arthur', 'Jean-Pierre Foucault', 'Christophe Dechavanne', 'Denis Brogniart'],
+    correct_index: 1,
+    explanation: 'Jean-Pierre Foucault a incarné l’émission pendant près de 20 ans avec sa célèbre phrase fétiche : « C’est votre dernier mot ? ».',
+  },
+  {
+    difficulty: 3,
+    theme: 'Sport',
+    question: 'Lors de la finale de la Coupe du monde 1998 au Stade de France, quel joueur français a inscrit le troisième but à la dernière minute (3-0) ?',
+    options: ['Zinédine Zidane', 'Youri Djorkaeff', 'Emmanuel Petit', 'Thierry Henry'],
+    correct_index: 2,
+    explanation: 'Après le doublé de la tête de Zinédine Zidane en première période, Emmanuel Petit scelle le triomphe des Bleus face au Brésil à la 93e minute.',
+  },
+  {
+    difficulty: 4,
+    theme: 'BD & Mangas',
+    question: 'Dans « One Piece », quel est le nom du fruit du démon qu’a mangé Monkey D. Luffy, rendant son corps élastique comme du caoutchouc ?',
+    options: ['Le Mera Mera no Mi', 'Le Gomu Gomu no Mi', 'Le Bara Bara no Mi', 'Le Yami Yami no Mi'],
+    correct_index: 1,
+    explanation: 'Enfant, Luffy mange par gourmandise le Gomu Gomu no Mi (Fruit du Caoutchoutier) rapporté par l’équipage de Shanks le Roux.',
+  },
+  {
+    difficulty: 5,
+    theme: 'Humour & Comédie',
+    question: 'Dans « La Cité de la Peur » des Nuls (1994), quelle danse improbable Karamazov et Odile Deray exécutent-ils au restaurant ?',
+    options: ['La Macarena', 'La Carioca', 'La Lambada', 'Le Madison'],
+    correct_index: 1,
+    explanation: 'Interprétée par Alain Chabat et Gérard Darmon avec claquettes et guitare, « La Carioca » est l’une des scènes les plus parodiées du cinéma français.',
+  },
+  {
+    difficulty: 6,
+    theme: 'Espace & Astronomie',
+    question: 'Combien de minutes environ faut-il à la lumière du Soleil pour parcourir les 150 millions de kilomètres jusqu’à la Terre ?',
+    options: ['Environ 1 minute', 'Environ 8 minutes et 20 secondes', 'Environ 24 minutes', 'Environ 1 heure'],
+    correct_index: 1,
+    explanation: 'Voyageant à près de 300 000 km/s dans le vide, les photons émis par la surface solaire mettent environ 499 secondes (8 min 19 s) pour nous atteindre.',
+  },
+  {
+    difficulty: 7,
+    theme: 'Mythologie & Légendes',
+    question: 'Dans la mythologie nordique, comment s’appelle le marteau magique du dieu du tonnerre Thor, qui revient toujours dans sa main ?',
+    options: ['Gungnir', 'Mjöllnir', 'Excalibur', 'Bifröst'],
+    correct_index: 1,
+    explanation: 'Forgé par les nains Brokk et Eitri, le marteau Mjöllnir (« le Broyeur ») est l’arme redoutable de Thor contre les géants de glace.',
+  },
+  {
+    difficulty: 8,
+    theme: 'Inventions, Tech & Insolite',
+    question: 'En quelle année le tout premier iPhone a-t-il été présenté sur scène par Steve Jobs à San Francisco ?',
+    options: ['2005', '2007', '2009', '2010'],
+    correct_index: 1,
+    explanation: 'Le 9 janvier 2007 lors de la Macworld Conference, Steve Jobs dévoile un appareil révolutionnaire combinant « un iPod à écran tactile, un téléphone et un navigateur Internet ».',
+  },
+  {
+    difficulty: 9,
+    theme: 'Langue Française & Expressions',
+    question: 'Quelle est la seule œuvre de la langue française où le mot « délice » est masculin au singulier mais devient féminin au pluriel ?',
+    options: [
+      'Avec « amour » et « orgue »',
+      'Avec « automne » et « pétale »',
+      'Avec « après-midi » et « oasis »',
+      'Avec « éclair » et « espace »',
+    ],
+    correct_index: 0,
+    explanation: 'Les trois noms « amour », « délice » et « orgue » sont célèbres en grammaire française pour être masculins au singulier et féminins au pluriel.',
+  },
+  {
+    difficulty: 10,
+    theme: 'Géographie',
+    question: 'Quel détroit sépare l’extrémité orientale de la Russie (Sibérie) de l’État américain de l’Alaska sur seulement 82 kilomètres ?',
+    options: ['Le détroit de Magellan', 'Le détroit de Béring', 'Le détroit de Malacca', 'Le détroit de Gibraltar'],
+    correct_index: 1,
+    explanation: 'Nommé d’après l’explorateur danois Vitus Béring, ce détroit abrite les îles Diomède, où la frontière américano-russe se double de la ligne de changement de date.',
+  },
 ];
+
+export function pickTenUnseenBonusQuestions(
+  excludeKeys: Set<string>,
+  count = 10
+): ValidatedQuestion[] {
+  const pool = [...BONUS_SHOP_QUESTIONS];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+
+  const unseen = pool.filter(
+    (q) => !excludeKeys.has(normalizeQuestionKey(q.question))
+  );
+  const chosen =
+    unseen.length >= count
+      ? unseen.slice(0, count)
+      : [...unseen, ...pool.filter((q) => !unseen.includes(q))].slice(0, count);
+
+  return validateQuestionBatch(chosen);
+}
+
+/**
+ * Génère et sauvegarde 10 nouvelles questions au hasard.
+ * Fonctionne à la fois via l'API Next.js (si serveur disponible) ET 100% côté client
+ * sur GitHub Pages / export statique + synchronisation directe Supabase.
+ */
+export async function createAndSaveTenRandomQuestions(params: {
+  pseudo: string;
+  excludeKeys: string[];
+}): Promise<QuizQuestionRecord[]> {
+  const excludeSet = new Set(params.excludeKeys);
+  let validatedBatch: ValidatedQuestion[] = [];
+
+  // 1. Tenter l'appel API serveur uniquement si un backend Next.js est actif
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch('/api/questions/buy-pack', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pseudo: params.pseudo,
+          excludeKeys: params.excludeKeys,
+        }),
+      });
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
+        const data = await res.json();
+        if (Array.isArray(data?.questions) && data.questions.length > 0) {
+          return data.questions as QuizQuestionRecord[];
+        }
+      }
+    } catch {
+      // Sur GitHub Pages (export statique) ou Safari iOS sans route /api, bascule directe locale + Supabase
+    }
+  }
+
+  // 2. Génération locale garantie de 10 nouvelles questions inédites au hasard
+  validatedBatch = pickTenUnseenBonusQuestions(excludeSet, 10);
+
+  // 3. Synchronisation directe vers Supabase (via la RPC publique seed_trentenaires_questions)
+  try {
+    await insertValidatedQuestions(validatedBatch);
+  } catch {
+    // Non-bloquant
+  }
+
+  const nowTs = Date.now();
+  return validatedBatch.map((q, idx) => ({
+    id: `custom-pack-${nowTs}-${idx + 1}`,
+    difficulty: q.difficulty,
+    theme: q.theme,
+    question: q.question,
+    options: q.options,
+    correct_index: q.correct_index,
+    explanation: q.explanation,
+    target_audience: '30yo_couples',
+    times_played: 0,
+    times_correct: 0,
+    times_wrong: 0,
+    difficulty_notes: `Créée par ${params.pseudo || 'Joueur'} via la Boutique Millions`,
+    is_already_answered: false,
+    created_at: new Date().toISOString(),
+  }));
+}

@@ -1109,19 +1109,19 @@ export default function VersusMode({
     );
 
     return (
-      <section className="relative flex-1 min-h-0 flex flex-col justify-center overflow-y-auto rounded-2xl border-2 border-yellow-400/50 bg-gradient-to-b from-[#0b1d48]/95 via-[#081538]/95 to-[#050d26]/95 p-3.5 sm:p-6 shadow-2xl backdrop-blur-md animate-fadeIn">
-        <div className="mx-auto w-full max-w-2xl space-y-4 my-auto">
+      <section className="relative flex-1 min-h-0 flex flex-col justify-center overflow-y-auto rounded-2xl border-2 border-yellow-400/50 bg-gradient-to-b from-[#0b1d48]/95 via-[#081538]/95 to-[#050d26]/95 p-3.5 ls:p-2 sm:p-6 shadow-2xl backdrop-blur-md animate-fadeIn">
+        <div className="mx-auto w-full max-w-2xl space-y-4 ls:space-y-2 my-auto">
           {/* En-tête Mode Versus */}
-          <div className="text-center space-y-1.5">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 px-3 py-1 text-xs font-black uppercase tracking-wider text-blue-950 shadow-lg">
-              <Swords className="h-3.5 w-3.5" />
+          <div className="text-center space-y-1.5 ls:space-y-0.5">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 px-3 py-1 ls:py-0.5 text-xs ls:text-[10px] font-black uppercase tracking-wider text-blue-950 shadow-lg">
+              <Swords className="h-3.5 w-3.5 ls:h-3 ls:w-3" />
               <span>Mode Versus · Salon Temps Réel</span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+            <h2 className="text-xl sm:text-2xl ls:text-base font-black text-white tracking-tight">
               Le 1er qui répond rafle le jackpot en{' '}
               <span className="text-yellow-400">10 secondes</span> !
             </h2>
-            <p className="text-xs sm:text-sm text-blue-200/85 max-w-lg mx-auto">
+            <p className="text-xs sm:text-sm ls:hidden text-blue-200/85 max-w-lg mx-auto">
               Chacun joue sur son téléphone. Dès que la question s’affiche, le
               chrono de <strong className="text-yellow-300">10s</strong> défile
               et les points diminuent à chaque dixième de seconde !
@@ -1129,16 +1129,16 @@ export default function VersusMode({
           </div>
 
           {/* Grille 2 colonnes : Créer un salon (avec choix de 5 en 5) VS Rejoindre un salon (avec Pop-up pseudo) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div className="grid grid-cols-1 landscape:grid-cols-2 sm:grid-cols-2 gap-3.5 ls:gap-2">
             {/* Carte Créer un Salon (Hôte) */}
             <div
-              className={`flex flex-col justify-between rounded-xl border-2 border-yellow-400/60 bg-gradient-to-b from-yellow-400/15 to-[#061233] p-4 space-y-3 ${
+              className={`flex flex-col justify-between rounded-xl border-2 border-yellow-400/60 bg-gradient-to-b from-yellow-400/15 to-[#061233] p-4 ls:p-2.5 space-y-3 ls:space-y-2 ${
                 hasPrefilledCode ? 'order-2 sm:order-1' : ''
               }`}
             >
-              <div className="space-y-2.5">
-                <div className="flex items-center gap-1.5 text-yellow-300 font-black text-sm uppercase">
-                  <Crown className="h-4 w-4 text-yellow-400" />
+              <div className="space-y-2.5 ls:space-y-1.5">
+                <div className="flex items-center gap-1.5 text-yellow-300 font-black text-sm ls:text-xs uppercase">
+                  <Crown className="h-4 w-4 ls:h-3.5 ls:w-3.5 text-yellow-400" />
                   <span>Héberger un Salon</span>
                 </div>
 
@@ -1146,7 +1146,7 @@ export default function VersusMode({
                 <div>
                   <label
                     htmlFor="versus-host-pseudo"
-                    className="block text-[10px] font-black uppercase tracking-wider text-blue-200/90 mb-1"
+                    className="block text-[10px] font-black uppercase tracking-wider text-blue-200/90 mb-1 ls:mb-0.5"
                   >
                     Ton Nom d’Hôte
                   </label>
@@ -1157,13 +1157,13 @@ export default function VersusMode({
                     onChange={(e) => savePlayerName(e.target.value)}
                     placeholder="Ex: Thomas..."
                     maxLength={18}
-                    className="w-full rounded-xl border border-blue-400/40 focus:border-yellow-400 bg-[#040b1e]/90 px-3 py-2 text-xs sm:text-sm font-extrabold text-white placeholder-blue-300/40 outline-none transition"
+                    className="w-full rounded-xl border border-blue-400/40 focus:border-yellow-400 bg-[#040b1e]/90 px-3 py-2 ls:py-1 text-xs sm:text-sm ls:text-xs font-extrabold text-white placeholder-blue-300/40 outline-none transition"
                   />
                 </div>
 
                 {/* Choix du nombre de questions de 5 en 5 */}
                 <div>
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center justify-between mb-1 ls:mb-0.5">
                     <span className="text-[10px] font-black uppercase tracking-wider text-yellow-300">
                       Nombre de questions (5 en 5)
                     </span>
@@ -1179,7 +1179,7 @@ export default function VersusMode({
                           key={count}
                           type="button"
                           onClick={() => setHostQuestionCount(count)}
-                          className={`rounded-lg py-1.5 text-xs font-black border transition ${
+                          className={`rounded-lg py-1.5 ls:py-1 text-xs font-black border transition ${
                             active
                               ? 'bg-yellow-400 text-blue-950 border-white shadow scale-105'
                               : 'bg-[#040b1e]/90 text-blue-200 border-blue-500/35 hover:border-yellow-400/60'
@@ -1196,7 +1196,7 @@ export default function VersusMode({
               <button
                 type="button"
                 onClick={handleCreateRoom}
-                className="shimmer-btn relative overflow-hidden w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 hover:from-yellow-200 hover:to-yellow-400 px-4 py-3 text-xs sm:text-sm font-black uppercase tracking-wide text-blue-950 shadow-lg shadow-yellow-400/25 active:scale-95 transition"
+                className="shimmer-btn relative overflow-hidden w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 hover:from-yellow-200 hover:to-yellow-400 px-4 py-3 ls:py-2 text-xs sm:text-sm ls:text-xs font-black uppercase tracking-wide text-blue-950 shadow-lg shadow-yellow-400/25 active:scale-95 transition"
               >
                 <Play className="h-4 w-4 fill-blue-950" />
                 <span>Créer le Salon ({hostQuestionCount} Q.)</span>
@@ -1206,16 +1206,16 @@ export default function VersusMode({
             {/* Carte Rejoindre un Salon (Participants) */}
             <form
               onSubmit={handleOpenJoinPopup}
-              className={`flex flex-col justify-between rounded-xl border-2 border-sky-400/50 bg-gradient-to-b from-sky-500/15 to-[#061233] p-4 space-y-3 ${
+              className={`flex flex-col justify-between rounded-xl border-2 border-sky-400/50 bg-gradient-to-b from-sky-500/15 to-[#061233] p-4 ls:p-2.5 space-y-3 ls:space-y-2 ${
                 hasPrefilledCode ? 'order-1 sm:order-2 ring-2 ring-sky-400/60' : ''
               }`}
             >
-              <div className="space-y-2.5">
-                <div className="flex items-center gap-1.5 text-sky-300 font-black text-sm uppercase">
-                  <Users className="h-4 w-4 text-sky-400" />
+              <div className="space-y-2.5 ls:space-y-1.5">
+                <div className="flex items-center gap-1.5 text-sky-300 font-black text-sm ls:text-xs uppercase">
+                  <Users className="h-4 w-4 ls:h-3.5 ls:w-3.5 text-sky-400" />
                   <span>Rejoindre avec un Code</span>
                 </div>
-                <p className="text-xs text-blue-100/80 leading-relaxed">
+                <p className="text-xs ls:text-[11px] text-blue-100/80 leading-relaxed ls:leading-snug">
                   Entre le code à 4 caractères affiché sur l’écran de l’hôte. Tu
                   choisiras ton pseudo dans la fenêtre suivante.
                 </p>
@@ -1230,12 +1230,12 @@ export default function VersusMode({
                   autoCapitalize="characters"
                   autoCorrect="off"
                   spellCheck={false}
-                  className="w-full rounded-xl border-2 border-sky-400/40 focus:border-sky-300 bg-[#040b1e] px-3 py-2.5 text-center font-mono text-xl font-black tracking-widest uppercase text-yellow-300 placeholder-blue-300/35 outline-none"
+                  className="w-full rounded-xl border-2 border-sky-400/40 focus:border-sky-300 bg-[#040b1e] px-3 py-2.5 ls:py-1.5 text-center font-mono text-xl ls:text-base font-black tracking-widest uppercase text-yellow-300 placeholder-blue-300/35 outline-none"
                 />
               </div>
               <button
                 type="submit"
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-300 hover:to-blue-400 px-4 py-3 text-xs sm:text-sm font-black uppercase tracking-wide text-slate-950 shadow-lg shadow-sky-400/20 active:scale-95 transition"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-300 hover:to-blue-400 px-4 py-3 ls:py-2 text-xs sm:text-sm ls:text-xs font-black uppercase tracking-wide text-slate-950 shadow-lg shadow-sky-400/20 active:scale-95 transition"
               >
                 <ArrowRight className="h-4 w-4 stroke-[2.5]" />
                 <span>
@@ -1373,18 +1373,18 @@ export default function VersusMode({
   // 2. SALON ACTIF : BANDEAU JOUEURS + ZONE CENTRALE (LOBBY / 3-2-1 / 10S / REVEAL / PODIUM)
   // ============================================================================
   return (
-    <div className="flex-1 min-h-0 flex flex-col justify-between gap-2">
+    <div className="flex-1 min-h-0 flex flex-col justify-between gap-2 ls:gap-1">
       {/* BANDEAU HAUT : INFOS SALON + SCORES TEMPS RÉEL DES JOUEURS */}
-      <section className="shrink-0 rounded-2xl border border-yellow-400/45 bg-[#091942]/95 px-2.5 py-2 sm:px-3.5 sm:py-2.5 shadow-lg backdrop-blur-md space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-1.5">
+      <section className="shrink-0 rounded-2xl border border-yellow-400/45 bg-[#091942]/95 px-2.5 py-2 ls:py-1 sm:px-3.5 sm:py-2.5 shadow-lg backdrop-blur-md space-y-2 ls:space-y-1">
+        <div className="flex flex-wrap items-center justify-between gap-1.5 ls:gap-1">
           <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={handleCopyCode}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-yellow-400 px-2.5 py-1 text-xs font-black uppercase text-blue-950 shadow hover:bg-yellow-300 transition"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-yellow-400 px-2.5 py-1 ls:py-0.5 text-xs ls:text-[10px] font-black uppercase text-blue-950 shadow hover:bg-yellow-300 transition"
               title="Cliquer pour copier le code du salon"
             >
-              <Swords className="h-3.5 w-3.5" />
+              <Swords className="h-3.5 w-3.5 ls:h-3 ls:w-3" />
               <span className="font-mono tracking-wider">
                 SALON #{roomState.roomCode}
               </span>
@@ -1398,7 +1398,7 @@ export default function VersusMode({
             <button
               type="button"
               onClick={handleShareRoom}
-              className="inline-flex items-center gap-1 rounded-lg border border-sky-400/45 bg-sky-500/15 hover:bg-sky-400 hover:text-slate-950 px-2 py-1 text-[11px] font-extrabold text-sky-200 transition"
+              className="inline-flex items-center gap-1 rounded-lg border border-sky-400/45 bg-sky-500/15 hover:bg-sky-400 hover:text-slate-950 px-2 py-1 ls:py-0.5 text-[11px] ls:text-[10px] font-extrabold text-sky-200 transition"
               title="Partager le lien direct du salon"
             >
               {copiedLink ? (
@@ -1446,7 +1446,7 @@ export default function VersusMode({
             <button
               type="button"
               onClick={handleLeaveRoom}
-              className="inline-flex items-center gap-1 rounded-lg border border-rose-400/35 bg-rose-950/60 hover:bg-rose-500 hover:text-white px-2 py-1 text-[11px] font-extrabold text-rose-200 transition"
+              className="inline-flex items-center gap-1 rounded-lg border border-rose-400/35 bg-rose-950/60 hover:bg-rose-500 hover:text-white px-2 py-1 ls:py-0.5 text-[11px] ls:text-[10px] font-extrabold text-rose-200 transition"
               title="Quitter le salon"
             >
               <LogOut className="h-3 w-3" />
@@ -1456,7 +1456,7 @@ export default function VersusMode({
         </div>
 
         {/* Cartes des joueurs connectés (triés par score) */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 ls:pb-0">
           {sortedPlayers.map((p, idx) => {
             const pAns = roomState.answers[p.id];
             const isMe = p.id === playerId;
@@ -1466,7 +1466,7 @@ export default function VersusMode({
             return (
               <div
                 key={p.id}
-                className={`relative flex items-center justify-between gap-2 rounded-xl border px-2.5 py-1.5 min-w-[130px] sm:min-w-[155px] shrink-0 transition-all ${
+                className={`relative flex items-center justify-between gap-2 rounded-xl border px-2.5 py-1.5 ls:px-2 ls:py-0.5 min-w-[130px] sm:min-w-[155px] ls:min-w-[125px] shrink-0 transition-all ${
                   isMe
                     ? 'border-yellow-400 bg-blue-950/95 ring-1 ring-yellow-400/50'
                     : 'border-blue-500/35 bg-[#05102e]/90'
@@ -1474,13 +1474,13 @@ export default function VersusMode({
               >
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span
-                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[10px] font-black border ${badgeClass}`}
+                    className={`flex h-5 w-5 ls:h-4 ls:w-4 shrink-0 items-center justify-center rounded-md text-[10px] ls:text-[9px] font-black border ${badgeClass}`}
                   >
                     #{idx + 1}
                   </span>
-                  <div className="min-w-0">
+                  <div className="min-w-0 ls:flex ls:items-center ls:gap-1.5">
                     <div className="flex items-center gap-1">
-                      <span className="truncate text-xs font-extrabold text-white">
+                      <span className="truncate text-xs ls:text-[11px] font-extrabold text-white">
                         {p.name}
                       </span>
                       {p.streak >= 2 && (
@@ -1490,7 +1490,7 @@ export default function VersusMode({
                       )}
                     </div>
                     <div className="flex items-center gap-1">
-                      <span className="text-xs font-black text-yellow-300">
+                      <span className="text-xs ls:text-[11px] font-black text-yellow-300">
                         {p.score} pts
                       </span>
                       {roomState.phase === 'reveal' &&
@@ -1543,18 +1543,18 @@ export default function VersusMode({
           PHASE A : LOBBY D'ATTENTE & RÉGLAGES DU SALON
          ==================================================================== */}
       {roomState.phase === 'lobby' && (
-        <section className="flex-1 min-h-0 flex flex-col justify-between overflow-y-auto rounded-2xl border-2 border-blue-500/45 bg-gradient-to-b from-[#0b1d48]/95 via-[#081538]/95 to-[#050d26]/95 p-3.5 sm:p-5 shadow-2xl">
-          <div className="my-auto mx-auto w-full max-w-2xl space-y-3.5 text-center">
-            <div className="space-y-1">
-              <span className="text-[11px] font-black uppercase tracking-widest text-yellow-300">
+        <section className="flex-1 min-h-0 flex flex-col justify-between overflow-y-auto rounded-2xl border-2 border-blue-500/45 bg-gradient-to-b from-[#0b1d48]/95 via-[#081538]/95 to-[#050d26]/95 p-3.5 ls:p-2 sm:p-5 shadow-2xl">
+          <div className="my-auto mx-auto w-full max-w-2xl space-y-3.5 ls:space-y-2 text-center">
+            <div className="space-y-1 ls:space-y-0.5">
+              <span className="text-[11px] ls:text-[10px] font-black uppercase tracking-widest text-yellow-300">
                 Code du Salon à partager autour de la table
               </span>
               <div className="flex items-center justify-center gap-2">
-                <span className="rounded-2xl border-2 border-yellow-400 bg-[#040b1e] px-6 py-1.5 font-mono text-3xl sm:text-5xl font-black tracking-[0.2em] text-yellow-400 shadow-inner">
+                <span className="rounded-2xl border-2 border-yellow-400 bg-[#040b1e] px-6 py-1.5 ls:px-4 ls:py-0.5 font-mono text-3xl sm:text-5xl ls:text-2xl font-black tracking-[0.2em] text-yellow-400 shadow-inner">
                   {roomState.roomCode}
                 </span>
               </div>
-              <p className="text-xs text-blue-200/80 pt-0.5">
+              <p className="text-xs ls:text-[11px] text-blue-200/80 pt-0.5">
                 Ouvrez le jeu sur chaque téléphone → Mode{' '}
                 <strong className="text-yellow-300">Versus</strong> → Code{' '}
                 <strong className="text-white">{roomState.roomCode}</strong> ·
@@ -1566,7 +1566,7 @@ export default function VersusMode({
             </div>
 
             {/* Règle de score dégressif en 10s */}
-            <div className="grid grid-cols-3 gap-2 text-left">
+            <div className="grid grid-cols-3 gap-2 text-left ls:hidden">
               <div className="rounded-xl border border-yellow-400/35 bg-blue-950/70 p-2">
                 <div className="flex items-center gap-1 text-yellow-300 font-black text-xs">
                   <Timer className="h-3.5 w-3.5" />
@@ -1601,10 +1601,10 @@ export default function VersusMode({
 
             {/* Sélecteurs pour l'Hôte (Nombre de questions de 5 en 5 + Difficulté) */}
             {isHost ? (
-              <div className="rounded-xl border border-blue-400/35 bg-[#040b1e]/90 p-3 space-y-2.5">
+              <div className="rounded-xl border border-blue-400/35 bg-[#040b1e]/90 p-3 ls:p-2 space-y-2.5 ls:space-y-1.5">
                 {/* Choix du nombre de questions de 5 en 5 */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-blue-500/25">
-                  <span className="text-xs font-black uppercase text-sky-300">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-2 ls:pb-1 border-b border-blue-500/25">
+                  <span className="text-xs ls:text-[11px] font-black uppercase text-sky-300">
                     Nombre de questions (de 5 en 5) :
                   </span>
                   <div className="flex items-center gap-1">
@@ -1617,7 +1617,7 @@ export default function VersusMode({
                           onClick={() =>
                             handleHostUpdateSettings({ totalQuestions: count })
                           }
-                          className={`rounded-lg px-2.5 py-1 text-xs font-black border transition ${
+                          className={`rounded-lg px-2.5 py-1 ls:py-0.5 text-xs ls:text-[11px] font-black border transition ${
                             active
                               ? 'bg-sky-400 text-slate-950 border-white scale-105'
                               : 'bg-blue-950/80 text-blue-200 border-blue-500/30 hover:border-sky-400/50'
@@ -1632,14 +1632,14 @@ export default function VersusMode({
 
                 {/* Choix de la difficulté */}
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-black uppercase text-yellow-300">
+                  <span className="text-xs ls:text-[11px] font-black uppercase text-yellow-300">
                     Difficulté (Niveau {roomState.selectedLevel}/10)
                   </span>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={handleSpinRandomLevel}
-                      className="inline-flex items-center gap-1 rounded-lg border border-yellow-400/60 bg-yellow-400/15 hover:bg-yellow-400 hover:text-blue-950 px-2 py-1 text-[11px] font-extrabold text-yellow-300 transition"
+                      className="inline-flex items-center gap-1 rounded-lg border border-yellow-400/60 bg-yellow-400/15 hover:bg-yellow-400 hover:text-blue-950 px-2 py-1 ls:py-0.5 text-[11px] ls:text-[10px] font-extrabold text-yellow-300 transition"
                     >
                       <Dices className="h-3.5 w-3.5" />
                       <span>Roulette</span>
@@ -1651,7 +1651,7 @@ export default function VersusMode({
                           doublePoints: !roomState.doublePoints,
                         })
                       }
-                      className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-extrabold transition ${
+                      className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 ls:py-0.5 text-[11px] ls:text-[10px] font-extrabold transition ${
                         roomState.doublePoints
                           ? 'border-yellow-300 bg-yellow-400 text-blue-950'
                           : 'border-blue-400/30 bg-blue-950 text-blue-200'
@@ -1673,7 +1673,7 @@ export default function VersusMode({
                         onClick={() =>
                           handleHostUpdateSettings({ selectedLevel: item.level })
                         }
-                        className={`rounded-lg py-1.5 text-xs font-black border transition ${
+                        className={`rounded-lg py-1.5 ls:py-1 text-xs ls:text-[11px] font-black border transition ${
                           active
                             ? 'bg-yellow-400 text-blue-950 border-white scale-105'
                             : 'bg-blue-950/80 text-blue-200 border-blue-500/30 hover:border-yellow-400/50'
@@ -1686,7 +1686,7 @@ export default function VersusMode({
                 </div>
               </div>
             ) : (
-              <div className="rounded-xl border border-blue-400/30 bg-[#040b1e]/80 p-3 text-xs font-bold text-blue-200">
+              <div className="rounded-xl border border-blue-400/30 bg-[#040b1e]/80 p-3 ls:p-2 text-xs font-bold text-blue-200">
                 🎯 L’hôte prépare la partie (
                 <span className="text-sky-300 font-black">
                   {totalQuestionsTarget} questions
@@ -1701,7 +1701,7 @@ export default function VersusMode({
           </div>
 
           {/* Bouton Lancer en bas */}
-          <div className="shrink-0 pt-2 border-t border-blue-500/30 flex items-center justify-between">
+          <div className="shrink-0 pt-2 ls:pt-1 border-t border-blue-500/30 flex items-center justify-between">
             <span className="text-xs font-bold text-blue-200/85">
               {effectivePlayers.length} joueur
               {effectivePlayers.length > 1 ? 's' : ''} dans le salon
@@ -1710,7 +1710,7 @@ export default function VersusMode({
               <button
                 type="button"
                 onClick={handleStartNextQuestion}
-                className="shimmer-btn relative overflow-hidden inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 px-5 py-2.5 text-xs sm:text-sm font-black uppercase tracking-wide text-blue-950 shadow-lg shadow-yellow-400/25 active:scale-95 transition"
+                className="shimmer-btn relative overflow-hidden inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 px-5 py-2.5 ls:py-1.5 text-xs sm:text-sm ls:text-xs font-black uppercase tracking-wide text-blue-950 shadow-lg shadow-yellow-400/25 active:scale-95 transition"
               >
                 <Play className="h-4 w-4 fill-blue-950" />
                 <span>
@@ -1726,20 +1726,20 @@ export default function VersusMode({
           PHASE B : COMPTE À REBOURS 3 - 2 - 1 AVANT LA QUESTION
          ==================================================================== */}
       {roomState.phase === 'countdown' && question && (
-        <section className="flex-1 min-h-0 flex flex-col items-center justify-center rounded-2xl border-2 border-yellow-400 bg-gradient-to-b from-[#0b1d48]/95 to-[#050d26]/95 p-6 text-center space-y-4 animate-fadeIn">
-          <div className="inline-flex items-center gap-2 rounded-full bg-yellow-400/20 border border-yellow-400 px-3.5 py-1 text-xs font-black uppercase text-yellow-300">
-            <Tag className="h-3.5 w-3.5" />
+        <section className="flex-1 min-h-0 flex flex-col items-center justify-center rounded-2xl border-2 border-yellow-400 bg-gradient-to-b from-[#0b1d48]/95 to-[#050d26]/95 p-6 ls:p-3 text-center space-y-4 ls:space-y-2 animate-fadeIn">
+          <div className="inline-flex items-center gap-2 rounded-full bg-yellow-400/20 border border-yellow-400 px-3.5 py-1 ls:py-0.5 text-xs ls:text-[10px] font-black uppercase text-yellow-300">
+            <Tag className="h-3.5 w-3.5 ls:h-3 ls:w-3" />
             <span>
               Question {roomState.questionNumber}/{totalQuestionsTarget} · Niv.{' '}
               {question.difficulty} · {question.theme}
             </span>
           </div>
-          <div className="flex h-28 w-28 sm:h-32 sm:w-32 items-center justify-center rounded-full border-4 border-yellow-400 bg-[#040b1e] shadow-2xl animate-pulse-gold">
-            <span className="text-6xl sm:text-7xl font-black text-yellow-400">
+          <div className="flex h-28 w-28 sm:h-32 sm:w-32 ls:h-20 ls:w-20 items-center justify-center rounded-full border-4 border-yellow-400 bg-[#040b1e] shadow-2xl animate-pulse-gold">
+            <span className="text-6xl sm:text-7xl ls:text-4xl font-black text-yellow-400">
               {roomState.countdownValue}
             </span>
           </div>
-          <p className="text-sm sm:text-base font-extrabold text-white uppercase tracking-wider">
+          <p className="text-sm sm:text-base ls:text-xs font-extrabold text-white uppercase tracking-wider">
             Doigt sur l’écran… Le plus rapide gagne le plus de points !
           </p>
         </section>
@@ -1750,22 +1750,22 @@ export default function VersusMode({
          ==================================================================== */}
       {(roomState.phase === 'question' || roomState.phase === 'reveal') &&
         question && (
-          <section className="relative flex-1 min-h-0 flex flex-col justify-between gap-2 overflow-hidden rounded-2xl border-2 border-blue-500/45 bg-gradient-to-b from-[#0b1d48]/95 via-[#081538]/95 to-[#050d26]/95 p-3 sm:p-4 shadow-2xl backdrop-blur-md">
+          <section className="relative flex-1 min-h-0 flex flex-col justify-between gap-2 ls:gap-1 overflow-hidden rounded-2xl border-2 border-blue-500/45 bg-gradient-to-b from-[#0b1d48]/95 via-[#081538]/95 to-[#050d26]/95 p-3 ls:p-2 sm:p-4 shadow-2xl backdrop-blur-md">
             {/* 1. HAUT DE CARTE : BARRE DE CHRONO 10S + JAUGE DE POINTS EN DIRECT + ÉNONCÉ */}
-            <div className="shrink-0 space-y-2">
+            <div className="shrink-0 space-y-2 ls:space-y-1">
               {roomState.phase === 'question' ? (
-                <div className="rounded-xl border border-yellow-400/40 bg-[#040b1e]/95 px-3 py-2 space-y-1.5">
+                <div className="rounded-xl border border-yellow-400/40 bg-[#040b1e]/95 px-3 py-2 ls:px-2.5 ls:py-1 space-y-1.5 ls:space-y-1">
                   <div className="flex items-center justify-between text-xs font-black">
                     <div className="flex items-center gap-1.5">
                       <Timer
-                        className={`h-4 w-4 ${
+                        className={`h-4 w-4 ls:h-3.5 ls:w-3.5 ${
                           remainingMs <= 3000
                             ? 'text-rose-400 animate-spin'
                             : 'text-yellow-400'
                         }`}
                       />
                       <span
-                        className={`font-mono text-sm sm:text-base ${
+                        className={`font-mono text-sm sm:text-base ls:text-xs ${
                           remainingMs <= 3000
                             ? 'text-rose-400 animate-pulse'
                             : 'text-white'
@@ -1773,20 +1773,20 @@ export default function VersusMode({
                       >
                         {(remainingMs / 1000).toFixed(1)}s
                       </span>
-                      <span className="text-[11px] font-bold text-blue-200/75 ml-1">
+                      <span className="text-[11px] ls:text-[10px] font-bold text-blue-200/75 ml-1">
                         · Q. {roomState.questionNumber}/{totalQuestionsTarget}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                      <span className="rounded-md bg-yellow-400 px-2 py-0.5 font-mono text-xs sm:text-sm font-black text-blue-950 shadow">
+                      <span className="rounded-md bg-yellow-400 px-2 py-0.5 font-mono text-xs sm:text-sm ls:text-xs font-black text-blue-950 shadow">
                         ⚡ {liveAvailablePoints} PTS EN JEU
                       </span>
                     </div>
                   </div>
 
                   {/* Barre de progression 10 secondes fluide */}
-                  <div className="h-2.5 w-full overflow-hidden rounded-full bg-blue-950 border border-blue-500/30">
+                  <div className="h-2.5 ls:h-1.5 w-full overflow-hidden rounded-full bg-blue-950 border border-blue-500/30">
                     <div
                       className={`h-full transition-all duration-75 ease-linear ${
                         remainingMs <= 3000
@@ -1807,25 +1807,25 @@ export default function VersusMode({
               ) : (
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-yellow-400 text-blue-950 px-2.5 py-0.5 text-[11px] font-black uppercase">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-yellow-400 text-blue-950 px-2.5 py-0.5 text-[11px] ls:text-[10px] font-black uppercase">
                       <Tag className="h-3 w-3 fill-blue-950" />
                       Niv. {question.difficulty} · {question.theme}
                     </span>
                     {roomState.doublePoints && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-400 text-blue-950 px-2 py-0.5 text-[11px] font-black">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-400 text-blue-950 px-2 py-0.5 text-[11px] ls:text-[10px] font-black">
                         x2
                       </span>
                     )}
                   </div>
-                  <span className="text-[11px] font-bold text-blue-200/75">
+                  <span className="text-[11px] ls:text-[10px] font-bold text-blue-200/75">
                     Manche {roomState.questionNumber}/{totalQuestionsTarget}
                   </span>
                 </div>
               )}
 
               {/* Énoncé */}
-              <div className="rounded-xl border border-blue-400/30 bg-[#040b1e]/90 px-3.5 py-2.5 sm:px-5 sm:py-3 shadow-inner">
-                <h3 className="text-[15px] sm:text-lg lg:text-xl font-black text-white leading-snug">
+              <div className="rounded-xl border border-blue-400/30 bg-[#040b1e]/90 px-3.5 py-2.5 ls:px-3 ls:py-1.5 sm:px-5 sm:py-3 shadow-inner">
+                <h3 className="text-[15px] sm:text-lg lg:text-xl ls:text-sm font-black text-white leading-snug">
                   {question.question}
                 </h3>
               </div>
@@ -1833,8 +1833,8 @@ export default function VersusMode({
 
             {/* 2. ZONE CENTRALE : LES 4 OPTIONS + RÉSULTATS DE LA MANCHE */}
             <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
-              <div className="my-auto flex flex-col gap-2.5 py-1">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="my-auto flex flex-col gap-2.5 ls:gap-1.5 py-1 ls:py-0.5">
+                <div className="grid grid-cols-1 landscape:grid-cols-2 sm:grid-cols-2 gap-2 ls:gap-1.5">
                   {question.options.map((optionText, idx) => {
                     const isRevealed = roomState.phase === 'reveal';
                     const isCorrect = idx === question.correct_index;

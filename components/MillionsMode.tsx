@@ -835,25 +835,25 @@ export default function MillionsMode({
     runStatus === 'walked_away';
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-2.5 overflow-hidden">
+    <div className="flex-1 min-h-0 flex flex-col landscape:flex-row lg:flex-row gap-2 ls:gap-1.5 sm:gap-2.5 overflow-hidden">
       {/* ====================================================================
           COLONNE PRINCIPALE : JOKERS + ÉNONCÉ + 4 LOSANGES DE RÉPONSE
          ==================================================================== */}
-      <div className="flex-1 min-h-0 flex flex-col justify-between gap-2 overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col justify-between gap-2 ls:gap-1 overflow-hidden">
         {/* 1. BARRE SUPÉRIEURE : LES 4 JOKERS + INFOS GAIN EN JEU */}
-        <section className="shrink-0 rounded-2xl border-2 border-yellow-400/50 bg-gradient-to-r from-[#091b46]/95 via-[#071436]/95 to-[#091b46]/95 px-2.5 sm:px-3 py-1.5 sm:py-2 shadow-xl space-y-1.5 sm:space-y-2">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2">
+        <section className="shrink-0 rounded-2xl border-2 border-yellow-400/50 bg-gradient-to-r from-[#091b46]/95 via-[#071436]/95 to-[#091b46]/95 px-2.5 sm:px-3 ls:px-2.5 py-1.5 sm:py-2 ls:py-1 shadow-xl space-y-1.5 sm:space-y-2 ls:space-y-1">
+          <div className="flex flex-col landscape:flex-row sm:flex-row landscape:items-center sm:items-center justify-between gap-1.5 ls:gap-1 sm:gap-2">
             {/* Gain de la question actuelle + Cagnotte + Toggle Musique Zouk */}
-            <div className="flex items-center justify-between sm:justify-start gap-1.5 flex-wrap">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 px-2 sm:px-2.5 py-0.5 sm:py-1 text-xs sm:text-sm font-black uppercase text-blue-950 shadow">
-                  <Banknote className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <div className="flex items-center justify-between sm:justify-start gap-1.5 ls:gap-1 flex-wrap">
+              <div className="flex items-center gap-1.5 ls:gap-1 flex-wrap">
+                <span className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 px-2 sm:px-2.5 ls:px-2 py-0.5 sm:py-1 ls:py-0.5 text-xs sm:text-sm ls:text-xs font-black uppercase text-blue-950 shadow">
+                  <Banknote className="h-3.5 w-3.5 sm:h-4 sm:w-4 ls:h-3.5 ls:w-3.5" />
                   <span>
                     Palier {currentStep}/15 · {currentStepInfo.label}
                   </span>
                 </span>
 
-                <span className="inline-flex items-center gap-1 rounded-lg border border-blue-400/35 bg-blue-950/80 px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-[11px] font-bold text-blue-200">
+                <span className="inline-flex items-center gap-1 rounded-lg border border-blue-400/35 bg-blue-950/80 px-1.5 sm:px-2 py-0.5 sm:py-1 ls:py-0.5 text-[10px] sm:text-[11px] ls:text-[10px] font-bold text-blue-200">
                   <ShieldCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-yellow-400" />
                   <span>
                     Garanti : {formatEuros(guaranteedSafeHavenAmount)}
@@ -863,7 +863,7 @@ export default function MillionsMode({
                 <button
                   type="button"
                   onClick={onOpenShopModal}
-                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-400/60 bg-emerald-950/80 hover:bg-emerald-400 hover:text-slate-950 px-2 py-0.5 sm:py-1 text-[10px] sm:text-[11px] font-black text-emerald-300 transition shadow-sm"
+                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-400/60 bg-emerald-950/80 hover:bg-emerald-400 hover:text-slate-950 px-2 py-0.5 sm:py-1 ls:py-0.5 text-[10px] sm:text-[11px] ls:text-[10px] font-black text-emerald-300 transition shadow-sm"
                   title="Cagnotte personnelle & Boutique de questions (+10 nouvelles questions au hasard)"
                 >
                   <Wallet className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
@@ -890,8 +890,8 @@ export default function MillionsMode({
               </button>
             </div>
 
-            {/* LES 4 BOUTONS JOKERS (grille 4 colonnes sur mobile portrait) */}
-            <div className="grid grid-cols-4 sm:flex items-center gap-1 sm:gap-1.5">
+            {/* LES 4 BOUTONS JOKERS */}
+            <div className="grid grid-cols-4 landscape:flex sm:flex items-center gap-1 sm:gap-1.5 ls:gap-1">
               <button
                 type="button"
                 onClick={handleUseFiftyFifty}
@@ -900,7 +900,7 @@ export default function MillionsMode({
                   runStatus !== 'playing' ||
                   isSuspenseLock
                 }
-                className={`inline-flex items-center justify-center gap-1 rounded-full border-2 px-2 sm:px-2.5 py-1 text-[10px] sm:text-xs font-black transition ${
+                className={`inline-flex items-center justify-center gap-1 rounded-full border-2 px-2 sm:px-2.5 ls:px-2 py-1 ls:py-0.5 text-[10px] sm:text-xs ls:text-[10px] font-black transition ${
                   jokers.fiftyFifty && !isSuspenseLock
                     ? 'border-yellow-400 bg-gradient-to-b from-blue-800 to-blue-950 text-yellow-300 hover:bg-yellow-400 hover:text-blue-950 shadow cursor-pointer active:scale-95'
                     : 'border-blue-900/40 bg-blue-950/40 text-blue-400/30 line-through cursor-not-allowed'
@@ -917,7 +917,7 @@ export default function MillionsMode({
                 disabled={
                   !jokers.audience || runStatus !== 'playing' || isSuspenseLock
                 }
-                className={`inline-flex items-center justify-center gap-1 rounded-full border-2 px-2 sm:px-2.5 py-1 text-[10px] sm:text-xs font-black transition ${
+                className={`inline-flex items-center justify-center gap-1 rounded-full border-2 px-2 sm:px-2.5 ls:px-2 py-1 ls:py-0.5 text-[10px] sm:text-xs ls:text-[10px] font-black transition ${
                   jokers.audience && !isSuspenseLock
                     ? 'border-yellow-400 bg-gradient-to-b from-blue-800 to-blue-950 text-yellow-300 hover:bg-yellow-400 hover:text-blue-950 shadow cursor-pointer active:scale-95'
                     : 'border-blue-900/40 bg-blue-950/40 text-blue-400/30 line-through cursor-not-allowed'
@@ -936,7 +936,7 @@ export default function MillionsMode({
                   runStatus !== 'playing' ||
                   isSuspenseLock
                 }
-                className={`inline-flex items-center justify-center gap-1 rounded-full border-2 px-2 sm:px-2.5 py-1 text-[10px] sm:text-xs font-black transition ${
+                className={`inline-flex items-center justify-center gap-1 rounded-full border-2 px-2 sm:px-2.5 ls:px-2 py-1 ls:py-0.5 text-[10px] sm:text-xs ls:text-[10px] font-black transition ${
                   jokers.phoneFriend && !isSuspenseLock
                     ? 'border-yellow-400 bg-gradient-to-b from-blue-800 to-blue-950 text-yellow-300 hover:bg-yellow-400 hover:text-blue-950 shadow cursor-pointer active:scale-95'
                     : 'border-blue-900/40 bg-blue-950/40 text-blue-400/30 line-through cursor-not-allowed'
@@ -955,7 +955,7 @@ export default function MillionsMode({
                   runStatus !== 'playing' ||
                   isSuspenseLock
                 }
-                className={`inline-flex items-center justify-center gap-1 rounded-full border-2 px-2 sm:px-2.5 py-1 text-[10px] sm:text-xs font-black transition ${
+                className={`inline-flex items-center justify-center gap-1 rounded-full border-2 px-2 sm:px-2.5 ls:px-2 py-1 ls:py-0.5 text-[10px] sm:text-xs ls:text-[10px] font-black transition ${
                   jokers.switchQuestion && !isSuspenseLock
                     ? 'border-yellow-400 bg-gradient-to-b from-blue-800 to-blue-950 text-yellow-300 hover:bg-yellow-400 hover:text-blue-950 shadow cursor-pointer active:scale-95'
                     : 'border-blue-900/40 bg-blue-950/40 text-blue-400/30 line-through cursor-not-allowed'
@@ -968,8 +968,8 @@ export default function MillionsMode({
             </div>
           </div>
 
-          {/* Mini-barre des 15 paliers sur mobile/tablette (masquée sur grand écran où la tour complète est à droite) */}
-          <div className="grid grid-cols-15 gap-0.5 lg:hidden">
+          {/* Mini-barre des 15 paliers en portrait uniquement (masquée en paysage et sur grand écran où la tour complète est à droite) */}
+          <div className="grid grid-cols-15 gap-0.5 landscape:hidden lg:hidden">
             <div
               ref={ladderScrollRef}
               className="col-span-full relative flex items-center gap-1 overflow-x-auto no-scrollbar pb-0.5 scroll-smooth"
@@ -1011,7 +1011,7 @@ export default function MillionsMode({
 
         {/* 2. CARTE QUESTION STYLE PLATEAU TV "QUI VEUT GAGNER DES MILLIONS" */}
         <section
-          className={`relative flex-1 min-h-0 flex flex-col justify-between gap-1.5 sm:gap-2 overflow-hidden rounded-2xl border-2 bg-gradient-to-b from-[#0b1d48]/95 via-[#071334]/95 to-[#040a1d]/95 p-2.5 sm:p-4 shadow-2xl transition-all duration-500 ${
+          className={`relative flex-1 min-h-0 flex flex-col justify-between gap-1.5 ls:gap-1 sm:gap-2 overflow-hidden rounded-2xl border-2 bg-gradient-to-b from-[#0b1d48]/95 via-[#071334]/95 to-[#040a1d]/95 p-2.5 ls:p-2 sm:p-4 shadow-2xl transition-all duration-500 ${
             isSuspenseLock
               ? 'border-amber-400/90 shadow-[0_0_45px_rgba(245,158,11,0.3)]'
               : 'border-blue-500/50'
@@ -1032,36 +1032,36 @@ export default function MillionsMode({
           )}
 
           {/* Énoncé */}
-          <div className="relative z-10 shrink-0 space-y-1.5 sm:space-y-2">
+          <div className="relative z-10 shrink-0 space-y-1.5 ls:space-y-1 sm:space-y-2">
             <div className="flex items-center justify-between text-xs gap-1.5">
-              <span className="inline-flex items-center gap-1 rounded-full bg-yellow-400 text-blue-950 px-2 sm:px-2.5 py-0.5 text-[10px] sm:text-[11px] font-black uppercase truncate max-w-[200px] sm:max-w-none">
+              <span className="inline-flex items-center gap-1 rounded-full bg-yellow-400 text-blue-950 px-2 sm:px-2.5 py-0.5 text-[10px] sm:text-[11px] ls:text-[10px] font-black uppercase truncate max-w-[200px] sm:max-w-none">
                 <Tag className="h-3 w-3 fill-blue-950 shrink-0" />
                 <span className="truncate">
                   {currentQuestion.theme} · Niv. {currentQuestion.difficulty}/10
                 </span>
               </span>
 
-              <span className="text-[10px] sm:text-[11px] font-bold text-yellow-300 shrink-0">
+              <span className="text-[10px] sm:text-[11px] ls:text-[10px] font-bold text-yellow-300 shrink-0">
                 Record : {formatEuros(stats.bestAmount)}
                 {stats.millionWins > 0 ? ` (🏆 ${stats.millionWins}x)` : ''}
               </span>
             </div>
 
             <div
-              className={`rounded-2xl border-2 bg-gradient-to-r from-[#040b1e] via-[#091c4e] to-[#040b1e] px-3 py-2 sm:px-5 sm:py-3.5 text-center shadow-inner transition-colors duration-300 ${
+              className={`rounded-2xl border-2 bg-gradient-to-r from-[#040b1e] via-[#091c4e] to-[#040b1e] px-3 py-2 ls:px-3 ls:py-1.5 sm:px-5 sm:py-3.5 text-center shadow-inner transition-colors duration-300 ${
                 isSuspenseLock ? 'border-amber-400/80' : 'border-yellow-400/45'
               }`}
             >
-              <h3 className="text-sm sm:text-lg lg:text-xl font-black text-white leading-snug">
+              <h3 className="text-sm sm:text-lg lg:text-xl ls:text-sm font-black text-white leading-snug">
                 {currentQuestion.question}
               </h3>
             </div>
           </div>
 
           {/* Zone centrale : Les 4 propositions A/B/C/D fixes en haut + Retours Jokers / Suspense / Anecdote en dessous */}
-          <div className="relative z-10 flex-1 min-h-0 overflow-y-auto flex flex-col gap-2 sm:gap-2.5 py-0.5 sm:py-1">
-            {/* Grille 2x2 des 4 réponses style losanges TV (position fixe, ne bouge pas à la sélection ni à la validation) */}
-            <div className="shrink-0 grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2.5">
+          <div className="relative z-10 flex-1 min-h-0 overflow-y-auto flex flex-col gap-2 ls:gap-1 sm:gap-2.5 py-0.5 sm:py-1">
+            {/* Grille 2x2 des 4 réponses style losanges TV */}
+            <div className="shrink-0 grid grid-cols-1 landscape:grid-cols-2 sm:grid-cols-2 gap-1.5 ls:gap-1 sm:gap-2.5">
               {currentQuestion.options.map((optText, idx) => {
                 const isHiddenBy5050 = hiddenOptions.includes(idx);
                 const isPending =
@@ -1073,17 +1073,17 @@ export default function MillionsMode({
                   return (
                     <div
                       key={idx}
-                      className="flex items-center justify-between gap-2 rounded-xl border-2 border-blue-900/30 bg-[#040b1e]/30 px-3 py-2 sm:px-4 sm:py-3 opacity-25 select-none"
+                      className="flex items-center justify-between gap-2 rounded-xl border-2 border-blue-900/30 bg-[#040b1e]/30 px-3 py-2 ls:px-2.5 ls:py-1.5 sm:px-4 sm:py-3 opacity-25 select-none"
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-xs sm:text-base font-black shrink-0 text-blue-500">
+                        <span className="text-xs sm:text-base ls:text-xs font-black shrink-0 text-blue-500">
                           ◆ {OPTION_LETTERS[idx]} :
                         </span>
-                        <span className="text-xs sm:text-base font-extrabold leading-snug break-words text-blue-400">
+                        <span className="text-xs sm:text-base ls:text-xs font-extrabold leading-snug break-words text-blue-400">
                           — Éliminé par le 50:50 —
                         </span>
                       </div>
-                      <span className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" aria-hidden="true" />
+                      <span className="h-4 w-4 sm:h-5 sm:w-5 ls:h-4 ls:w-4 shrink-0" aria-hidden="true" />
                     </div>
                   );
                 }
@@ -1100,7 +1100,7 @@ export default function MillionsMode({
                   letterColor = 'text-slate-950';
                 } else if (isSuspenseLock && !isRevealed) {
                   btnStyle =
-                    'border-blue-950/40 bg-[#030817]/80 text-blue-300/35 opacity-40';
+                    'border-blue-900/40 bg-[#030817]/80 text-blue-300/35 opacity-40';
                   letterColor = 'text-blue-400/40';
                 } else if (isRevealed) {
                   if (isCorrect) {
@@ -1123,7 +1123,7 @@ export default function MillionsMode({
                     type="button"
                     onClick={() => handleClickOption(idx)}
                     disabled={isRevealed || isSuspenseLock}
-                    className={`group relative flex items-center justify-between gap-2 rounded-xl border-2 px-3 py-2 sm:px-4 sm:py-3 text-left transition-colors ${btnStyle} ${
+                    className={`group relative flex items-center justify-between gap-2 rounded-xl border-2 px-3 py-2 ls:px-2.5 ls:py-1.5 sm:px-4 sm:py-3 text-left transition-colors ${btnStyle} ${
                       !isRevealed && !isSuspenseLock
                         ? 'cursor-pointer'
                         : 'cursor-default'
@@ -1131,16 +1131,16 @@ export default function MillionsMode({
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <span
-                        className={`text-xs sm:text-base font-black shrink-0 ${letterColor}`}
+                        className={`text-xs sm:text-base ls:text-xs font-black shrink-0 ${letterColor}`}
                       >
                         ◆ {OPTION_LETTERS[idx]} :
                       </span>
-                      <span className="text-[13px] sm:text-base font-extrabold leading-snug break-words">
+                      <span className="text-[13px] sm:text-base ls:text-xs font-extrabold leading-snug break-words">
                         {optText}
                       </span>
                     </div>
 
-                    <span className="flex h-4 w-4 sm:h-5 sm:w-5 shrink-0 items-center justify-center">
+                    <span className="flex h-4 w-4 sm:h-5 sm:w-5 ls:h-4 ls:w-4 shrink-0 items-center justify-center">
                       {isSuspenseLock && isPending && !isRevealed && (
                         <span className="relative flex h-3 w-3">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-950 opacity-75" />
@@ -1148,10 +1148,10 @@ export default function MillionsMode({
                         </span>
                       )}
                       {isRevealed && isCorrect && (
-                        <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-slate-950" />
+                        <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 ls:h-4 ls:w-4 text-slate-950" />
                       )}
                       {isRevealed && isLocked && !isCorrect && (
-                        <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                        <XCircle className="h-4 w-4 sm:h-5 sm:w-5 ls:h-4 ls:w-4 text-white" />
                       )}
                     </span>
                   </button>
@@ -1161,14 +1161,14 @@ export default function MillionsMode({
 
             {/* Bandeau d'animation SUSPENSE TV en direct après validation du dernier mot */}
             {isSuspenseLock && pendingOption !== null && !isRevealed && (
-              <div className="rounded-xl border-2 border-amber-400 bg-gradient-to-r from-[#1c1002]/95 via-[#2e1904]/95 to-[#1c1002]/95 px-3.5 py-2.5 shadow-[0_0_30px_rgba(245,158,11,0.35)] animate-fadeIn space-y-2">
+              <div className="rounded-xl border-2 border-amber-400 bg-gradient-to-r from-[#1c1002]/95 via-[#2e1904]/95 to-[#1c1002]/95 px-3.5 py-2.5 ls:px-2.5 ls:py-1.5 shadow-[0_0_30px_rgba(245,158,11,0.35)] animate-fadeIn space-y-2 ls:space-y-1">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="relative flex h-3 w-3 shrink-0">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-85" />
                       <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-400" />
                     </span>
-                    <span className="text-xs sm:text-sm font-black text-amber-200 truncate">
+                    <span className="text-xs sm:text-sm ls:text-xs font-black text-amber-200 truncate">
                       {suspenseStage === 0 &&
                         `🎙️ « Réponse ${OPTION_LETTERS[pendingOption]} verrouillée… C’est votre dernier mot ! »`}
                       {suspenseStage === 1 &&
@@ -1206,8 +1206,8 @@ export default function MillionsMode({
 
             {/* Résultat Joker Avis du Public */}
             {audiencePoll && !isRevealed && !isSuspenseLock && (
-              <div className="rounded-xl border border-sky-400/50 bg-[#051235]/95 p-2.5 animate-fadeIn">
-                <div className="text-[11px] font-black uppercase text-sky-300 mb-1.5 flex items-center gap-1.5">
+              <div className="rounded-xl border border-sky-400/50 bg-[#051235]/95 p-2.5 ls:p-1.5 animate-fadeIn">
+                <div className="text-[11px] ls:text-[10px] font-black uppercase text-sky-300 mb-1.5 ls:mb-1 flex items-center gap-1.5">
                   <Users className="h-3.5 w-3.5" />
                   <span>Vote du Public en direct :</span>
                 </div>
@@ -1234,12 +1234,12 @@ export default function MillionsMode({
 
             {/* Résultat Joker Appel à un Ami */}
             {friendAdvice && !isRevealed && !isSuspenseLock && (
-              <div className="rounded-xl border border-amber-400/60 bg-amber-950/35 px-3 py-2 animate-fadeIn">
-                <div className="flex items-center gap-1.5 text-[11px] font-black text-yellow-300">
+              <div className="rounded-xl border border-amber-400/60 bg-amber-950/35 px-3 py-2 ls:px-2.5 ls:py-1 animate-fadeIn">
+                <div className="flex items-center gap-1.5 text-[11px] ls:text-[10px] font-black text-yellow-300">
                   <PhoneCall className="h-3.5 w-3.5 text-amber-400" />
                   <span>{friendAdvice.friendName} :</span>
                 </div>
-                <p className="text-xs text-amber-50 italic mt-0.5 leading-snug">
+                <p className="text-xs ls:text-[11px] text-amber-50 italic mt-0.5 leading-snug">
                   {friendAdvice.message}
                 </p>
               </div>
@@ -1248,7 +1248,7 @@ export default function MillionsMode({
             {/* Zone Anecdote & Bilan après validation */}
             {isRevealed && (
               <div
-                className={`rounded-xl border px-3.5 py-2.5 shadow-lg animate-fadeIn ${
+                className={`rounded-xl border px-3.5 py-2.5 ls:px-2.5 ls:py-1.5 shadow-lg animate-fadeIn ${
                   runStatus === 'millionaire' || runStatus === 'step_won'
                     ? 'border-emerald-400 bg-emerald-950/45'
                     : runStatus === 'walked_away'
@@ -1257,7 +1257,7 @@ export default function MillionsMode({
                 }`}
               >
                 <div className="flex items-start gap-2.5">
-                  <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-yellow-400 text-blue-950">
+                  <div className="mt-0.5 flex h-6 w-6 ls:h-5 ls:w-5 shrink-0 items-center justify-center rounded-lg bg-yellow-400 text-blue-950">
                     {runStatus === 'millionaire' ? (
                       <Trophy className="h-3.5 w-3.5" />
                     ) : (
@@ -1265,7 +1265,7 @@ export default function MillionsMode({
                     )}
                   </div>
                   <div className="min-w-0 flex-1 space-y-0.5">
-                    <div className="text-xs font-black uppercase">
+                    <div className="text-xs ls:text-[11px] font-black uppercase">
                       {runStatus === 'millionaire' ? (
                         <span className="text-yellow-300">
                           🏆 1 000 000 € ! VOUS AVEZ FAIT SAUTER LA BANQUE DU
@@ -1295,7 +1295,7 @@ export default function MillionsMode({
                         </span>
                       )}
                     </div>
-                    <p className="text-xs sm:text-sm text-blue-50 leading-snug">
+                    <p className="text-xs sm:text-sm ls:text-xs text-blue-50 leading-snug">
                       {currentQuestion.explanation}
                     </p>
                   </div>
@@ -1305,7 +1305,7 @@ export default function MillionsMode({
           </div>
 
           {/* Barre du bas fixe : hauteur et position du bouton principal verrouillées au pixel près */}
-          <div className="shrink-0 pt-2 border-t border-blue-500/30 flex items-center justify-between gap-2">
+          <div className="shrink-0 pt-2 ls:pt-1 border-t border-blue-500/30 flex items-center justify-between gap-2">
             {!isRevealed ? (
               <>
                 <div className="flex items-center gap-2 min-w-0">
@@ -1314,7 +1314,7 @@ export default function MillionsMode({
                       type="button"
                       onClick={handleWalkAway}
                       disabled={isSuspenseLock}
-                      className={`shrink-0 inline-flex items-center gap-1.5 rounded-xl border px-2.5 sm:px-3 py-2 text-xs font-black transition-colors ${
+                      className={`shrink-0 inline-flex items-center gap-1.5 rounded-xl border px-2.5 sm:px-3 py-2 ls:py-1 text-xs font-black transition-colors ${
                         isSuspenseLock
                           ? 'border-blue-800/30 bg-blue-950/40 text-blue-400/30 cursor-not-allowed'
                           : 'border-yellow-400/50 bg-blue-950/90 hover:bg-yellow-400 hover:text-blue-950 text-yellow-300'
@@ -1329,7 +1329,7 @@ export default function MillionsMode({
                   )}
 
                   <span
-                    className={`hidden md:inline truncate text-xs ${
+                    className={`hidden md:inline ls:hidden truncate text-xs ${
                       isSuspenseLock
                         ? 'font-black text-amber-200 animate-pulse'
                         : pendingOption !== null
@@ -1349,7 +1349,7 @@ export default function MillionsMode({
                   type="button"
                   onClick={handleConfirmFinalAnswer}
                   disabled={pendingOption === null || isSuspenseLock}
-                  className={`shrink-0 relative overflow-hidden inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-xl border px-3.5 sm:px-5 py-2 text-xs sm:text-sm font-black uppercase transition-colors ml-auto ${
+                  className={`shrink-0 relative overflow-hidden inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-xl border px-3.5 sm:px-5 py-2 ls:py-1.5 text-xs sm:text-sm ls:text-xs font-black uppercase transition-colors ml-auto ${
                     isSuspenseLock
                       ? 'border-amber-300 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500 text-slate-950 shadow-lg animate-pulse cursor-wait'
                       : pendingOption !== null
@@ -1381,7 +1381,7 @@ export default function MillionsMode({
               <button
                 type="button"
                 onClick={handleAdvanceToNextStep}
-                className="shimmer-btn shrink-0 relative overflow-hidden inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-xl border border-transparent bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 px-3.5 sm:px-5 py-2 text-xs sm:text-sm font-black uppercase text-blue-950 shadow-lg transition-colors ml-auto"
+                className="shimmer-btn shrink-0 relative overflow-hidden inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-xl border border-transparent bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 px-3.5 sm:px-5 py-2 ls:py-1.5 text-xs sm:text-sm ls:text-xs font-black uppercase text-blue-950 shadow-lg transition-colors ml-auto"
               >
                 <span>
                   Jouer pour{' '}
@@ -1393,7 +1393,7 @@ export default function MillionsMode({
               <button
                 type="button"
                 onClick={handleStartNewMillionGame}
-                className="shimmer-btn shrink-0 relative overflow-hidden inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-xl border border-transparent bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 px-3.5 sm:px-5 py-2 text-xs sm:text-sm font-black uppercase text-blue-950 shadow-lg transition-colors ml-auto"
+                className="shimmer-btn shrink-0 relative overflow-hidden inline-flex items-center justify-center gap-1.5 sm:gap-2 rounded-xl border border-transparent bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 px-3.5 sm:px-5 py-2 ls:py-1.5 text-xs sm:text-sm ls:text-xs font-black uppercase text-blue-950 shadow-lg transition-colors ml-auto"
               >
                 <RotateCcw className="h-4 w-4 shrink-0 stroke-[2.5]" />
                 <span>Nouvelle Ascension vers le Million</span>
@@ -1404,15 +1404,15 @@ export default function MillionsMode({
       </div>
 
       {/* ====================================================================
-          COLONNE DROITE (DESKTOP) : PYRAMIDE OFFICIELLE DES 15 PALIERS
+          COLONNE DROITE (PAYSAGE & DESKTOP) : PYRAMIDE OFFICIELLE DES 15 PALIERS
          ==================================================================== */}
-      <aside className="hidden lg:flex w-64 shrink-0 flex-col justify-between rounded-2xl border-2 border-yellow-400/45 bg-gradient-to-b from-[#071538]/95 via-[#050f29]/95 to-[#030817]/95 p-3 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-blue-500/30 pb-2 mb-1">
-          <span className="text-xs font-black uppercase tracking-wider text-yellow-400 flex items-center gap-1.5">
-            <Trophy className="h-3.5 w-3.5" />
-            <span>Pyramide des Gains</span>
+      <aside className="hidden landscape:flex lg:flex w-44 sm:w-52 lg:w-64 shrink-0 flex-col justify-between rounded-2xl border-2 border-yellow-400/45 bg-gradient-to-b from-[#071538]/95 via-[#050f29]/95 to-[#030817]/95 p-2 sm:p-2.5 lg:p-3 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-blue-500/30 pb-1.5 lg:pb-2 mb-1">
+          <span className="text-[11px] lg:text-xs font-black uppercase tracking-wider text-yellow-400 flex items-center gap-1">
+            <Trophy className="h-3 w-3 lg:h-3.5 lg:w-3.5 shrink-0" />
+            <span className="truncate">Pyramide</span>
           </span>
-          <span className="text-[10px] font-bold text-blue-300">15 paliers</span>
+          <span className="text-[10px] font-bold text-blue-300 shrink-0">15 paliers</span>
         </div>
 
         <div

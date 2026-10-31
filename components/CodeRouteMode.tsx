@@ -233,7 +233,7 @@ export default function CodeRouteMode({
   }
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col justify-between gap-1.5 sm:gap-2 overflow-hidden">
+    <div className="flex-1 min-h-0 flex flex-col justify-between gap-1.5 ls:gap-1 sm:gap-2 overflow-hidden">
       {/* 1. Bandeau des scores (2 Équipes ou 4 Joueurs) */}
       <Scoreboard
         mode={teamMode}
@@ -243,18 +243,18 @@ export default function CodeRouteMode({
         lastScoredId={lastScoredId}
       />
 
-      {/* 2. Barre de contrôle Code de la Route compacte pour mode portrait */}
-      <div className="shrink-0 flex flex-col gap-1 rounded-xl border border-blue-500/35 bg-[#071436]/95 px-2 py-1 sm:px-2.5 sm:py-1.5 shadow-md">
-        <div className="flex items-center justify-between gap-1 flex-wrap">
+      {/* 2. Barre de contrôle Code de la Route (2 lignes en portrait, 1 ligne en paysage ls: / lg:) */}
+      <div className="shrink-0 flex flex-col ls:flex-row lg:flex-row ls:items-center lg:items-center ls:justify-between lg:justify-between gap-1 rounded-xl border border-blue-500/35 bg-[#071436]/95 px-2 py-1 ls:py-0.5 sm:px-2.5 sm:py-1.5 shadow-md">
+        <div className="flex items-center justify-between ls:justify-start lg:justify-start gap-1 flex-wrap shrink-0">
           <div className="flex items-center gap-1 min-w-0">
-            <span className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-red-600 via-rose-500 to-amber-500 px-1.5 py-0.5 text-[10px] sm:text-xs font-black text-white shadow-sm shrink-0">
-              <Car className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-              <span className="hidden xs:inline sm:inline">CODE DE LA ROUTE</span>
-              <span className="xs:hidden sm:hidden">CODE</span>
+            <span className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-red-600 via-rose-500 to-amber-500 px-1.5 py-0.5 text-[10px] sm:text-xs ls:text-[10px] font-black text-white shadow-sm shrink-0">
+              <Car className="h-3 w-3 sm:h-3.5 sm:w-3.5 ls:h-3 ls:w-3" />
+              <span className="hidden xs:inline sm:inline ls:hidden xl:inline">CODE DE LA ROUTE</span>
+              <span className="xs:hidden sm:hidden ls:inline xl:hidden">CODE</span>
             </span>
 
             {/* Compteur Examen Officiel (Bonnes réponses / Fautes) */}
-            <div className="inline-flex items-center gap-1 rounded-lg border border-blue-400/35 bg-[#040b1e] px-1.5 py-0.5 text-[10px] sm:text-xs font-black">
+            <div className="inline-flex items-center gap-1 rounded-lg border border-blue-400/35 bg-[#040b1e] px-1.5 py-0.5 text-[10px] sm:text-xs ls:text-[10px] font-black">
               <span className="text-emerald-400">✓ {examCorrect}</span>
               <span className="text-blue-400/50">|</span>
               <span
@@ -263,7 +263,7 @@ export default function CodeRouteMode({
                 }
               >
                 ✗ {examFaults}
-                <span className="hidden sm:inline">
+                <span className="hidden sm:inline ls:hidden xl:inline">
                   {' '}
                   faute{examFaults > 1 ? 's' : ''}
                 </span>
@@ -281,7 +281,7 @@ export default function CodeRouteMode({
             </div>
           </div>
 
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1 shrink-0 ls:order-last lg:order-last">
             {/* Bouton Filtre Spécial Pièges d'Examen */}
             <button
               type="button"
@@ -289,7 +289,7 @@ export default function CodeRouteMode({
                 setOnlyTraps((t) => !t);
                 setCurrentIndex(0);
               }}
-              className={`inline-flex items-center gap-1 rounded-lg border px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] font-black transition ${
+              className={`inline-flex items-center gap-1 rounded-lg border px-1.5 sm:px-2 ls:px-1.5 py-0.5 sm:py-1 ls:py-0.5 text-[10px] font-black transition ${
                 onlyTraps
                   ? 'border-rose-300 bg-rose-500 text-white shadow'
                   : 'border-rose-400/40 bg-rose-950/50 text-rose-200 hover:bg-rose-900/60'
@@ -304,7 +304,7 @@ export default function CodeRouteMode({
             <button
               type="button"
               onClick={() => setTimerEnabled((t) => !t)}
-              className={`inline-flex items-center gap-1 rounded-lg border px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] font-black transition ${
+              className={`inline-flex items-center gap-1 rounded-lg border px-1.5 sm:px-2 ls:px-1.5 py-0.5 sm:py-1 ls:py-0.5 text-[10px] font-black transition ${
                 timerEnabled
                   ? 'border-sky-300 bg-sky-400 text-slate-950 shadow'
                   : 'border-blue-400/35 bg-blue-950/80 text-blue-200 hover:text-sky-300'
@@ -319,7 +319,7 @@ export default function CodeRouteMode({
             <button
               type="button"
               onClick={onToggleTeamMode}
-              className="inline-flex items-center gap-1 rounded-lg border border-blue-400/35 bg-blue-950/80 hover:bg-blue-900 px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] font-extrabold text-blue-100 transition"
+              className="inline-flex items-center gap-1 rounded-lg border border-blue-400/35 bg-blue-950/80 hover:bg-blue-900 px-1.5 sm:px-2 ls:px-1.5 py-0.5 sm:py-1 ls:py-0.5 text-[10px] font-extrabold text-blue-100 transition"
               title="Basculer l'affichage des scores entre 2 Équipes et 4 Joueurs"
             >
               {teamMode === '2_couples' ? (
@@ -338,7 +338,7 @@ export default function CodeRouteMode({
         </div>
 
         {/* Sélecteur des 6 catégories visuelles du Code de la route */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-0.5 no-scrollbar">
+        <div className="flex items-center gap-1 overflow-x-auto pb-0.5 ls:pb-0 no-scrollbar min-w-0">
           {CODE_ROUTE_THEMES_META.map((th) => {
             const active = selectedTheme === th.id;
             return (
@@ -349,7 +349,7 @@ export default function CodeRouteMode({
                   setSelectedTheme(th.id);
                   setCurrentIndex(0);
                 }}
-                className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 sm:py-1 text-[10px] sm:text-[11px] font-black shrink-0 transition ${
+                className={`inline-flex items-center gap-1 rounded-lg px-2 ls:px-1.5 py-0.5 sm:py-1 ls:py-0.5 text-[10px] sm:text-[11px] ls:text-[10px] font-black shrink-0 transition ${
                   active
                     ? 'bg-yellow-400 text-blue-950 shadow'
                     : 'bg-[#040b1e] text-blue-200/85 hover:text-white border border-blue-500/25'
@@ -363,11 +363,11 @@ export default function CodeRouteMode({
         </div>
       </div>
 
-      {/* 3. Carte principale Code de la Route (optimisée portrait : zone centrale scrollable + barre du bas toujours fixe) */}
-      <section className="flex-1 min-h-0 flex flex-col justify-between rounded-2xl border-2 border-yellow-400/45 bg-gradient-to-b from-[#0b1f52]/95 via-[#07153a]/95 to-[#050e29]/95 p-2 sm:p-3.5 shadow-2xl overflow-hidden">
+      {/* 3. Carte principale Code de la Route (portrait empilé / paysage côte à côte 5/12 + 7/12) */}
+      <section className="flex-1 min-h-0 flex flex-col justify-between rounded-2xl border-2 border-yellow-400/45 bg-gradient-to-b from-[#0b1f52]/95 via-[#07153a]/95 to-[#050e29]/95 p-2 ls:p-1.5 sm:p-3.5 shadow-2xl overflow-hidden">
         {/* Barre de progression 20s si activée */}
         {timerEnabled && !isRevealed && (
-          <div className="shrink-0 flex items-center gap-2 mb-1.5">
+          <div className="shrink-0 flex items-center gap-2 mb-1.5 ls:mb-1">
             <Timer className="h-3.5 w-3.5 text-yellow-400 shrink-0" />
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-blue-950 border border-blue-500/30">
               <div
@@ -391,11 +391,11 @@ export default function CodeRouteMode({
           </div>
         )}
 
-        {/* Corps central (Diapositive en haut en portrait / à gauche sur desktop + Question & A/B/C/D) */}
+        {/* Corps central (Diapositive en haut en portrait / à gauche en paysage & desktop + Question & A/B/C/D) */}
         <div className="flex-1 min-h-0 overflow-y-auto pr-0.5">
-          <div className="min-h-full grid grid-cols-1 md:grid-cols-12 gap-2 sm:gap-3 items-stretch content-start md:content-center">
-            {/* COLONNE GAUCHE / HAUT PORTRAIT (5/12) : Diapositive 16:9 parfaitement proportionnée */}
-            <div className="md:col-span-5 flex flex-col justify-between rounded-xl border-2 border-blue-400/40 bg-[#03091a] overflow-hidden shadow-xl relative group">
+          <div className="min-h-full grid grid-cols-1 landscape:grid-cols-12 md:grid-cols-12 gap-2 ls:gap-2 sm:gap-3 items-stretch content-start landscape:content-center md:content-center">
+            {/* COLONNE GAUCHE PAYSAGE / HAUT PORTRAIT (5/12) : Diapositive 16:9 */}
+            <div className="landscape:col-span-5 md:col-span-5 flex flex-col justify-between rounded-xl border-2 border-blue-400/40 bg-[#03091a] overflow-hidden shadow-xl relative group">
               {/* Badges sur l'image (Code ETG + Contexte + Difficulté) */}
               <div className="absolute top-1.5 left-1.5 right-1.5 z-10 flex items-center justify-between gap-1 pointer-events-none">
                 <div className="flex items-center gap-1 min-w-0">
@@ -422,10 +422,10 @@ export default function CodeRouteMode({
                 </span>
               </div>
 
-              {/* Scène visuelle 100% illustrée en ratio 16:9 adapté au mode portrait */}
+              {/* Scène visuelle 100% illustrée en ratio 16:9 adapté portrait & paysage */}
               <div
                 onClick={() => setZoomedImage((z) => !z)}
-                className="relative w-full aspect-[16/9] max-h-[20dvh] sm:max-h-[25dvh] md:max-h-none md:aspect-auto md:flex-1 flex items-center justify-center overflow-hidden cursor-zoom-in bg-[#03091a]"
+                className="relative w-full aspect-[16/9] max-h-[20dvh] sm:max-h-[25dvh] landscape:max-h-none landscape:aspect-auto landscape:flex-1 md:max-h-none md:aspect-auto md:flex-1 flex items-center justify-center overflow-hidden cursor-zoom-in bg-[#03091a]"
               >
                 <div
                   className={`w-full h-full transition-transform duration-300 ${
@@ -437,8 +437,8 @@ export default function CodeRouteMode({
               </div>
 
               {/* Bandeau légende de la photo + boutons Zoom & Plein Écran */}
-              <div className="shrink-0 flex items-center justify-between gap-1.5 bg-slate-950/95 border-t border-blue-500/30 px-2 py-1">
-                <span className="text-[10px] sm:text-[11px] font-bold text-blue-200 truncate">
+              <div className="shrink-0 flex items-center justify-between gap-1.5 bg-slate-950/95 border-t border-blue-500/30 px-2 py-1 ls:py-0.5">
+                <span className="text-[10px] sm:text-[11px] ls:text-[9px] font-bold text-blue-200 truncate">
                   📷 {currentQuestion.visual.caption}
                 </span>
                 <div className="flex items-center gap-1 shrink-0">
@@ -474,25 +474,25 @@ export default function CodeRouteMode({
               </div>
             </div>
 
-            {/* COLONNE DROITE / BAS PORTRAIT (7/12) : Énoncé + 4 Propositions A / B / C / D + Explication */}
-            <div className="md:col-span-7 flex flex-col justify-between gap-1.5 sm:gap-2">
+            {/* COLONNE DROITE PAYSAGE / BAS PORTRAIT (7/12) : Énoncé + 4 Propositions A / B / C / D + Explication */}
+            <div className="landscape:col-span-7 md:col-span-7 flex flex-col justify-between gap-1.5 ls:gap-1 sm:gap-2">
               {/* En-tête de la question */}
-              <div className="rounded-xl border border-blue-400/35 bg-[#040b1e]/95 px-2.5 py-1.5 sm:px-4 sm:py-2.5 shadow-inner">
+              <div className="rounded-xl border border-blue-400/35 bg-[#040b1e]/95 px-2.5 py-1.5 ls:py-1 sm:px-4 sm:py-2.5 shadow-inner">
                 <div className="flex items-center justify-between gap-2 mb-0.5">
-                  <span className="text-[10px] sm:text-xs font-black uppercase tracking-wide text-yellow-400 truncate">
+                  <span className="text-[10px] sm:text-xs ls:text-[10px] font-black uppercase tracking-wide text-yellow-400 truncate">
                     {currentQuestion.theme}
                   </span>
-                  <span className="text-[10px] sm:text-xs font-bold text-blue-300/80 shrink-0">
+                  <span className="text-[10px] sm:text-xs ls:text-[10px] font-bold text-blue-300/80 shrink-0">
                     {filteredQuestions.length} diapo{filteredQuestions.length > 1 ? 's' : ''} restante{filteredQuestions.length > 1 ? 's' : ''}
                   </span>
                 </div>
-                <h2 className="text-xs sm:text-base font-black text-white leading-snug">
+                <h2 className="text-xs sm:text-base ls:text-xs font-black text-white leading-snug">
                   {currentQuestion.question}
                 </h2>
               </div>
 
-              {/* Grille des 4 boutons de télécommande Code de la route (A, B, C, D) */}
-              <div className="grid grid-cols-1 gap-1 sm:gap-1.5">
+              {/* Grille des 4 boutons de télécommande Code de la route (A, B, C, D : 2x2 en paysage compact ls:) */}
+              <div className="grid grid-cols-1 ls:grid-cols-2 gap-1 sm:gap-1.5 ls:gap-1">
                 {currentQuestion.options.map((optText, idx) => {
                   const isCorrect = idx === currentQuestion.correct_index;
                   const isChosen = idx === selectedIndex;
@@ -523,7 +523,7 @@ export default function CodeRouteMode({
                       type="button"
                       onClick={() => handleSelectOption(idx)}
                       disabled={isRevealed}
-                      className={`flex items-center justify-between gap-2 rounded-xl border-2 px-2.5 py-1.5 sm:px-3 sm:py-2 text-left transition-all ${btnStyle} ${
+                      className={`flex items-center justify-between gap-2 rounded-xl border-2 px-2.5 py-1.5 ls:px-2 ls:py-1 sm:px-3 sm:py-2 text-left transition-all ${btnStyle} ${
                         !isRevealed
                           ? 'active:scale-[0.99] cursor-pointer'
                           : 'cursor-default'
@@ -531,20 +531,20 @@ export default function CodeRouteMode({
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <span
-                          className={`flex h-5 w-5 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-md sm:rounded-lg text-[11px] sm:text-sm font-black shadow ${letterBadge}`}
+                          className={`flex h-5 w-5 sm:h-7 sm:w-7 ls:h-5 ls:w-5 shrink-0 items-center justify-center rounded-md sm:rounded-lg text-[11px] sm:text-sm ls:text-[11px] font-black shadow ${letterBadge}`}
                         >
                           {OPTION_LETTERS[idx]}
                         </span>
-                        <span className="text-[11px] sm:text-sm font-bold leading-snug">
+                        <span className="text-[11px] sm:text-sm ls:text-[11px] font-bold leading-snug">
                           {optText}
                         </span>
                       </div>
 
                       {isRevealed && isCorrect && (
-                        <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-emerald-400" />
+                        <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 ls:h-4 ls:w-4 shrink-0 text-emerald-400" />
                       )}
                       {isRevealed && isChosen && !isCorrect && (
-                        <XCircle className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-rose-400" />
+                        <XCircle className="h-4 w-4 sm:h-5 sm:w-5 ls:h-4 ls:w-4 shrink-0 text-rose-400" />
                       )}
                     </button>
                   );
