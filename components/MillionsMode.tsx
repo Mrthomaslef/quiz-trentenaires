@@ -41,6 +41,7 @@ import {
   normalizeQuestionKey,
   type QuestionAnalyticsMap,
 } from '@/lib/question-analytics';
+import HostReaction, { type HostExpression } from '@/components/HostReaction';
 
 interface MillionsModeProps {
   poolByLevel: Record<number, QuizQuestionRecord[]>;
@@ -834,6 +835,70 @@ export default function MillionsMode({
     runStatus === 'millionaire' ||
     runStatus === 'walked_away';
 
+  // ==========================================================================
+  // RÉACTIONS DE L'ANIMATEUR (tête FMV pixelisée au-dessus de la pyramide)
+  // ==========================================================================
+  const hostExpression: HostExpression =
+    runStatus === 'millionaire'
+      ? 'ecstatic'
+      : runStatus === 'step_won'
+      ? 'happy'
+      : runStatus === 'failed'
+      ? 'sad'
+      : runStatus === 'walked_away'
+      ? 'cheque'
+      : pendingOption !== null || isSuspenseLock
+      ? 'suspense'
+      : 'neutral';
+
+  const hostLinesByMood: Record<string, string[]> = {
+    neutral: [
+      `Pour ${currentStepInfo.label}, je vous écoute…`,
+      'Prenez votre temps, on a toute la soirée.',
+      'Alors, une petite idée ?',
+      'Le public est avec vous !',
+    ],
+    pending: [
+      '« C’est votre dernier mot ? »',
+      'Vous êtes sûr de vous ?',
+      'Hmm… intéressant comme choix.',
+    ],
+    suspense: [
+      'On verrouille… Suspense !',
+      'Le public retient son souffle…',
+      'Regardez-moi bien dans les yeux…',
+    ],
+    happy: [
+      'C’est la bonne réponse !',
+      'Magnifique ! On continue ?',
+      `Bravo ! ${currentStepInfo.label} !`,
+    ],
+    safe: [`Palier ${currentStepInfo.label} assuré ! Bravo !`],
+    sad: [
+      'Ah… je suis vraiment désolé.',
+      'Oh non… c’était pourtant si près !',
+      'Dommage… quel parcours quand même !',
+    ],
+    ecstatic: ['UN MILLION !!! VOUS ÊTES MILLIONNAIRE !'],
+    cheque: ['Sage décision. Voici votre chèque !'],
+  };
+
+  const hostMoodKey =
+    hostExpression === 'suspense'
+      ? isSuspenseLock
+        ? 'suspense'
+        : 'pending'
+      : hostExpression === 'happy' && currentStepInfo.isSafeHaven
+      ? 'safe'
+      : hostExpression;
+  const hostLines = hostLinesByMood[hostMoodKey];
+  const hostLineSeed =
+    currentStep * 7 +
+    (currentQuestion.id?.length ?? 0) +
+    suspenseStage +
+    (pendingOption ?? 0);
+  const hostLine = hostLines[hostLineSeed % hostLines.length];
+
   return (
     <div className="flex-1 min-h-0 flex flex-col landscape:flex-row lg:flex-row gap-2 ls:gap-1.5 sm:gap-2.5 overflow-hidden">
       {/* ====================================================================
@@ -1407,6 +1472,12 @@ export default function MillionsMode({
           COLONNE DROITE (PAYSAGE & DESKTOP) : PYRAMIDE OFFICIELLE DES 15 PALIERS
          ==================================================================== */}
       <aside className="hidden landscape:flex lg:flex w-44 sm:w-52 lg:w-64 shrink-0 flex-col justify-between rounded-2xl border-2 border-yellow-400/45 bg-gradient-to-b from-[#071538]/95 via-[#050f29]/95 to-[#030817]/95 p-2 sm:p-2.5 lg:p-3 shadow-2xl">
+        <HostReaction
+          expression={hostExpression}
+          line={hostLine}
+          isSuspenseLock={isSuspenseLock}
+          suspenseStage={suspenseStage}
+        />
         <div className="flex items-center justify-between border-b border-blue-500/30 pb-1.5 lg:pb-2 mb-1">
           <span className="text-[11px] lg:text-xs font-black uppercase tracking-wider text-yellow-400 flex items-center gap-1">
             <Trophy className="h-3 w-3 lg:h-3.5 lg:w-3.5 shrink-0" />

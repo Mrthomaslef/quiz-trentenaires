@@ -189,6 +189,139 @@ body {
   animation: millionsSpotlightSweep 1.8s infinite ease-in-out;
 }
 
+/* Tête de l'animateur façon FMV pixelisée — réactions du plateau Millions */
+@keyframes hostPop {
+  0% {
+    transform: scale(0.55) translateX(0);
+    filter: brightness(2.2) contrast(1.4) hue-rotate(40deg);
+  }
+  12% {
+    transform: scale(0.8) translateX(-3px);
+    filter: brightness(1.6) hue-rotate(-30deg);
+  }
+  24% {
+    transform: scale(1.02) translateX(3px);
+  }
+  45% {
+    transform: scale(1.14) translateX(0);
+    filter: brightness(1.15);
+  }
+  68% {
+    transform: scale(0.95);
+  }
+  85% {
+    transform: scale(1.03);
+  }
+  100% {
+    transform: scale(1);
+    filter: none;
+  }
+}
+
+@keyframes hostIdle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1.5px); }
+}
+
+@keyframes hostJump {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-6%) rotate(-3deg); }
+  50% { transform: translateY(0) rotate(0deg); }
+  75% { transform: translateY(-6%) rotate(3deg); }
+}
+
+@keyframes hostSad {
+  0% { transform: translateX(0) translateY(0); }
+  15% { transform: translateX(-4%) translateY(0); }
+  30% { transform: translateX(4%) translateY(0); }
+  45% { transform: translateX(-2%) translateY(2%); }
+  60%, 100% { transform: translateX(0) translateY(4%); }
+}
+
+@keyframes hostTremble {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-1px, 1px); }
+  50% { transform: translate(1px, -1px); }
+  75% { transform: translate(-1px, -1px); }
+}
+
+@keyframes hostFlash {
+  0% { background: rgba(255, 255, 255, 0.85); }
+  100% { background: rgba(255, 255, 255, 0); }
+}
+
+@keyframes hostBubble {
+  0% { opacity: 0; transform: translateX(-6px) scale(0.85); }
+  60% { opacity: 1; transform: translateX(1px) scale(1.04); }
+  100% { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes hostCrtFlicker {
+  0%, 100% { opacity: 0.55; }
+  48% { opacity: 0.45; }
+  50% { opacity: 0.7; }
+  52% { opacity: 0.5; }
+}
+
+.animate-host-pop {
+  animation: hostPop 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-host-idle {
+  animation: hostIdle 2.4s ease-in-out infinite;
+}
+
+.animate-host-jump {
+  animation: hostJump 0.6s ease-in-out infinite;
+}
+
+.animate-host-sad {
+  animation: hostSad 0.9s ease-out forwards;
+}
+
+.animate-host-tremble {
+  animation: hostTremble 0.12s linear infinite;
+}
+
+.animate-host-flash {
+  animation: hostFlash 0.35s ease-out forwards;
+}
+
+.animate-host-bubble {
+  animation: hostBubble 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.host-crt-scanlines {
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.32) 0px,
+    rgba(0, 0, 0, 0.32) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: multiply;
+  animation: hostCrtFlicker 3.2s steps(1) infinite;
+}
+
+.host-crt-vignette {
+  background: radial-gradient(
+    ellipse at center,
+    transparent 55%,
+    rgba(2, 6, 23, 0.65) 100%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-host-pop,
+  .animate-host-idle,
+  .animate-host-jump,
+  .animate-host-sad,
+  .animate-host-tremble,
+  .host-crt-scanlines {
+    animation: none;
+  }
+}
+
 /* Masquer la barre de défilement horizontale sur mobile portrait tout en gardant le scroll tactile */
 .no-scrollbar {
   -ms-overflow-style: none;
