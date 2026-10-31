@@ -45,6 +45,9 @@ interface QuestionCardProps {
   isCoopMode?: boolean;
   coopStats?: CoopStats;
   onCoopAnswer?: (isCorrect: boolean) => void;
+  onRecordOutcome?: (question: QuizQuestionRecord, isCorrect: boolean) => void;
+  alreadyAnsweredCount?: number;
+  isAlreadyAnsweredPool?: boolean;
 }
 
 const OPTION_LETTERS = ['A', 'B', 'C', 'D'] as const;
@@ -82,12 +85,16 @@ export default function QuestionCard({
   isCoopMode = false,
   coopStats,
   onCoopAnswer,
+  onRecordOutcome,
+  alreadyAnsweredCount = 0,
+  isAlreadyAnsweredPool = false,
 }: QuestionCardProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [awardedTeams, setAwardedTeams] = useState<Record<string, boolean>>({});
   const [timeLeft, setTimeLeft] = useState<number>(20);
   const [showConfetti, setShowConfetti] = useState<boolean>(false);
   const [shakeCard, setShakeCard] = useState<boolean>(false);
+  const [outcomeRecorded, setOutcomeRecorded] = useState<boolean>(false);
 
   // États spécifiques au mode Duo / Carré / Cash
   const [selectedFormula, setSelectedFormula] =
@@ -114,6 +121,7 @@ export default function QuestionCard({
     setTimeLeft(20);
     setShowConfetti(false);
     setShakeCard(false);
+    setOutcomeRecorded(false);
     setSelectedFormula(null);
     setDuoIndices([]);
     setCashGuess('');
@@ -137,6 +145,10 @@ export default function QuestionCard({
       setSelectedIndex(-1);
       setShakeCard(true);
       playWrongSound(soundEnabled);
+      if (!outcomeRecorded && onRecordOutcome) {
+        setOutcomeRecorded(true);
+        onRecordOutcome(question, false);
+      }
       if (isCoopMode && onCoopAnswer) {
         onCoopAnswer(false);
       }
@@ -160,6 +172,8 @@ export default function QuestionCard({
     soundEnabled,
     isCoopMode,
     onCoopAnswer,
+    onRecordOutcome,
+    outcomeRecorded,
     waitingForFormulaChoice,
   ]);
 
@@ -202,6 +216,11 @@ export default function QuestionCard({
       playWrongSound(soundEnabled);
     }
 
+    if (!outcomeRecorded && onRecordOutcome) {
+      setOutcomeRecorded(true);
+      onRecordOutcome(question, correct);
+    }
+
     if (isCoopMode && onCoopAnswer) {
       onCoopAnswer(correct);
     }
@@ -232,6 +251,10 @@ export default function QuestionCard({
       setSelectedIndex(question.correct_index);
       setShowConfetti(true);
       playCorrectSound(soundEnabled);
+      if (!outcomeRecorded && onRecordOutcome) {
+        setOutcomeRecorded(true);
+        onRecordOutcome(question, true);
+      }
     } else {
       // Laisse quand même la possibilité de valider manuellement si l'orthographe était proche
       setCashRevealedWaitValidation(true);
@@ -240,6 +263,10 @@ export default function QuestionCard({
 
   const handleResolveCashOral = (isCorrect: boolean) => {
     setCashRevealedWaitValidation(false);
+    if (!outcomeRecorded && onRecordOutcome) {
+      setOutcomeRecorded(true);
+      onRecordOutcome(question, isCorrect);
+    }
     if (isCorrect) {
       setSelectedIndex(question.correct_index);
       setShowConfetti(true);
@@ -332,6 +359,14 @@ export default function QuestionCard({
               <Tag className="h-3 w-3 fill-blue-950" />
               {question.theme}
             </span>
+            {isAlreadyAnsweredPool && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full bg-purple-500/25 border border-purple-400/50 text-purple-200 px-2 py-0.5 text-[10px] font-extrabold"
+                title={`Cette question est dans la base "Déjà répondu" (${alreadyAnsweredCount}x répondue) — fréquence réduite`}
+              >
+                ↺ Déjà répondue ({alreadyAnsweredCount}x)
+              </span>
+            )}
             {!isCoopMode && duoCarreCashEnabled && selectedFormula && (
               <span
                 className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase shadow ${
@@ -763,7 +798,14 @@ export default function QuestionCard({
 
             <button
               type="button"
-              onClick={onNextQuestion}
+              onClick={() => {
+                if (isRevealed && !outcomeRecorded && onRecordOutcome) {
+                  const anyTeamScored = Object.values(awardedTeams).some(Boolean);
+                  setOutcomeRecorded(true);
+                  onRecordOutcome(question, anyTeamScored);
+                }
+                onNextQuestion();
+              }}
               className="shimmer-btn relative overflow-hidden inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 hover:from-yellow-200 hover:to-yellow-400 px-3.5 py-2 sm:px-5 sm:py-2 text-xs sm:text-sm font-black uppercase tracking-wide text-blue-950 shadow-lg shadow-yellow-400/25 active:scale-95 transition-all ml-auto"
             >
               <span>Suivante</span>

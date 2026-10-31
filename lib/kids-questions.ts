@@ -1,4 +1,12 @@
-export type KidsTheme = 'Ferme' | 'Animaux' | 'JO' | 'Sport' | 'Pokémon';
+export type KidsTheme =
+  | 'Ferme'
+  | 'Animaux'
+  | 'JO'
+  | 'Sport'
+  | 'Pokémon'
+  | 'Dinosaures'
+  | 'Espace'
+  | 'Disney & Contes';
 
 export interface KidsQuestion {
   id: string;
@@ -66,6 +74,24 @@ export const KIDS_THEMES_META: {
     label: 'Pokémon',
     emoji: '⚡',
     colorClass: 'from-rose-500 to-amber-500 text-white border-yellow-200',
+  },
+  {
+    id: 'Dinosaures',
+    label: 'Dinosaures',
+    emoji: '🦖',
+    colorClass: 'from-green-500 to-emerald-700 text-white border-green-200',
+  },
+  {
+    id: 'Espace',
+    label: 'Espace',
+    emoji: '🚀',
+    colorClass: 'from-indigo-500 to-purple-700 text-white border-indigo-200',
+  },
+  {
+    id: 'Disney & Contes',
+    label: 'Disney & Contes',
+    emoji: '🏰',
+    colorClass: 'from-pink-400 to-fuchsia-600 text-white border-pink-200',
   },
 ];
 
@@ -885,4 +911,332 @@ export const KIDS_QUESTIONS: KidsQuestion[] = [
       badgeLabel: 'Pokédex #054 · Pokémon Canard',
     },
   },
+
+  // ============================================================================
+  // THÈME 6 : LES DINOSAURES (🦖)
+  // ============================================================================
+  {
+    id: 'kids-dino-1',
+    theme: 'Dinosaures',
+    question:
+      'Quel est le plus célèbre des dinosaures carnivores avec d’énormes dents et deux tout petits bras ?',
+    options: [
+      '🦖 Le Tyrannosaure (T-Rex)',
+      '🦕 Le Diplodocus',
+      '🐢 La Tortue géante',
+      '🐊 Le Crocodile',
+    ],
+    correct_index: 0,
+    explanation:
+      'Le Tyrannosaure Rex (ou T-Rex) signifie « Roi des lézards tyrans » : ses dents étaient grandes comme des bananes !',
+    visual: {
+      mainEmoji: '🦖',
+      decorEmojis: ['🌋', '🦴'],
+      bgGradient: 'from-emerald-600 via-green-700 to-stone-800',
+      badgeLabel: 'Le Roi des Dinosaures',
+    },
+  },
+  {
+    id: 'kids-dino-2',
+    theme: 'Dinosaures',
+    question:
+      'Quel grand dinosaure herbivore marchait à quatre pattes avec un très long cou pour manger en haut des arbres ?',
+    options: [
+      '🦕 Le Diplodocus (ou Brachiosaure)',
+      '🦖 Le Vélociraptor',
+      '🦅 Le Ptérodactyle',
+      '🦈 Le Mégalodon',
+    ],
+    correct_index: 0,
+    explanation:
+      'Avec son immense cou et sa longue queue, le Diplodocus ne mangeait que des plantes et des feuilles d’arbres !',
+    visual: {
+      mainEmoji: '🦕',
+      decorEmojis: ['🌿', '🌴'],
+      bgGradient: 'from-lime-500 via-emerald-600 to-teal-800',
+      badgeLabel: 'Le Géant au long cou',
+    },
+  },
+  {
+    id: 'kids-dino-3',
+    theme: 'Dinosaures',
+    question:
+      'Combien de cornes le Tricératops avait-il sur la tête pour se défendre ?',
+    options: [
+      '1 seule corne',
+      '3 cornes',
+      '10 cornes',
+      'Aucune corne',
+    ],
+    correct_index: 1,
+    explanation:
+      '« Tricératops » veut dire « tête à trois cornes » : il avait deux grandes cornes au-dessus des yeux et une petite sur le museau !',
+    visual: {
+      mainEmoji: '🦕',
+      decorEmojis: ['🛡️', '🌿'],
+      bgGradient: 'from-amber-600 via-emerald-700 to-green-900',
+      badgeLabel: 'Le bouclier à 3 cornes',
+    },
+  },
+  {
+    id: 'kids-dino-4',
+    theme: 'Dinosaures',
+    question:
+      'Comment naissaient les bébés dinosaures il y a des millions d’années ?',
+    options: [
+      '🥚 Ils sortaient d’un œuf',
+      '🌸 Ils poussaient dans les fleurs',
+      '☁️ Ils tombaient des nuages',
+      '🐚 Ils sortaient d’un coquillage',
+    ],
+    correct_index: 0,
+    explanation:
+      'Comme les oiseaux et les crocodiles d’aujourd’hui, toutes les mamans dinosaures pondaient des œufs dans des nids !',
+    visual: {
+      mainEmoji: '🥚',
+      decorEmojis: ['🦖', '🌿'],
+      bgGradient: 'from-yellow-500 via-lime-600 to-emerald-800',
+      badgeLabel: 'Le nid des bébés dinos',
+    },
+  },
+  {
+    id: 'kids-dino-5',
+    theme: 'Dinosaures',
+    question:
+      'Comment appelle-t-on les os de dinosaures transformés en pierre que les scientifiques déterrent avec un pinceau ?',
+    options: [
+      '🦴 Des fossiles',
+      '💎 Des diamants',
+      '🍬 Des bonbons',
+      '🧱 Des briques Lego',
+    ],
+    correct_index: 0,
+    explanation:
+      'Les paléontologues fouillent la terre et la roche pour découvrir des fossiles : des squelettes et des empreintes de pas de dinosaures !',
+    visual: {
+      mainEmoji: '🦴',
+      decorEmojis: ['🔍', '⛏️'],
+      bgGradient: 'from-amber-600 via-stone-600 to-slate-800',
+      badgeLabel: 'Fouilles préhistoriques',
+    },
+  },
+
+  // ============================================================================
+  // THÈME 7 : L’ESPACE (🚀)
+  // ============================================================================
+  {
+    id: 'kids-espace-1',
+    theme: 'Espace',
+    question:
+      'Dans quel engin géant qui crache du feu les astronautes décollent-ils pour aller dans l’espace ?',
+    options: [
+      '🚀 Une fusée',
+      '⛵ Un bateau à voiles',
+      '🚜 Un tracteur',
+      '🛴 Une trottinette',
+    ],
+    correct_index: 0,
+    explanation:
+      '3, 2, 1… Décollage ! La fusée propulse les astronautes très vite au-dessus des nuages jusque dans l’espace !',
+    visual: {
+      mainEmoji: '🚀',
+      decorEmojis: ['✨', '🪐'],
+      bgGradient: 'from-indigo-600 via-purple-700 to-slate-900',
+      badgeLabel: '3, 2, 1… Décollage !',
+    },
+  },
+  {
+    id: 'kids-espace-2',
+    theme: 'Espace',
+    question:
+      'Sur quelle planète toute bleue recouverte d’océans habitons-nous ?',
+    options: [
+      '🌍 La planète Terre',
+      '🔴 La planète Mars',
+      '☀️ Le Soleil',
+      '🌙 La Lune',
+    ],
+    correct_index: 0,
+    explanation:
+      'Nous habitons sur la Terre ! On l’appelle la « planète bleue » parce qu’elle est recouverte de grands océans.',
+    visual: {
+      mainEmoji: '🌍',
+      decorEmojis: ['🌊', '☁️'],
+      bgGradient: 'from-sky-500 via-blue-700 to-indigo-950',
+      badgeLabel: 'Notre belle Planète Bleue',
+    },
+  },
+  {
+    id: 'kids-espace-3',
+    theme: 'Espace',
+    question:
+      'Quelle est cette magnifique planète entourée de grands anneaux brillants ?',
+    options: [
+      '🪐 Saturne',
+      '🌍 La Terre',
+      '☀️ Le Soleil',
+      '☄️ Une comète',
+    ],
+    correct_index: 0,
+    explanation:
+      'Saturne est célèbre pour ses immenses anneaux faits de milliards de morceaux de glace et de poussière qui tournent autour d’elle !',
+    visual: {
+      mainEmoji: '🪐',
+      decorEmojis: ['✨', '🌌'],
+      bgGradient: 'from-purple-600 via-indigo-700 to-amber-700',
+      badgeLabel: 'Le Seigneur des Anneaux de l’espace',
+    },
+  },
+  {
+    id: 'kids-espace-4',
+    theme: 'Espace',
+    question:
+      'Quel astre brille dans le ciel la nuit et change de forme (croissant ou toute ronde) en tournant autour de la Terre ?',
+    options: [
+      '🌙 La Lune',
+      '🌈 L’arc-en-ciel',
+      '🌩️ L’éclair',
+      '🎈 Une montgolfière',
+    ],
+    correct_index: 0,
+    explanation:
+      'La Lune tourne autour de la Terre ! Des astronautes ont même marché dessus en laissant leurs empreintes de bottes dans la poussière.',
+    visual: {
+      mainEmoji: '🌙',
+      decorEmojis: ['⭐', '👨‍🚀'],
+      bgGradient: 'from-slate-700 via-indigo-800 to-blue-950',
+      badgeLabel: 'Clair de Lune',
+    },
+  },
+  {
+    id: 'kids-espace-5',
+    theme: 'Espace',
+    question:
+      'Quelle énorme boule de feu toute jaune nous éclaire et nous réchauffe pendant la journée ?',
+    options: [
+      '☀️ Le Soleil',
+      '❄️ Un flocon de neige',
+      '🔦 Une lampe de poche',
+      '🕯️ Une bougie',
+    ],
+    correct_index: 0,
+    explanation:
+      'Le Soleil est l’étoile au centre de notre système solaire : toutes les planètes comme la Terre tournent autour de lui !',
+    visual: {
+      mainEmoji: '☀️',
+      decorEmojis: ['🌻', '✨'],
+      bgGradient: 'from-yellow-400 via-orange-500 to-red-700',
+      badgeLabel: 'Notre étoile le Soleil',
+    },
+  },
+
+  // ============================================================================
+  // THÈME 8 : DISNEY & CONTES (🏰)
+  // ============================================================================
+  {
+    id: 'kids-disney-1',
+    theme: 'Disney & Contes',
+    question:
+      'Dans « La Reine des Neiges », comment s’appelle le petit bonhomme de neige rigolo qui rêve de l’été et a une carotte guise de nez ?',
+    options: [
+      '⛄ Olaf',
+      '🦌 Sven',
+      '🦁 Simba',
+      '🧞 Le Génie',
+    ],
+    correct_index: 0,
+    explanation:
+      'Olaf a été créé par la magie d’Elsa : il adore les gros câlins chaleureux et chanter sous le soleil !',
+    visual: {
+      mainEmoji: '⛄',
+      decorEmojis: ['❄️', '🥕'],
+      bgGradient: 'from-cyan-400 via-sky-500 to-indigo-800',
+      badgeLabel: 'La Reine des Neiges',
+    },
+  },
+  {
+    id: 'kids-disney-2',
+    theme: 'Disney & Contes',
+    question:
+      'Quel jeune lionceau devient le roi de la Terre des Lions avec ses amis Timon et Pumbaa en chantant « Hakuna Matata » ?',
+    options: [
+      '🦁 Simba',
+      '🐘 Dumbo',
+      '🦌 Bambi',
+      '🐻 Baloo',
+    ],
+    correct_index: 0,
+    explanation:
+      'Dans « Le Roi Lion », Simba grandit dans la jungle avec le suricate Timon et le phacochère Pumbaa !',
+    visual: {
+      mainEmoji: '🦁',
+      decorEmojis: ['👑', '🌅'],
+      bgGradient: 'from-amber-500 via-orange-600 to-red-800',
+      badgeLabel: 'Le Roi Lion',
+    },
+  },
+  {
+    id: 'kids-disney-3',
+    theme: 'Disney & Contes',
+    question:
+      'Que se passe-t-il sur le visage du pantin de bois Pinocchio à chaque fois qu’il dit un mensonge ?',
+    options: [
+      '👃 Son nez s’allonge',
+      '👂 Ses oreilles deviennent bleues',
+      '🎩 Son chapeau s’envole',
+      '🦷 Ses dents brillent dans le noir',
+    ],
+    correct_index: 0,
+    explanation:
+      'Fabriqué par Geppetto, Pinocchio voit son nez en bois grandir dès qu’il ment à la Fée Bleue !',
+    visual: {
+      mainEmoji: '🤥',
+      decorEmojis: ['🪵', '✨'],
+      bgGradient: 'from-amber-600 via-rose-600 to-indigo-800',
+      badgeLabel: 'Le pantin de bois',
+    },
+  },
+  {
+    id: 'kids-disney-4',
+    theme: 'Disney & Contes',
+    question:
+      'Que perd Cendrillon dans l’escalier du château en s’enfuyant aux douze coups de minuit ?',
+    options: [
+      '👠 Sa pantoufle de verre',
+      '🎒 Son cartable d’école',
+      '☂️ Son parapluie rose',
+      '🚲 Son vélo',
+    ],
+    correct_index: 0,
+    explanation:
+      'À minuit, le carrosse redevient une citrouille, mais le Prince retrouve Cendrillon grâce à sa pantoufle de verre !',
+    visual: {
+      mainEmoji: '👠',
+      decorEmojis: ['🏰', '🎃'],
+      bgGradient: 'from-pink-500 via-fuchsia-600 to-indigo-900',
+      badgeLabel: 'Les 12 coups de minuit',
+    },
+  },
+  {
+    id: 'kids-disney-5',
+    theme: 'Disney & Contes',
+    question:
+      'Que frotte Aladdin dans la Caverne aux Merveilles pour faire sortir le grand Génie bleu ?',
+    options: [
+      '🪔 Une lampe magique',
+      '🍎 Une pomme rouge',
+      '🎸 Une guitare électrique',
+      '⚽ Un ballon de foot',
+    ],
+    correct_index: 0,
+    explanation:
+      'En frottant la lampe magique dorée, Aladdin libère le Génie qui lui accorde trois vœux et l’emmène sur le tapis volant !',
+    visual: {
+      mainEmoji: '🪔',
+      decorEmojis: ['🧞', '✨'],
+      bgGradient: 'from-indigo-600 via-purple-600 to-amber-600',
+      badgeLabel: 'Trois vœux magiques',
+    },
+  },
 ];
+

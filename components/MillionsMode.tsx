@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { QuizQuestionRecord } from '@/lib/supabase';
 import {
   Trophy,
@@ -30,10 +30,17 @@ import {
   setMillionsZoukStep,
 } from '@/lib/sound';
 
+import {
+  pickWeightedQuestion,
+  type QuestionAnalyticsMap,
+} from '@/lib/question-analytics';
+
 interface MillionsModeProps {
   poolByLevel: Record<number, QuizQuestionRecord[]>;
   playedIds: string[];
   onMarkQuestionPlayed: (questionId: string) => void;
+  onRecordOutcome?: (question: QuizQuestionRecord, isCorrect: boolean) => void;
+  analyticsMap?: QuestionAnalyticsMap;
   soundEnabled: boolean;
   zoukMusicEnabled?: boolean;
   onToggleZoukMusic?: () => void;
@@ -106,6 +113,7 @@ export const MILLION_LADDER: MillionStep[] = [
 const OPTION_LETTERS = ['A', 'B', 'C', 'D'] as const;
 
 const STORAGE_MILLIONS_STATS = '7ter:millions:stats:v1';
+const STORAGE_MILLIONS_RUN = '7ter:millions:run_state:v1';
 
 interface MillionsRecord {
   bestAmount: number;
@@ -117,6 +125,8 @@ export default function MillionsMode({
   poolByLevel,
   playedIds,
   onMarkQuestionPlayed,
+  onRecordOutcome,
+  analyticsMap = {},
   soundEnabled,
   zoukMusicEnabled: propZoukEnabled,
   onToggleZoukMusic,
@@ -129,6 +139,7 @@ export default function MillionsMode({
   const [runStatus, setRunStatus] = useState<
     'playing' | 'step_won' | 'failed' | 'walked_away' | 'millionaire'
   >('playing');
+  const [hydratedRun, setHydratedRun] = useState<boolean>(false);
 
   // État des 4 Jokers (true = disponible, false = déjà utilisé sur cette partie)
   const [jokers, setJokers] = useState({
@@ -185,7 +196,68 @@ export default function MillionsMode({
     setMillionsZoukStep(currentStep);
   }, [currentStep]);
 
-  // Chargement des records depuis localStorage
+  const ladderScrollRef = useRef<HTMLDivElement | null>(null);
+  const desktopLadderScrollRef = useRef<HTMLDivElement | null>(null);
+  const stepItemRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const desktopStepItemRefs = useRef<Record<number, HTMLDivElement | null>>({});
+
+  const centerCurrentStepInScroll = useCallback(
+    (behavior: ScrollBehavior = 'smooth') => {
+      const container = ladderScrollRef.current;
+      const activeEl = stepItemRefs.current[currentStep];
+      if (container && activeEl && container.clientWidth > 0) {
+        const containerRect = container.getBoundingClientRect();
+        const activeRect = activeEl.getBoundingClientRect();
+        const targetScrollLeft =
+          container.scrollLeft +
+          (activeRect.left - containerRect.left) -
+          containerRect.width / 2 +
+          activeRect.width / 2;
+
+        container.scrollTo({
+          left: Math.max(0, targetScrollLeft),
+          behavior,
+        });
+      }
+
+      const desktopContainer = desktopLadderScrollRef.current;
+      const desktopActiveEl = desktopStepItemRefs.current[currentStep];
+      if (
+        desktopContainer &&
+        desktopActiveEl &&
+        desktopContainer.scrollHeight > desktopContainer.clientHeight
+      ) {
+        const containerRect = desktopContainer.getBoundingClientRect();
+        const activeRect = desktopActiveEl.getBoundingClientRect();
+        const targetScrollTop =
+          desktopContainer.scrollTop +
+          (activeRect.top - containerRect.top) -
+          containerRect.height / 2 +
+          activeRect.height / 2;
+
+        desktopContainer.scrollTo({
+          top: Math.max(0, targetScrollTop),
+          behavior,
+        });
+      }
+    },
+    [currentStep]
+  );
+
+  useEffect(() => {
+    const rafId = requestAnimationFrame(() => {
+      centerCurrentStepInScroll('smooth');
+    });
+    return () => cancelAnimationFrame(rafId);
+  }, [centerCurrentStepInScroll, currentQuestion]);
+
+  useEffect(() => {
+    const handleResize = () => centerCurrentStepInScroll('auto');
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [centerCurrentStepInScroll]);
+
+  // Chargement des records et de la partie en cours depuis localStorage (pour ne pas changer de question au rafraîchissement)
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_MILLIONS_STATS);
@@ -195,10 +267,70 @@ export default function MillionsMode({
           setStats(parsed);
         }
       }
+
+      const savedRun = localStorage.getItem(STORAGE_MILLIONS_RUN);
+      if (savedRun) {
+        const parsedRun = JSON.parse(savedRun);
+        if (parsedRun && parsedRun.currentQuestion?.id) {
+          setCurrentStep(
+            typeof parsedRun.currentStep === 'number' ? parsedRun.currentStep : 1
+          );
+          setCurrentQuestion(parsedRun.currentQuestion);
+          setPendingOption(parsedRun.pendingOption ?? null);
+          setLockedOption(parsedRun.lockedOption ?? null);
+          if (parsedRun.runStatus) setRunStatus(parsedRun.runStatus);
+          if (parsedRun.jokers) setJokers(parsedRun.jokers);
+          if (Array.isArray(parsedRun.hiddenOptions)) {
+            setHiddenOptions(parsedRun.hiddenOptions);
+          }
+          if (Array.isArray(parsedRun.audiencePoll)) {
+            setAudiencePoll(parsedRun.audiencePoll);
+          }
+          if (parsedRun.friendAdvice) {
+            setFriendAdvice(parsedRun.friendAdvice);
+          }
+        }
+      }
+    } catch {
+      // Ignore
+    } finally {
+      setHydratedRun(true);
+    }
+  }, []);
+
+  // Sauvegarde automatique de la question et de l'état en cours
+  useEffect(() => {
+    if (!hydratedRun || !currentQuestion) return;
+    try {
+      localStorage.setItem(
+        STORAGE_MILLIONS_RUN,
+        JSON.stringify({
+          currentStep,
+          currentQuestion,
+          pendingOption,
+          lockedOption,
+          runStatus,
+          jokers,
+          hiddenOptions,
+          audiencePoll,
+          friendAdvice,
+        })
+      );
     } catch {
       // Ignore
     }
-  }, []);
+  }, [
+    hydratedRun,
+    currentStep,
+    currentQuestion,
+    pendingOption,
+    lockedOption,
+    runStatus,
+    jokers,
+    hiddenOptions,
+    audiencePoll,
+    friendAdvice,
+  ]);
 
   const saveStats = useCallback((next: MillionsRecord) => {
     setStats(next);
@@ -209,35 +341,27 @@ export default function MillionsMode({
     }
   }, []);
 
-  // Tirage d'une question correspondant au niveau du palier
+  // Tirage d'une question correspondant au niveau du palier (pondéré pour moins proposer la base "Déjà répondu")
   const pickQuestionForStep = useCallback(
     (stepNumber: number, excludeId?: string): QuizQuestionRecord | null => {
       const stepInfo =
         MILLION_LADDER.find((s) => s.step === stepNumber) || MILLION_LADDER[0];
       const list = poolByLevel[stepInfo.level] || [];
       const playedSet = new Set(playedIds);
-      const candidates = list.filter(
-        (q) => !playedSet.has(q.id) && q.id !== excludeId
-      );
-      const pool =
-        candidates.length > 0
-          ? candidates
-          : list.filter((q) => q.id !== excludeId);
-      if (pool.length === 0) return list[0] || null;
-      return pool[Math.floor(Math.random() * pool.length)];
+      return pickWeightedQuestion(list, playedSet, analyticsMap, excludeId);
     },
-    [poolByLevel, playedIds]
+    [poolByLevel, playedIds, analyticsMap]
   );
 
-  // Initialisation de la première question
+  // Initialisation de la première question uniquement après hydratation si aucune question n'était sauvegardée
   useEffect(() => {
-    if (!currentQuestion) {
+    if (hydratedRun && !currentQuestion) {
       const q = pickQuestionForStep(1);
       if (q) {
         setCurrentQuestion(q);
       }
     }
-  }, [currentQuestion, pickQuestionForStep]);
+  }, [hydratedRun, currentQuestion, pickQuestionForStep]);
 
   const currentStepInfo = useMemo(
     () =>
@@ -422,6 +546,9 @@ export default function MillionsMode({
     onMarkQuestionPlayed(currentQuestion.id);
 
     const isCorrect = pendingOption === currentQuestion.correct_index;
+    if (onRecordOutcome) {
+      onRecordOutcome(currentQuestion, isCorrect);
+    }
     if (isCorrect) {
       playCorrectSound(soundEnabled);
       const wonAmount = currentStepInfo.amount;
@@ -537,17 +664,15 @@ export default function MillionsMode({
               <button
                 type="button"
                 onClick={handleToggleZoukButton}
-                className={`inline-flex items-center gap-1.5 rounded-lg border-2 px-3 py-1 text-xs font-black uppercase tracking-wide transition active:scale-95 ${
+                className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-bold transition active:scale-95 ${
                   zoukMusicEnabled && soundEnabled
-                    ? 'border-emerald-300 bg-gradient-to-r from-emerald-400 via-teal-400 to-amber-300 text-slate-950 shadow-lg shadow-emerald-500/20'
-                    : 'border-emerald-400/60 bg-emerald-950/70 text-emerald-300 hover:bg-emerald-500/20'
+                    ? 'border-yellow-400/70 bg-yellow-400/20 text-yellow-200'
+                    : 'border-blue-500/35 bg-blue-950/70 text-blue-300/60'
                 }`}
-                title="Activer / couper le thème Qui veut gagner des millions version Zouk Antillais"
+                title="Activer / couper le thème original de Qui veut gagner des millions"
               >
-                <Music className="h-3.5 w-3.5" />
-                <span>
-                  🌴 Musique Zouk : {zoukMusicEnabled && soundEnabled ? 'ON' : 'OFF'}
-                </span>
+                <Music className="h-3 w-3" />
+                <span>TV {zoukMusicEnabled && soundEnabled ? 'ON' : 'OFF'}</span>
               </button>
 
               <span className="hidden md:inline-flex items-center gap-1 rounded-lg border border-blue-400/35 bg-blue-950/80 px-2 py-1 text-[11px] font-bold text-blue-200">
@@ -624,13 +749,23 @@ export default function MillionsMode({
 
           {/* Mini-barre des 15 paliers sur mobile/tablette (masquée sur grand écran où la tour complète est à droite) */}
           <div className="grid grid-cols-15 gap-0.5 lg:hidden">
-            <div className="col-span-full flex items-center gap-1 overflow-x-auto pb-0.5">
+            <div
+              ref={ladderScrollRef}
+              className="col-span-full relative flex items-center gap-1 overflow-x-auto pb-0.5 scroll-smooth"
+            >
+              <div
+                aria-hidden="true"
+                className="shrink-0 w-[calc(50%-1rem)]"
+              />
               {MILLION_LADDER.map((item) => {
                 const isCurrent = item.step === currentStep;
                 const isPassed = item.step < currentStep;
                 return (
                   <div
                     key={item.step}
+                    ref={(el) => {
+                      stepItemRefs.current[item.step] = el;
+                    }}
                     className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-black border ${
                       isCurrent
                         ? 'bg-amber-400 text-slate-950 border-white scale-105'
@@ -645,6 +780,10 @@ export default function MillionsMode({
                   </div>
                 );
               })}
+              <div
+                aria-hidden="true"
+                className="shrink-0 w-[calc(50%-1rem)]"
+              />
             </div>
           </div>
         </section>
@@ -930,7 +1069,10 @@ export default function MillionsMode({
           <span className="text-[10px] font-bold text-blue-300">15 paliers</span>
         </div>
 
-        <div className="flex-1 flex flex-col justify-between gap-0.5">
+        <div
+          ref={desktopLadderScrollRef}
+          className="flex-1 min-h-0 overflow-y-auto flex flex-col justify-between gap-0.5 scroll-smooth"
+        >
           {[...MILLION_LADDER].reverse().map((item) => {
             const isCurrent = item.step === currentStep;
             const isPassed = item.step < currentStep;
@@ -950,6 +1092,9 @@ export default function MillionsMode({
             return (
               <div
                 key={item.step}
+                ref={(el) => {
+                  desktopStepItemRefs.current[item.step] = el;
+                }}
                 className={`flex items-center justify-between rounded-lg border px-2.5 py-1 text-xs transition ${rowStyle}`}
               >
                 <div className="flex items-center gap-1.5">

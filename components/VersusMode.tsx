@@ -46,10 +46,17 @@ import {
   playCountdownBeep,
 } from '@/lib/sound';
 
+import {
+  pickWeightedQuestion,
+  type QuestionAnalyticsMap,
+} from '@/lib/question-analytics';
+
 interface VersusModeProps {
   poolByLevel: Record<number, QuizQuestionRecord[]>;
   playedIds: string[];
   onMarkQuestionPlayed: (questionId: string) => void;
+  onRecordOutcome?: (question: QuizQuestionRecord, isCorrect: boolean) => void;
+  analyticsMap?: QuestionAnalyticsMap;
   soundEnabled: boolean;
   initialRoomCode?: string | null;
 }
@@ -96,6 +103,8 @@ export default function VersusMode({
   poolByLevel,
   playedIds,
   onMarkQuestionPlayed,
+  onRecordOutcome,
+  analyticsMap = {},
   soundEnabled,
   initialRoomCode,
 }: VersusModeProps) {
@@ -245,7 +254,7 @@ export default function VersusMode({
     []
   );
 
-  // Sélection d'une question non jouée dans le niveau choisi
+  // Sélection d'une question non jouée dans le niveau choisi (pondérée pour moins proposer la base "Déjà répondu")
   const pickQuestionForLevel = useCallback(
     (level: number, theme: string): QuizQuestionRecord | null => {
       const allInLevel = poolByLevel[level] || [];
@@ -255,12 +264,9 @@ export default function VersusMode({
           : allInLevel.filter((q) => q.theme === theme);
       const list = themeFiltered.length > 0 ? themeFiltered : allInLevel;
       const playedSet = new Set(playedIds);
-      const unplayed = list.filter((q) => !playedSet.has(q.id));
-      const pool = unplayed.length > 0 ? unplayed : list;
-      if (pool.length === 0) return null;
-      return pool[Math.floor(Math.random() * pool.length)];
+      return pickWeightedQuestion(list, playedSet, analyticsMap);
     },
-    [poolByLevel, playedIds]
+    [poolByLevel, playedIds, analyticsMap]
   );
 
   // Fonction Hôte : Clôturer la question, calculer les rangs et les points dégressifs sur 10s
@@ -277,6 +283,10 @@ export default function VersusMode({
       const correctEntries = Object.values(rawAnswers)
         .filter((a) => a.optionIndex === correctIdx)
         .sort((a, b) => a.elapsedMs - b.elapsedMs);
+
+      if (onRecordOutcome) {
+        onRecordOutcome(current.currentQuestion, correctEntries.length > 0);
+      }
 
       const rankByPlayerId: Record<string, number> = {};
       correctEntries.forEach((entry, idx) => {

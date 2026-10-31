@@ -20,6 +20,11 @@ export interface QuizQuestionRecord {
   explanation: string;
   target_audience?: string;
   times_played?: number;
+  times_correct?: number;
+  times_wrong?: number;
+  difficulty_notes?: string;
+  is_already_answered?: boolean;
+  last_played_at?: string;
   created_at?: string;
 }
 
@@ -45,7 +50,7 @@ export async function fetchQuestionsByLevelFromSupabase(
   const { data, error } = await supabase
     .from(QUIZ_TABLE)
     .select(
-      'id, difficulty, theme, question, options, correct_index, explanation, target_audience, times_played, created_at'
+      'id, difficulty, theme, question, options, correct_index, explanation, target_audience, times_played, times_correct, times_wrong, difficulty_notes, is_already_answered, last_played_at, created_at'
     )
     .eq('difficulty', level)
     .limit(200);
@@ -69,6 +74,11 @@ export async function fetchQuestionsByLevelFromSupabase(
     explanation: String(row.explanation),
     target_audience: row.target_audience ?? '30yo_couples',
     times_played: row.times_played ?? 0,
+    times_correct: row.times_correct ?? 0,
+    times_wrong: row.times_wrong ?? 0,
+    difficulty_notes: row.difficulty_notes ?? '',
+    is_already_answered: Boolean(row.is_already_answered),
+    last_played_at: row.last_played_at,
     created_at: row.created_at,
   }));
 }
@@ -79,7 +89,7 @@ export async function fetchAllQuestionsFromSupabase(): Promise<
   const { data, error } = await supabase
     .from(QUIZ_TABLE)
     .select(
-      'id, difficulty, theme, question, options, correct_index, explanation, target_audience, times_played, created_at'
+      'id, difficulty, theme, question, options, correct_index, explanation, target_audience, times_played, times_correct, times_wrong, difficulty_notes, is_already_answered, last_played_at, created_at'
     )
     .order('difficulty', { ascending: true })
     .limit(1000);
@@ -108,6 +118,11 @@ export async function fetchAllQuestionsFromSupabase(): Promise<
         explanation: String(row.explanation),
         target_audience: row.target_audience ?? '30yo_couples',
         times_played: row.times_played ?? 0,
+        times_correct: row.times_correct ?? 0,
+        times_wrong: row.times_wrong ?? 0,
+        difficulty_notes: row.difficulty_notes ?? '',
+        is_already_answered: Boolean(row.is_already_answered),
+        last_played_at: row.last_played_at,
         created_at: row.created_at,
       });
     }
@@ -124,6 +139,48 @@ export async function incrementQuestionPlayed(questionId: string): Promise<void>
     });
   } catch {
     // Non-blocking metrics update
+  }
+}
+
+export async function recordQuestionOutcomeSupabase(
+  questionId: string,
+  wasCorrect: boolean,
+  autoArchiveThreshold = 2
+): Promise<void> {
+  if (!questionId || questionId.startsWith('local-')) return;
+  try {
+    const { error } = await supabase.rpc('record_trentenaires_question_outcome', {
+      question_id: questionId,
+      was_correct: wasCorrect,
+      auto_archive_threshold: autoArchiveThreshold,
+    });
+    if (error) {
+      await incrementQuestionPlayed(questionId);
+    }
+  } catch {
+    // Non-blocking metrics update
+  }
+}
+
+export async function updateQuestionAdminSupabase(params: {
+  adminCode: string;
+  questionId: string;
+  newDifficulty?: number;
+  newNotes?: string;
+  newAlreadyAnswered?: boolean;
+}): Promise<boolean> {
+  if (!params.questionId || params.questionId.startsWith('local-')) return false;
+  try {
+    const { error } = await supabase.rpc('admin_update_trentenaires_question', {
+      admin_code: params.adminCode,
+      question_id: params.questionId,
+      new_difficulty: params.newDifficulty ?? null,
+      new_notes: params.newNotes ?? null,
+      new_already_answered: params.newAlreadyAnswered ?? null,
+    });
+    return !error;
+  } catch {
+    return false;
   }
 }
 

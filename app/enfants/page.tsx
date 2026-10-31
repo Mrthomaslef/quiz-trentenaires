@@ -198,6 +198,8 @@ function SpecialVisualSvg({ type }: { type?: string }) {
   return null;
 }
 
+const STORAGE_KIDS_STATE = '7ter:kids:state:v1';
+
 export default function KidsQuizPage() {
   const [selectedTheme, setSelectedTheme] = useState<'ALL' | KidsTheme>('ALL');
   const [questions, setQuestions] = useState<KidsQuestion[]>(() =>
@@ -212,6 +214,89 @@ export default function KidsQuizPage() {
   const [imgError, setImgError] = useState<boolean>(false);
   const [editingKidId, setEditingKidId] = useState<string | null>(null);
   const [draftKidName, setDraftKidName] = useState<string>('');
+  const [hydratedKids, setHydratedKids] = useState<boolean>(false);
+
+  // Restauration de la question et des étoiles en cours pour qu'un rafraîchissement de page ne change pas la question
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KIDS_STATE);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && Array.isArray(parsed.questionIds)) {
+          const byId = new Map(KIDS_QUESTIONS.map((q) => [q.id, q]));
+          const restored: KidsQuestion[] = [];
+          const seen = new Set<string>();
+          for (const id of parsed.questionIds) {
+            const q = byId.get(id);
+            if (q && !seen.has(q.id)) {
+              restored.push(q);
+              seen.add(q.id);
+            }
+          }
+          for (const q of KIDS_QUESTIONS) {
+            if (!seen.has(q.id)) {
+              restored.push(q);
+              seen.add(q.id);
+            }
+          }
+          if (restored.length > 0) {
+            setQuestions(restored);
+          }
+        }
+        if (typeof parsed?.currentIndex === 'number' && parsed.currentIndex >= 0) {
+          setCurrentIndex(parsed.currentIndex);
+        }
+        if (parsed?.selectedTheme) {
+          setSelectedTheme(parsed.selectedTheme);
+        }
+        if (typeof parsed?.totalStars === 'number') {
+          setTotalStars(parsed.totalStars);
+        }
+        if (Array.isArray(parsed?.kidPlayers) && parsed.kidPlayers.length > 0) {
+          setKidPlayers(parsed.kidPlayers);
+        }
+        if (typeof parsed?.soundEnabled === 'boolean') {
+          setSoundEnabled(parsed.soundEnabled);
+        }
+        if (typeof parsed?.pokemonMysteryMode === 'boolean') {
+          setPokemonMysteryMode(parsed.pokemonMysteryMode);
+        }
+      }
+    } catch {
+      // Ignore storage errors
+    } finally {
+      setHydratedKids(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hydratedKids) return;
+    try {
+      localStorage.setItem(
+        STORAGE_KIDS_STATE,
+        JSON.stringify({
+          questionIds: questions.map((q) => q.id),
+          currentIndex,
+          selectedTheme,
+          totalStars,
+          kidPlayers,
+          soundEnabled,
+          pokemonMysteryMode,
+        })
+      );
+    } catch {
+      // Ignore storage errors
+    }
+  }, [
+    hydratedKids,
+    questions,
+    currentIndex,
+    selectedTheme,
+    totalStars,
+    kidPlayers,
+    soundEnabled,
+    pokemonMysteryMode,
+  ]);
 
   // Filtrage par thème
   const filteredQuestions = useMemo(() => {

@@ -132,7 +132,7 @@ export async function generateQuestionsBatchWithLLM(
   const systemPrompt = `Tu es le créateur éditorial du jeu "Le Grand Quiz des Trentenaires (Édition 4 Joueurs / 2 Couples)".
 Public cible : 4 personnes d'environ 30 ans (nés entre 1990 et 1998), jouant en 2 couples ou 4 joueurs solo à l'apéritif ou en soirée.
 Ton : Convivial, cultivé, malin, propice au débat entre amis.
-Thématiques variées : Pop Culture années 90/2000, Cinéma, Séries TV, Histoire, Géographie, Sciences, Musique, Gastronomie, Jeux Vidéo, Société.
+Thématiques variées : Pop Culture années 90/2000, Cinéma, Séries TV, Histoire, Géographie, Sciences, Musique, Gastronomie, Jeux Vidéo, Société, Sport, Animaux & Nature, BD & Mangas, Mythologie & Légendes, Littérature & Contes.
 
 Génère exactement ${count} questions inédites de niveau ${difficulty}/10 (${info.title} : ${info.subtitle}).
 Réponds UNIQUEMENT avec un tableau JSON strict d'objets ayant exactement cette structure :

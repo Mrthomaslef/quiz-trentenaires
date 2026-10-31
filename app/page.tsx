@@ -18,6 +18,16 @@ import {
 } from '@/lib/supabase';
 import { getAllLocalSeedQuestionsGrouped } from '@/lib/seed-data';
 import {
+  loadQuestionAnalytics,
+  loadAdminSettings,
+  recordQuestionAnswerOutcome,
+  prioritizeQuestionsByAnalytics,
+  getQuestionAnalytics,
+  type QuestionAnalyticsMap,
+  type AdminSettings,
+  DEFAULT_ADMIN_SETTINGS,
+} from '@/lib/question-analytics';
+import {
   Database,
   RotateCcw,
   Zap,
@@ -29,6 +39,7 @@ import {
   Swords,
   Gem,
   Music,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   playPointSound,
@@ -41,10 +52,13 @@ const STORAGE_KEYS = {
   COUPLES: '7ter:couples:v1',
   PLAYERS: '7ter:players:v1',
   LEVEL: '7ter:level:v1',
+  THEME: '7ter:theme:v1',
   PLAYED_IDS: '7ter:played_ids:v1',
   QUESTION_COUNT: '7ter:q_count:v1',
   SOUND: '7ter:sound:v1',
   COOP: '7ter:coop:v1',
+  ACTIVE_QUESTION_BY_KEY: '7ter:active_q_by_key:v1',
+  ACTIVE_QUESTION_SNAPSHOT: '7ter:active_q_snapshot:v1',
 };
 
 const DEFAULT_COUPLES: PlayerScore[] = [
@@ -95,6 +109,10 @@ export default function QuizHomePage() {
   const [players, setPlayers] = useState<PlayerScore[]>(DEFAULT_PLAYERS);
   const [coopStats, setCoopStats] = useState<CoopStats>(DEFAULT_COOP);
   const [playedIds, setPlayedIds] = useState<string[]>([]);
+  const [activeQuestionByKey, setActiveQuestionByKey] = useState<Record<string, string>>({});
+  const [activeQuestionSnapshots, setActiveQuestionSnapshots] = useState<
+    Record<string, QuizQuestionRecord>
+  >({});
   const [questionNumber, setQuestionNumber] = useState<number>(1);
   const [doublePoints, setDoublePoints] = useState<boolean>(false);
   const [timerEnabled, setTimerEnabled] = useState<boolean>(false);
@@ -158,10 +176,31 @@ export default function QuizHomePage() {
         setSelectedLevel(savedLevel);
       }
 
+      const savedTheme = localStorage.getItem(STORAGE_KEYS.THEME);
+      if (savedTheme && savedTheme.trim().length > 0) {
+        setSelectedTheme(savedTheme);
+      }
+
       const savedPlayed = localStorage.getItem(STORAGE_KEYS.PLAYED_IDS);
       if (savedPlayed) {
         const parsed = JSON.parse(savedPlayed);
         if (Array.isArray(parsed)) setPlayedIds(parsed);
+      }
+
+      const savedActiveByKey = localStorage.getItem(STORAGE_KEYS.ACTIVE_QUESTION_BY_KEY);
+      if (savedActiveByKey) {
+        const parsed = JSON.parse(savedActiveByKey);
+        if (parsed && typeof parsed === 'object') {
+          setActiveQuestionByKey(parsed);
+        }
+      }
+
+      const savedSnapshots = localStorage.getItem(STORAGE_KEYS.ACTIVE_QUESTION_SNAPSHOT);
+      if (savedSnapshots) {
+        const parsed = JSON.parse(savedSnapshots);
+        if (parsed && typeof parsed === 'object') {
+          setActiveQuestionSnapshots(parsed);
+        }
       }
 
       const savedQCount = Number.parseInt(
@@ -235,7 +274,16 @@ export default function QuizHomePage() {
       localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(players));
       localStorage.setItem(STORAGE_KEYS.COOP, JSON.stringify(coopStats));
       localStorage.setItem(STORAGE_KEYS.LEVEL, String(selectedLevel));
+      localStorage.setItem(STORAGE_KEYS.THEME, selectedTheme);
       localStorage.setItem(STORAGE_KEYS.PLAYED_IDS, JSON.stringify(playedIds));
+      localStorage.setItem(
+        STORAGE_KEYS.ACTIVE_QUESTION_BY_KEY,
+        JSON.stringify(activeQuestionByKey)
+      );
+      localStorage.setItem(
+        STORAGE_KEYS.ACTIVE_QUESTION_SNAPSHOT,
+        JSON.stringify(activeQuestionSnapshots)
+      );
       localStorage.setItem(STORAGE_KEYS.QUESTION_COUNT, String(questionNumber));
       localStorage.setItem(STORAGE_KEYS.SOUND, String(soundEnabled));
       localStorage.setItem('7ter:dcc:v1', String(duoCarreCashEnabled));
@@ -249,7 +297,10 @@ export default function QuizHomePage() {
     players,
     coopStats,
     selectedLevel,
+    selectedTheme,
     playedIds,
+    activeQuestionByKey,
+    activeQuestionSnapshots,
     questionNumber,
     soundEnabled,
     duoCarreCashEnabled,
@@ -257,6 +308,7 @@ export default function QuizHomePage() {
 
   // Niveau effectif : en mode Ensemble (coop), c'est le palier d'ascension (1 -> 10)
   const effectiveLevel = mode === 'coop' ? coopStats.currentStep : selectedLevel;
+  const effectiveSlotKey = `${effectiveLevel}:${mode === 'coop' ? 'ALL' : selectedTheme}`;
 
   const playedSet = useMemo(() => new Set(playedIds), [playedIds]);
 
@@ -290,11 +342,48 @@ export default function QuizHomePage() {
   }, [currentLevelQuestions, playedSet]);
 
   const activeQuestion = useMemo(() => {
+    const pinnedId = activeQuestionByKey[effectiveSlotKey];
+    if (pinnedId && !playedSet.has(pinnedId)) {
+      const foundInPool = currentLevelQuestions.find((q) => q.id === pinnedId);
+      if (foundInPool) return foundInPool;
+      const snapshot = activeQuestionSnapshots[effectiveSlotKey];
+      if (snapshot && snapshot.id === pinnedId) return snapshot;
+    }
     if (unplayedInCurrentLevel.length > 0) {
       return unplayedInCurrentLevel[0];
     }
     return currentLevelQuestions[0] || null;
-  }, [unplayedInCurrentLevel, currentLevelQuestions]);
+  }, [
+    activeQuestionByKey,
+    activeQuestionSnapshots,
+    effectiveSlotKey,
+    playedSet,
+    currentLevelQuestions,
+    unplayedInCurrentLevel,
+  ]);
+
+  // Verrouille la question active pour ce niveau/thème afin qu'un rafraîchissement (F5 / PullToRefresh) ou la synchro Supabase ne change jamais la question en cours
+  useEffect(() => {
+    if (!hydrated || !activeQuestion) return;
+    const currentPinnedId = activeQuestionByKey[effectiveSlotKey];
+    const currentSnapshot = activeQuestionSnapshots[effectiveSlotKey];
+    if (currentPinnedId !== activeQuestion.id || currentSnapshot?.id !== activeQuestion.id) {
+      setActiveQuestionByKey((prev) => ({
+        ...prev,
+        [effectiveSlotKey]: activeQuestion.id,
+      }));
+      setActiveQuestionSnapshots((prev) => ({
+        ...prev,
+        [effectiveSlotKey]: activeQuestion,
+      }));
+    }
+  }, [
+    hydrated,
+    activeQuestion,
+    effectiveSlotKey,
+    activeQuestionByKey,
+    activeQuestionSnapshots,
+  ]);
 
   // Évaluation de la réponse en Mode Ensemble (1 -> 10 sans erreur)
   const handleCoopAnswer = useCallback((isCorrect: boolean) => {
@@ -328,6 +417,17 @@ export default function QuizHomePage() {
 
     incrementQuestionPlayed(activeQuestion.id);
 
+    setActiveQuestionByKey((prev) => {
+      const next = { ...prev };
+      delete next[effectiveSlotKey];
+      return next;
+    });
+    setActiveQuestionSnapshots((prev) => {
+      const next = { ...prev };
+      delete next[effectiveSlotKey];
+      return next;
+    });
+
     setPlayedIds((prev) => {
       if (unplayedInCurrentLevel.length <= 1) {
         const levelIds = new Set(currentLevelQuestions.map((q) => q.id));
@@ -358,7 +458,13 @@ export default function QuizHomePage() {
 
     setDoublePoints(false);
     setQuestionNumber((n) => n + 1);
-  }, [activeQuestion, unplayedInCurrentLevel.length, currentLevelQuestions, mode]);
+  }, [
+    activeQuestion,
+    effectiveSlotKey,
+    unplayedInCurrentLevel.length,
+    currentLevelQuestions,
+    mode,
+  ]);
 
   const activeTeams = mode === '2_couples' ? couples : players;
 
@@ -408,6 +514,8 @@ export default function QuizHomePage() {
     setPlayers((prev) => prev.map((t) => ({ ...t, score: 0 })));
     setCoopStats(DEFAULT_COOP);
     setPlayedIds([]);
+    setActiveQuestionByKey({});
+    setActiveQuestionSnapshots({});
     setQuestionNumber(1);
     setSelectedTheme('ALL');
   }, []);
@@ -474,15 +582,15 @@ export default function QuizHomePage() {
                     stopMillionsZoukMusic();
                   }
                 }}
-                className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-black transition active:scale-95 ${
+                className={`flex h-7 items-center justify-center gap-1 rounded-lg border px-1.5 text-[10px] font-bold transition active:scale-95 ${
                   zoukMusicEnabled && soundEnabled
-                    ? 'border-emerald-300 bg-gradient-to-r from-emerald-400 to-amber-300 text-slate-950 shadow'
-                    : 'border-emerald-400/40 bg-emerald-950/60 text-emerald-300 hover:bg-emerald-500/20'
+                    ? 'border-yellow-400/60 bg-yellow-400/15 text-yellow-300'
+                    : 'border-blue-500/30 bg-blue-950/70 text-blue-300/50'
                 }`}
-                title="Jouer / couper le générique Qui veut gagner des millions (Version Zouk Antillais)"
+                title="Activer / couper le thème musical Qui veut gagner des millions"
               >
                 <Music className="h-3 w-3" />
-                <span>🌴 Zouk {zoukMusicEnabled && soundEnabled ? 'ON' : 'OFF'}</span>
+                <span>TV</span>
               </button>
 
               <button
