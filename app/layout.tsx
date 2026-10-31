@@ -1,3 +1,4 @@
+import PullToRefresh from "@/components/PullToRefresh";
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
@@ -40,6 +41,7 @@ export default function RootLayout({
   return (
     <html lang="fr" className="dark">
       <body className="min-h-screen bg-7ter-stage text-slate-100 antialiased selection:bg-yellow-400 selection:text-blue-950">
+        <PullToRefresh />
         {children}
       </body>
     </html>
