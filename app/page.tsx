@@ -28,8 +28,13 @@ import {
   Flame,
   Swords,
   Gem,
+  Music,
 } from 'lucide-react';
-import { playPointSound } from '@/lib/sound';
+import {
+  playPointSound,
+  startMillionsZoukMusic,
+  stopMillionsZoukMusic,
+} from '@/lib/sound';
 
 const STORAGE_KEYS = {
   MODE: '7ter:mode:v2',
@@ -95,6 +100,7 @@ export default function QuizHomePage() {
   const [timerEnabled, setTimerEnabled] = useState<boolean>(false);
   const [duoCarreCashEnabled, setDuoCarreCashEnabled] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [zoukMusicEnabled, setZoukMusicEnabled] = useState<boolean>(true);
   const [lastScoredId, setLastScoredId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState<boolean>(false);
 
@@ -458,7 +464,36 @@ export default function QuizHomePage() {
 
               <button
                 type="button"
-                onClick={() => setSoundEnabled((s) => !s)}
+                onClick={() => {
+                  const next = !zoukMusicEnabled;
+                  setZoukMusicEnabled(next);
+                  if (next) {
+                    setSoundEnabled(true);
+                    startMillionsZoukMusic(true, 1);
+                  } else {
+                    stopMillionsZoukMusic();
+                  }
+                }}
+                className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-black transition active:scale-95 ${
+                  zoukMusicEnabled && soundEnabled
+                    ? 'border-emerald-300 bg-gradient-to-r from-emerald-400 to-amber-300 text-slate-950 shadow'
+                    : 'border-emerald-400/40 bg-emerald-950/60 text-emerald-300 hover:bg-emerald-500/20'
+                }`}
+                title="Jouer / couper le générique Qui veut gagner des millions (Version Zouk Antillais)"
+              >
+                <Music className="h-3 w-3" />
+                <span>🌴 Zouk {zoukMusicEnabled && soundEnabled ? 'ON' : 'OFF'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const nextSound = !soundEnabled;
+                  setSoundEnabled(nextSound);
+                  if (!nextSound) {
+                    stopMillionsZoukMusic();
+                  }
+                }}
                 className={`flex h-7 w-7 items-center justify-center rounded-lg border transition ${
                   soundEnabled
                     ? 'border-yellow-400/60 bg-yellow-400/15 text-yellow-300'
@@ -509,7 +544,10 @@ export default function QuizHomePage() {
           <div className="grid grid-cols-5 gap-1 rounded-xl bg-[#040b1e] p-1 border border-blue-500/35">
             <button
               type="button"
-              onClick={() => setMode('2_couples')}
+              onClick={() => {
+                stopMillionsZoukMusic();
+                setMode('2_couples');
+              }}
               className={`inline-flex items-center justify-center gap-1 rounded-lg py-1.5 px-1 text-[10px] sm:text-xs font-black transition ${
                 mode === '2_couples'
                   ? 'bg-yellow-400 text-blue-950 shadow'
@@ -522,7 +560,10 @@ export default function QuizHomePage() {
 
             <button
               type="button"
-              onClick={() => setMode('4_players')}
+              onClick={() => {
+                stopMillionsZoukMusic();
+                setMode('4_players');
+              }}
               className={`inline-flex items-center justify-center gap-1 rounded-lg py-1.5 px-1 text-[10px] sm:text-xs font-black transition ${
                 mode === '4_players'
                   ? 'bg-yellow-400 text-blue-950 shadow'
@@ -536,6 +577,7 @@ export default function QuizHomePage() {
             <button
               type="button"
               onClick={() => {
+                stopMillionsZoukMusic();
                 setMode('coop');
                 setCoopStats((prev) => ({ ...prev, status: 'playing' }));
               }}
@@ -552,7 +594,10 @@ export default function QuizHomePage() {
 
             <button
               type="button"
-              onClick={() => setMode('versus')}
+              onClick={() => {
+                stopMillionsZoukMusic();
+                setMode('versus');
+              }}
               className={`inline-flex items-center justify-center gap-1 rounded-lg py-1.5 px-1 text-[10px] sm:text-xs font-black transition ${
                 mode === 'versus'
                   ? 'bg-gradient-to-r from-sky-300 via-sky-400 to-blue-500 text-slate-950 shadow'
@@ -566,7 +611,12 @@ export default function QuizHomePage() {
 
             <button
               type="button"
-              onClick={() => setMode('millions')}
+              onClick={() => {
+                setMode('millions');
+                if (soundEnabled && zoukMusicEnabled) {
+                  startMillionsZoukMusic(true, 1);
+                }
+              }}
               className={`inline-flex items-center justify-center gap-1 rounded-lg py-1.5 px-1 text-[10px] sm:text-xs font-black transition ${
                 mode === 'millions'
                   ? 'bg-gradient-to-r from-amber-300 via-yellow-400 to-orange-500 text-blue-950 shadow'
@@ -597,6 +647,17 @@ export default function QuizHomePage() {
             playedIds={playedIds}
             onMarkQuestionPlayed={handleMarkVersusQuestionPlayed}
             soundEnabled={soundEnabled}
+            zoukMusicEnabled={zoukMusicEnabled}
+            onToggleZoukMusic={() => {
+              const next = !zoukMusicEnabled;
+              setZoukMusicEnabled(next);
+              if (next) {
+                setSoundEnabled(true);
+                startMillionsZoukMusic(true, 1);
+              } else {
+                stopMillionsZoukMusic();
+              }
+            }}
           />
         ) : (
           <>

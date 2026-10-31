@@ -6,6 +6,7 @@ import { DIFFICULTY_LEVELS } from '@/lib/generator';
 import {
   connectVersusChannel,
   generateRoomCode,
+  normalizeRoomCode,
   calculateVersusPoints,
   VERSUS_DURATION_MS,
   type VersusRoomState,
@@ -23,7 +24,6 @@ import {
   Trophy,
   Timer,
   Zap,
-  Flame,
   CheckCircle2,
   XCircle,
   Lightbulb,
@@ -31,7 +31,6 @@ import {
   Share2,
   Crown,
   Dices,
-  Sparkles,
   Tag,
   Radio,
 } from 'lucide-react';
@@ -65,8 +64,27 @@ const PLAYER_BADGE_COLORS = [
   'bg-orange-400 text-slate-950 border-orange-300',
 ];
 
-const STORAGE_PLAYER_ID = '7ter:versus:player_id:v1';
+const SESSION_PLAYER_ID_KEY = '7ter:versus:session_player_id:v2';
 const STORAGE_PLAYER_NAME = '7ter:versus:player_name:v1';
+
+function createFreshPlayerId(): string {
+  return (
+    'p_' +
+    Math.random().toString(36).substring(2, 9) +
+    '_' +
+    Date.now().toString(36)
+  );
+}
+
+function extractRoomCodeFromInput(raw: string): string {
+  if (raw.includes('room=')) {
+    const match = raw.match(/[?&]room=([a-zA-Z0-9]+)/i);
+    if (match?.[1]) {
+      return normalizeRoomCode(match[1]).slice(0, 4);
+    }
+  }
+  return normalizeRoomCode(raw).slice(0, 4);
+}
 
 export default function VersusMode({
   poolByLevel,
@@ -78,7 +96,7 @@ export default function VersusMode({
   const [playerId, setPlayerId] = useState<string>('');
   const [playerName, setPlayerName] = useState<string>('');
   const [joinCodeInput, setJoinCodeInput] = useState<string>(
-    initialRoomCode ? initialRoomCode.toUpperCase() : ''
+    initialRoomCode ? extractRoomCodeFromInput(initialRoomCode) : ''
   );
   const [activeRoomCode, setActiveRoomCode] = useState<string | null>(null);
   const [isHost, setIsHost] = useState<boolean>(false);
@@ -93,16 +111,17 @@ export default function VersusMode({
   // Chronomètre haute précision local (10.0s -> 0.0s)
   const [remainingMs, setRemainingMs] = useState<number>(VERSUS_DURATION_MS);
   const [localLockedOption, setLocalLockedOption] = useState<number | null>(null);
-  const [localLockedElapsedMs, setLocalLockedElapsedMs] = useState<number | null>(
-    null
-  );
+  const [, setLocalLockedElapsedMs] = useState<number | null>(null);
 
   const questionStartPerfRef = useRef<number>(0);
   const lastTickSecondRef = useRef<number>(10);
   const channelRef = useRef<ReturnType<typeof connectVersusChannel> | null>(null);
   const roomStateRef = useRef<VersusRoomState | null>(null);
   const isHostRef = useRef<boolean>(false);
+  const playerIdRef = useRef<string>('');
+  const playerNameRef = useRef<string>('');
   const soundEnabledRef = useRef<boolean>(soundEnabled);
+  const syncSeqRef = useRef<number>(0);
 
   useEffect(() => {
     roomStateRef.current = roomState;
@@ -113,39 +132,48 @@ export default function VersusMode({
   }, [isHost]);
 
   useEffect(() => {
+    playerIdRef.current = playerId;
+  }, [playerId]);
+
+  useEffect(() => {
+    playerNameRef.current = playerName;
+  }, [playerName]);
+
+  useEffect(() => {
     soundEnabledRef.current = soundEnabled;
   }, [soundEnabled]);
 
-  // Initialisation de l'identifiant et du pseudo joueur
+  // Initialisation de l'identifiant (par onglet via sessionStorage) et du pseudo joueur
   useEffect(() => {
     try {
-      let savedId = localStorage.getItem(STORAGE_PLAYER_ID);
+      let savedId = sessionStorage.getItem(SESSION_PLAYER_ID_KEY);
       if (!savedId) {
-        savedId =
-          'p_' +
-          Math.random().toString(36).substring(2, 9) +
-          '_' +
-          Date.now().toString(36);
-        localStorage.setItem(STORAGE_PLAYER_ID, savedId);
+        savedId = createFreshPlayerId();
+        sessionStorage.setItem(SESSION_PLAYER_ID_KEY, savedId);
       }
+      playerIdRef.current = savedId;
       setPlayerId(savedId);
 
       const savedName = localStorage.getItem(STORAGE_PLAYER_NAME);
       if (savedName) {
+        playerNameRef.current = savedName;
         setPlayerName(savedName);
       }
     } catch {
-      setPlayerId('p_' + Math.random().toString(36).substring(2, 9));
+      const fallbackId = createFreshPlayerId();
+      playerIdRef.current = fallbackId;
+      setPlayerId(fallbackId);
     }
   }, []);
 
   useEffect(() => {
     if (initialRoomCode && !activeRoomCode) {
-      setJoinCodeInput(initialRoomCode.toUpperCase());
+      setJoinCodeInput(extractRoomCodeFromInput(initialRoomCode));
     }
   }, [initialRoomCode, activeRoomCode]);
 
   const savePlayerName = (name: string) => {
+    playerNameRef.current = name;
     setPlayerName(name);
     try {
       localStorage.setItem(STORAGE_PLAYER_NAME, name);
@@ -153,6 +181,37 @@ export default function VersusMode({
       // Ignore
     }
   };
+
+  // Helper côté Hôte : met à jour l'état du salon de façon synchrone et le diffuse à tous les joueurs
+  const commitHostRoomState = useCallback(
+    (
+      nextOrUpdater:
+        | VersusRoomState
+        | ((prev: VersusRoomState | null) => VersusRoomState | null)
+    ): VersusRoomState | null => {
+      const prev = roomStateRef.current;
+      const computed =
+        typeof nextOrUpdater === 'function'
+          ? nextOrUpdater(prev)
+          : nextOrUpdater;
+      if (!computed) return null;
+
+      syncSeqRef.current += 1;
+      const stamped: VersusRoomState = {
+        ...computed,
+        syncSeq: syncSeqRef.current,
+        updatedAt: Date.now(),
+      };
+      roomStateRef.current = stamped;
+      setRoomState(stamped);
+      channelRef.current?.sendMessage({
+        type: 'ROOM_STATE_SYNC',
+        state: stamped,
+      });
+      return stamped;
+    },
+    []
+  );
 
   // Sélection d'une question non jouée dans le niveau choisi
   const pickQuestionForLevel = useCallback(
@@ -236,78 +295,110 @@ export default function VersusMode({
   useEffect(() => {
     if (!activeRoomCode || !playerId) return;
 
-    const trimmedName = playerName.trim() || 'Joueur';
+    const sendJoinHandshake = (conn: ReturnType<typeof connectVersusChannel>) => {
+      if (isHostRef.current) return;
+      const currentId = playerIdRef.current;
+      const currentName = playerNameRef.current.trim() || 'Joueur';
+      if (!currentId) return;
+      conn.sendMessage({
+        type: 'PLAYER_JOIN',
+        player: { id: currentId, name: currentName },
+      });
+      conn.sendMessage({
+        type: 'REQUEST_STATE',
+        requesterId: currentId,
+      });
+    };
+
     const connection = connectVersusChannel(
       activeRoomCode,
       (msg: VersusMessage) => {
         if (isHostRef.current) {
           // L'Hôte traite les événements entrants des joueurs et diffuse le nouvel état
-          setRoomState((prev) => {
-            if (!prev) return prev;
-
-            if (msg.type === 'PLAYER_JOIN') {
+          if (msg.type === 'PLAYER_JOIN') {
+            let isNewPlayer = false;
+            commitHostRoomState((prev) => {
+              if (!prev) return prev;
+              const cleanJoinName = msg.player.name.trim() || 'Joueur';
               const exists = prev.players.some((p) => p.id === msg.player.id);
+              if (!exists) isNewPlayer = true;
               const nextPlayers = exists
                 ? prev.players.map((p) =>
-                    p.id === msg.player.id
-                      ? { ...p, name: msg.player.name }
-                      : p
+                    p.id === msg.player.id ? { ...p, name: cleanJoinName } : p
                   )
                 : [
                     ...prev.players,
                     {
                       id: msg.player.id,
-                      name: msg.player.name,
+                      name: cleanJoinName,
                       score: 0,
                       isHost: false,
-                      colorIndex: prev.players.length % PLAYER_BADGE_COLORS.length,
+                      colorIndex:
+                        prev.players.length % PLAYER_BADGE_COLORS.length,
                       lastDelta: 0,
                       streak: 0,
                     },
                   ];
-              const nextState: VersusRoomState = {
+              return {
                 ...prev,
                 players: nextPlayers,
               };
-              connection.sendMessage({
-                type: 'ROOM_STATE_SYNC',
-                state: nextState,
-              });
+            });
+            if (isNewPlayer) {
               playPointSound(soundEnabledRef.current);
-              return nextState;
             }
+            return;
+          }
 
-            if (msg.type === 'REQUEST_STATE') {
+          if (msg.type === 'REQUEST_STATE') {
+            if (roomStateRef.current) {
               connection.sendMessage({
                 type: 'ROOM_STATE_SYNC',
-                state: prev,
+                state: roomStateRef.current,
               });
-              return prev;
             }
+            return;
+          }
 
-            if (msg.type === 'PLAYER_LEAVE') {
-              const nextPlayers = prev.players.filter(
-                (p) => p.id !== msg.playerId
-              );
-              const nextState: VersusRoomState = {
+          if (msg.type === 'PLAYER_LEAVE') {
+            commitHostRoomState((prev) => {
+              if (!prev) return prev;
+              return {
                 ...prev,
-                players: nextPlayers,
+                players: prev.players.filter((p) => p.id !== msg.playerId),
               };
-              connection.sendMessage({
-                type: 'ROOM_STATE_SYNC',
-                state: nextState,
-              });
-              return nextState;
-            }
+            });
+            return;
+          }
 
-            if (msg.type === 'PLAYER_ANSWER') {
-              if (prev.phase !== 'question' || !prev.currentQuestion) {
+          if (msg.type === 'PLAYER_ANSWER') {
+            commitHostRoomState((prev) => {
+              if (!prev || prev.phase !== 'question' || !prev.currentQuestion) {
                 return prev;
               }
-              // Ignorer si ce joueur a déjà répondu
               if (prev.answers[msg.playerId]) {
                 return prev;
               }
+
+              // Si le joueur qui répond n'était pas encore dans la liste, l'ajouter à la volée
+              const playerExists = prev.players.some(
+                (p) => p.id === msg.playerId
+              );
+              const updatedPlayers = playerExists
+                ? prev.players
+                : [
+                    ...prev.players,
+                    {
+                      id: msg.playerId,
+                      name: msg.playerName.trim() || 'Joueur',
+                      score: 0,
+                      isHost: false,
+                      colorIndex:
+                        prev.players.length % PLAYER_BADGE_COLORS.length,
+                      lastDelta: 0,
+                      streak: 0,
+                    },
+                  ];
 
               const isCorrect =
                 msg.optionIndex === prev.currentQuestion.correct_index;
@@ -339,65 +430,131 @@ export default function VersusMode({
 
               let nextState: VersusRoomState = {
                 ...prev,
+                players: updatedPlayers,
                 answers: nextAnswers,
               };
 
               // Si tous les joueurs du salon ont répondu, on révèle immédiatement !
               if (
-                Object.keys(nextAnswers).length >= prev.players.length &&
-                prev.players.length > 0
+                Object.keys(nextAnswers).length >= updatedPlayers.length &&
+                updatedPlayers.length > 0
               ) {
                 nextState = finalizeQuestionRound(nextState);
               }
 
-              connection.sendMessage({
-                type: 'ROOM_STATE_SYNC',
-                state: nextState,
-              });
               return nextState;
-            }
-
-            return prev;
-          });
+            });
+          }
         } else {
           // Joueur client : reçoit la synchronisation de l'Hôte
-          if (msg.type === 'ROOM_STATE_SYNC') {
+          if (msg.type === 'ROOM_STATE_SYNC' && msg.state) {
+            // Protection anti-collision si l'onglet a été dupliqué depuis l'onglet Hôte
+            if (msg.state.hostId && msg.state.hostId === playerIdRef.current) {
+              const freshId = createFreshPlayerId();
+              try {
+                sessionStorage.setItem(SESSION_PLAYER_ID_KEY, freshId);
+              } catch {
+                // Ignore
+              }
+              playerIdRef.current = freshId;
+              setPlayerId(freshId);
+              roomStateRef.current = msg.state;
+              setRoomState(msg.state);
+              connection.sendMessage({
+                type: 'PLAYER_JOIN',
+                player: {
+                  id: freshId,
+                  name: playerNameRef.current.trim() || 'Joueur',
+                },
+              });
+              return;
+            }
+
+            // Ignorer un snapshot plus ancien provenant du même hôte
+            const prev = roomStateRef.current;
+            if (
+              prev &&
+              prev.hostId === msg.state.hostId &&
+              typeof prev.syncSeq === 'number' &&
+              typeof msg.state.syncSeq === 'number' &&
+              msg.state.syncSeq < prev.syncSeq
+            ) {
+              return;
+            }
+
+            roomStateRef.current = msg.state;
             setRoomState(msg.state);
+
+            // Si l'hôte ne nous a pas encore inscrit dans la liste des joueurs, renvoyer immédiatement PLAYER_JOIN
+            const myId = playerIdRef.current;
+            const myName = playerNameRef.current.trim() || 'Joueur';
+            const meInList = msg.state.players.find((p) => p.id === myId);
+            if (!meInList || meInList.name !== myName) {
+              connection.sendMessage({
+                type: 'PLAYER_JOIN',
+                player: { id: myId, name: myName },
+              });
+            }
           }
         }
       },
-      (subscribed) => {
-        setIsConnected(subscribed);
-        if (subscribed && !isHostRef.current) {
-          connection.sendMessage({
-            type: 'PLAYER_JOIN',
-            player: { id: playerId, name: trimmedName },
-          });
-          connection.sendMessage({
-            type: 'REQUEST_STATE',
-            requesterId: playerId,
-          });
+      (connected) => {
+        setIsConnected(connected);
+        if (connected) {
+          if (isHostRef.current && roomStateRef.current) {
+            connection.sendMessage({
+              type: 'ROOM_STATE_SYNC',
+              state: roomStateRef.current,
+            });
+          } else if (!isHostRef.current) {
+            sendJoinHandshake(connection);
+          }
         }
       }
     );
 
     channelRef.current = connection;
 
-    // Envoi immédiat pour BroadcastChannel local
-    if (!isHostRef.current) {
-      setTimeout(() => {
-        connection.sendMessage({
-          type: 'PLAYER_JOIN',
-          player: { id: playerId, name: trimmedName },
-        });
-      }, 80);
+    // Dès l'ouverture du salon par l'Hôte, publier l'état initial (retenu sur les brokers)
+    if (isHostRef.current && roomStateRef.current) {
+      connection.sendMessage({
+        type: 'ROOM_STATE_SYNC',
+        state: roomStateRef.current,
+      });
+    } else if (!isHostRef.current) {
+      // Envoi immédiat + boucle de relance automatique tant que le joueur n'est pas confirmé par l'Hôte
+      sendJoinHandshake(connection);
     }
 
+    const retryInterval = setInterval(() => {
+      if (isHostRef.current) {
+        // Côté Hôte : heartbeat de synchronisation en phase lobby pour accueillir instantanément les nouveaux téléphones
+        if (roomStateRef.current && roomStateRef.current.phase === 'lobby') {
+          connection.sendMessage({
+            type: 'ROOM_STATE_SYNC',
+            state: roomStateRef.current,
+          });
+        }
+      } else {
+        // Côté Joueur : relancer PLAYER_JOIN tant que l'état du salon n'est pas reçu ou que notre pseudo n'y figure pas
+        const currentRoom = roomStateRef.current;
+        const myId = playerIdRef.current;
+        const myName = playerNameRef.current.trim() || 'Joueur';
+        const isRegistered =
+          currentRoom &&
+          currentRoom.players.some((p) => p.id === myId && p.name === myName);
+        if (!isRegistered) {
+          sendJoinHandshake(connection);
+        }
+      }
+    }, 1200);
+
     return () => {
+      clearInterval(retryInterval);
       connection.disconnect();
       channelRef.current = null;
     };
-  }, [activeRoomCode, playerId, playerName, finalizeQuestionRound]);
+  }, [activeRoomCode, playerId, commitHostRoomState, finalizeQuestionRound]);
 
   // Réinitialisation locale et déclenchement du chrono à chaque nouvelle question
   useEffect(() => {
@@ -428,36 +585,26 @@ export default function VersusMode({
     if (!isHost || !roomState || roomState.phase !== 'countdown') return;
 
     const timer = setTimeout(() => {
-      setRoomState((prev) => {
+      commitHostRoomState((prev) => {
         if (!prev || prev.phase !== 'countdown') return prev;
         if (prev.countdownValue > 1) {
-          const nextState: VersusRoomState = {
+          playCountdownBeep(soundEnabledRef.current, false);
+          return {
             ...prev,
             countdownValue: prev.countdownValue - 1,
           };
-          channelRef.current?.sendMessage({
-            type: 'ROOM_STATE_SYNC',
-            state: nextState,
-          });
-          playCountdownBeep(soundEnabledRef.current, false);
-          return nextState;
         }
         // Passage à la phase question (10 secondes !)
-        const nextState: VersusRoomState = {
+        return {
           ...prev,
           phase: 'question',
           questionStartedAt: Date.now(),
         };
-        channelRef.current?.sendMessage({
-          type: 'ROOM_STATE_SYNC',
-          state: nextState,
-        });
-        return nextState;
       });
     }, 750);
 
     return () => clearTimeout(timer);
-  }, [isHost, roomState?.phase, roomState?.countdownValue]);
+  }, [isHost, roomState?.phase, roomState?.countdownValue, commitHostRoomState]);
 
   // Boucle du Timer 10 secondes (fluide 50ms) pendant la phase 'question'
   useEffect(() => {
@@ -481,21 +628,21 @@ export default function VersusMode({
       if (left <= 0) {
         clearInterval(interval);
         if (isHostRef.current) {
-          setRoomState((prev) => {
+          commitHostRoomState((prev) => {
             if (!prev || prev.phase !== 'question') return prev;
-            const finalized = finalizeQuestionRound(prev);
-            channelRef.current?.sendMessage({
-              type: 'ROOM_STATE_SYNC',
-              state: finalized,
-            });
-            return finalized;
+            return finalizeQuestionRound(prev);
           });
         }
       }
     }, 50);
 
     return () => clearInterval(interval);
-  }, [roomState?.phase, roomState?.currentQuestion?.id, finalizeQuestionRound]);
+  }, [
+    roomState?.phase,
+    roomState?.currentQuestion?.id,
+    commitHostRoomState,
+    finalizeQuestionRound,
+  ]);
 
   // Actions Hôte & Joueur
   const handleCreateRoom = () => {
@@ -503,9 +650,16 @@ export default function VersusMode({
     savePlayerName(cleanName);
     setErrorMsg(null);
 
+    let hostPlayerId = playerIdRef.current;
+    if (!hostPlayerId) {
+      hostPlayerId = createFreshPlayerId();
+      playerIdRef.current = hostPlayerId;
+      setPlayerId(hostPlayerId);
+    }
+
     const code = generateRoomCode();
     const initialPlayer: VersusPlayer = {
-      id: playerId,
+      id: hostPlayerId,
       name: cleanName,
       score: 0,
       isHost: true,
@@ -514,9 +668,10 @@ export default function VersusMode({
       streak: 0,
     };
 
+    syncSeqRef.current = 1;
     const initialState: VersusRoomState = {
       roomCode: code,
-      hostId: playerId,
+      hostId: hostPlayerId,
       phase: 'lobby',
       selectedLevel: 3,
       selectedTheme: 'ALL',
@@ -527,8 +682,12 @@ export default function VersusMode({
       countdownValue: 3,
       players: [initialPlayer],
       answers: {},
+      syncSeq: 1,
+      updatedAt: Date.now(),
     };
 
+    isHostRef.current = true;
+    roomStateRef.current = initialState;
     setIsHost(true);
     setRoomState(initialState);
     setActiveRoomCode(code);
@@ -536,7 +695,7 @@ export default function VersusMode({
 
   const handleJoinRoom = (e: React.FormEvent) => {
     e.preventDefault();
-    const code = joinCodeInput.trim().toUpperCase();
+    const code = extractRoomCodeFromInput(joinCodeInput);
     if (code.length < 3) {
       setErrorMsg('Entrez un code de salon valide (ex: 7T42).');
       return;
@@ -544,7 +703,10 @@ export default function VersusMode({
     const cleanName = playerName.trim() || 'Joueur';
     savePlayerName(cleanName);
     setErrorMsg(null);
+    isHostRef.current = false;
+    roomStateRef.current = null;
     setIsHost(false);
+    setRoomState(null);
     setActiveRoomCode(code);
   };
 
@@ -555,6 +717,8 @@ export default function VersusMode({
         playerId,
       });
     }
+    isHostRef.current = false;
+    roomStateRef.current = null;
     setActiveRoomCode(null);
     setRoomState(null);
     setIsHost(false);
@@ -563,29 +727,27 @@ export default function VersusMode({
   };
 
   const handleStartNextQuestion = () => {
-    if (!isHost || !roomState) return;
+    if (!isHost || !roomStateRef.current) return;
+    const current = roomStateRef.current;
     const nextQ = pickQuestionForLevel(
-      roomState.selectedLevel,
-      roomState.selectedTheme
+      current.selectedLevel,
+      current.selectedTheme
     );
     if (!nextQ) return;
 
     onMarkQuestionPlayed(nextQ.id);
 
-    const nextState: VersusRoomState = {
-      ...roomState,
-      phase: 'countdown',
-      countdownValue: 3,
-      questionNumber: roomState.questionNumber + 1,
-      currentQuestion: nextQ,
-      questionStartedAt: Date.now(),
-      answers: {},
-    };
-
-    setRoomState(nextState);
-    channelRef.current?.sendMessage({
-      type: 'ROOM_STATE_SYNC',
-      state: nextState,
+    commitHostRoomState((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        phase: 'countdown',
+        countdownValue: 3,
+        questionNumber: prev.questionNumber + 1,
+        currentQuestion: nextQ,
+        questionStartedAt: Date.now(),
+        answers: {},
+      };
     });
   };
 
@@ -609,7 +771,7 @@ export default function VersusMode({
 
     if (isHost) {
       // L'Hôte enregistre sa propre réponse directement et synchronise
-      setRoomState((prev) => {
+      commitHostRoomState((prev) => {
         if (!prev || prev.phase !== 'question' || !prev.currentQuestion) {
           return prev;
         }
@@ -652,10 +814,6 @@ export default function VersusMode({
           nextState = finalizeQuestionRound(nextState);
         }
 
-        channelRef.current?.sendMessage({
-          type: 'ROOM_STATE_SYNC',
-          state: nextState,
-        });
         return nextState;
       });
     } else {
@@ -674,15 +832,13 @@ export default function VersusMode({
       Pick<VersusRoomState, 'selectedLevel' | 'selectedTheme' | 'doublePoints'>
     >
   ) => {
-    if (!isHost || !roomState) return;
-    const nextState: VersusRoomState = {
-      ...roomState,
-      ...partial,
-    };
-    setRoomState(nextState);
-    channelRef.current?.sendMessage({
-      type: 'ROOM_STATE_SYNC',
-      state: nextState,
+    if (!isHost) return;
+    commitHostRoomState((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        ...partial,
+      };
     });
   };
 
@@ -745,15 +901,34 @@ export default function VersusMode({
     );
   }, [remainingMs, roomState]);
 
-  const sortedPlayers = useMemo(() => {
+  // Liste effective des joueurs (inclut le joueur local de façon optimiste dès réception de l'état du salon)
+  const effectivePlayers = useMemo(() => {
     if (!roomState) return [];
-    return [...roomState.players].sort((a, b) => b.score - a.score);
-  }, [roomState]);
+    const list = [...roomState.players];
+    if (!isHost && playerId && !list.some((p) => p.id === playerId)) {
+      list.push({
+        id: playerId,
+        name: playerName.trim() || 'Joueur',
+        score: 0,
+        isHost: false,
+        colorIndex: list.length % PLAYER_BADGE_COLORS.length,
+        lastDelta: 0,
+        streak: 0,
+      });
+    }
+    return list;
+  }, [roomState, isHost, playerId, playerName]);
+
+  const sortedPlayers = useMemo(() => {
+    return [...effectivePlayers].sort((a, b) => b.score - a.score);
+  }, [effectivePlayers]);
 
   // ============================================================================
   // 1. ÉCRAN D'ACCUEIL DU MODE VERSUS (CRÉER OU REJOINDRE UN SALON)
   // ============================================================================
   if (!activeRoomCode) {
+    const hasPrefilledCode = Boolean(initialRoomCode && joinCodeInput.length >= 3);
+
     return (
       <section className="flex-1 min-h-0 flex flex-col justify-center overflow-y-auto rounded-2xl border-2 border-yellow-400/50 bg-gradient-to-b from-[#0b1d48]/95 via-[#081538]/95 to-[#050d26]/95 p-3.5 sm:p-6 shadow-2xl backdrop-blur-md animate-fadeIn">
         <div className="mx-auto w-full max-w-2xl space-y-4 my-auto">
@@ -796,7 +971,11 @@ export default function VersusMode({
           {/* Grille 2 colonnes : Créer un salon VS Rejoindre un salon */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Carte Créer */}
-            <div className="flex flex-col justify-between rounded-xl border-2 border-yellow-400/60 bg-gradient-to-b from-yellow-400/15 to-[#061233] p-4 space-y-3">
+            <div
+              className={`flex flex-col justify-between rounded-xl border-2 border-yellow-400/60 bg-gradient-to-b from-yellow-400/15 to-[#061233] p-4 space-y-3 ${
+                hasPrefilledCode ? 'order-2 sm:order-1' : ''
+              }`}
+            >
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5 text-yellow-300 font-black text-sm uppercase">
                   <Crown className="h-4 w-4 text-yellow-400" />
@@ -820,7 +999,9 @@ export default function VersusMode({
             {/* Carte Rejoindre */}
             <form
               onSubmit={handleJoinRoom}
-              className="flex flex-col justify-between rounded-xl border-2 border-sky-400/50 bg-gradient-to-b from-sky-500/15 to-[#061233] p-4 space-y-3"
+              className={`flex flex-col justify-between rounded-xl border-2 border-sky-400/50 bg-gradient-to-b from-sky-500/15 to-[#061233] p-4 space-y-3 ${
+                hasPrefilledCode ? 'order-1 sm:order-2 ring-2 ring-sky-400/60' : ''
+              }`}
             >
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5 text-sky-300 font-black text-sm uppercase">
@@ -831,10 +1012,13 @@ export default function VersusMode({
                   type="text"
                   value={joinCodeInput}
                   onChange={(e) =>
-                    setJoinCodeInput(e.target.value.toUpperCase().slice(0, 6))
+                    setJoinCodeInput(extractRoomCodeFromInput(e.target.value))
                   }
                   placeholder="CODE (ex: 7T42)"
-                  maxLength={6}
+                  maxLength={32}
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className="w-full rounded-xl border-2 border-sky-400/40 focus:border-sky-300 bg-[#040b1e] px-3 py-2 text-center font-mono text-lg font-black tracking-widest uppercase text-yellow-300 placeholder-blue-300/35 outline-none"
                 />
               </div>
@@ -843,7 +1027,11 @@ export default function VersusMode({
                 className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-300 hover:to-blue-400 px-4 py-3 text-xs sm:text-sm font-black uppercase tracking-wide text-slate-950 shadow-lg shadow-sky-400/20 active:scale-95 transition"
               >
                 <ArrowRight className="h-4 w-4 stroke-[2.5]" />
-                <span>Rejoindre le Salon</span>
+                <span>
+                  {joinCodeInput.length >= 3
+                    ? `Rejoindre #${joinCodeInput}`
+                    : 'Rejoindre le Salon'}
+                </span>
               </button>
             </form>
           </div>
@@ -951,7 +1139,7 @@ export default function VersusMode({
                   isConnected ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'
                 }`}
               />
-              <span>{roomState.players.length} j.</span>
+              <span>{effectivePlayers.length} j.</span>
             </span>
           </div>
 
@@ -1185,8 +1373,8 @@ export default function VersusMode({
           {/* Bouton Lancer en bas */}
           <div className="shrink-0 pt-2 border-t border-blue-500/30 flex items-center justify-between">
             <span className="text-xs font-bold text-blue-200/85">
-              {roomState.players.length} joueur
-              {roomState.players.length > 1 ? 's' : ''} dans le salon
+              {effectivePlayers.length} joueur
+              {effectivePlayers.length > 1 ? 's' : ''} dans le salon
             </span>
             {isHost && (
               <button
@@ -1400,9 +1588,9 @@ export default function VersusMode({
                               >
                                 <span>{ans.playerName}</span>
                                 <span className="opacity-80">
-                                  ({(ans.elapsedMs / 1000).toFixed(1)}s)
+                                  {(ans.elapsedMs / 1000).toFixed(1)}s
                                 </span>
-                                {ans.pointsAwarded > 0 && (
+                                {ans.isCorrect && (
                                   <span>+{ans.pointsAwarded}</span>
                                 )}
                               </span>
@@ -1414,47 +1602,28 @@ export default function VersusMode({
                   })}
                 </div>
 
-                {/* Message d'attente quand le joueur a verrouillé sa réponse avant la fin des 10s */}
-                {roomState.phase === 'question' && hasLockedAnswer && (
-                  <div className="rounded-xl border border-yellow-400/50 bg-yellow-400/10 px-3.5 py-2 text-center animate-fadeIn">
-                    <p className="text-xs sm:text-sm font-black text-yellow-300">
-                      ⚡ Réponse verrouillée en{' '}
-                      {((localLockedElapsedMs ?? myAnswer?.elapsedMs ?? 0) / 1000).toFixed(
-                        2
-                      )}
-                      s ! En attente de la fin du chrono (
-                      {Object.keys(roomState.answers).length}/
-                      {roomState.players.length} joueurs ont répondu)…
-                    </p>
-                  </div>
-                )}
-
-                {/* PODIUM DE LA MANCHE + ANECDOTE (en phase reveal) */}
+                {/* Bandeau Podium de la Manche + Anecdote (en phase reveal) */}
                 {roomState.phase === 'reveal' && (
-                  <div className="rounded-xl border border-yellow-400/50 bg-[#07153a]/95 p-3 shadow-lg space-y-2 animate-fadeIn">
-                    {/* Podium rapidité de la question */}
+                  <div className="rounded-xl border border-yellow-400/45 bg-[#040b1e]/95 px-3 py-2.5 space-y-2 animate-fadeIn">
+                    {/* Résumé des vitesses de la manche */}
                     <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[11px] font-black uppercase text-yellow-300">
+                        Sprint de la manche :
+                      </span>
                       {Object.values(roomState.answers).length === 0 ? (
-                        <span className="text-xs font-extrabold text-amber-300">
-                          ⏱️ Temps écoulé ! Personne n’a dégainé à temps.
+                        <span className="text-xs font-bold text-rose-300">
+                          Personne n’a répondu dans les 10 secondes !
                         </span>
                       ) : (
                         Object.values(roomState.answers)
-                          .sort((a, b) => {
-                            if (a.isCorrect !== b.isCorrect) {
-                              return a.isCorrect ? -1 : 1;
-                            }
-                            return a.elapsedMs - b.elapsedMs;
-                          })
+                          .sort((a, b) => a.elapsedMs - b.elapsedMs)
                           .map((ans) => (
                             <span
                               key={ans.playerId}
-                              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-black ${
+                              className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-black ${
                                 ans.isCorrect
-                                  ? ans.rank === 1
-                                    ? 'bg-yellow-400 text-blue-950 shadow'
-                                    : 'bg-emerald-400 text-slate-950'
-                                  : 'bg-rose-500/30 border border-rose-400/40 text-rose-200'
+                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40'
+                                  : 'bg-rose-500/15 text-rose-300 border border-rose-400/30'
                               }`}
                             >
                               <span>
@@ -1568,7 +1737,7 @@ export default function VersusMode({
                   </span>
                   <span className="text-yellow-300 font-black">
                     {Object.keys(roomState.answers).length}/
-                    {roomState.players.length} réponses
+                    {effectivePlayers.length} réponses
                   </span>
                 </div>
               )}

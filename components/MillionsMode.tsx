@@ -35,6 +35,8 @@ interface MillionsModeProps {
   playedIds: string[];
   onMarkQuestionPlayed: (questionId: string) => void;
   soundEnabled: boolean;
+  zoukMusicEnabled?: boolean;
+  onToggleZoukMusic?: () => void;
 }
 
 export interface MillionStep {
@@ -116,6 +118,8 @@ export default function MillionsMode({
   playedIds,
   onMarkQuestionPlayed,
   soundEnabled,
+  zoukMusicEnabled: propZoukEnabled,
+  onToggleZoukMusic,
 }: MillionsModeProps) {
   const [currentStep, setCurrentStep] = useState<number>(1); // 1 to 15
   const [currentQuestion, setCurrentQuestion] =
@@ -141,7 +145,9 @@ export default function MillionsMode({
     friendName: string;
     message: string;
   } | null>(null);
-  const [zoukMusicEnabled, setZoukMusicEnabled] = useState<boolean>(true);
+  const [internalZoukEnabled, setInternalZoukEnabled] = useState<boolean>(true);
+  const zoukMusicEnabled =
+    propZoukEnabled !== undefined ? propZoukEnabled : internalZoukEnabled;
 
   const [stats, setStats] = useState<MillionsRecord>({
     bestAmount: 0,
@@ -160,6 +166,20 @@ export default function MillionsMode({
       stopMillionsZoukMusic();
     };
   }, [soundEnabled, zoukMusicEnabled, runStatus]);
+
+  const handleToggleZoukButton = () => {
+    if (onToggleZoukMusic) {
+      onToggleZoukMusic();
+    } else {
+      const next = !zoukMusicEnabled;
+      setInternalZoukEnabled(next);
+      if (next) {
+        startMillionsZoukMusic(true, currentStep);
+      } else {
+        stopMillionsZoukMusic();
+      }
+    }
+  };
 
   useEffect(() => {
     setMillionsZoukStep(currentStep);
@@ -516,16 +536,18 @@ export default function MillionsMode({
 
               <button
                 type="button"
-                onClick={() => setZoukMusicEnabled((z) => !z)}
-                className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-black transition active:scale-95 ${
+                onClick={handleToggleZoukButton}
+                className={`inline-flex items-center gap-1.5 rounded-lg border-2 px-3 py-1 text-xs font-black uppercase tracking-wide transition active:scale-95 ${
                   zoukMusicEnabled && soundEnabled
-                    ? 'border-emerald-400 bg-emerald-500/20 text-emerald-300 shadow'
-                    : 'border-blue-500/35 bg-blue-950/70 text-blue-300/60'
+                    ? 'border-emerald-300 bg-gradient-to-r from-emerald-400 via-teal-400 to-amber-300 text-slate-950 shadow-lg shadow-emerald-500/20'
+                    : 'border-emerald-400/60 bg-emerald-950/70 text-emerald-300 hover:bg-emerald-500/20'
                 }`}
                 title="Activer / couper le thème Qui veut gagner des millions version Zouk Antillais"
               >
                 <Music className="h-3.5 w-3.5" />
-                <span>🌴 Zouk {zoukMusicEnabled && soundEnabled ? 'ON' : 'OFF'}</span>
+                <span>
+                  🌴 Musique Zouk : {zoukMusicEnabled && soundEnabled ? 'ON' : 'OFF'}
+                </span>
               </button>
 
               <span className="hidden md:inline-flex items-center gap-1 rounded-lg border border-blue-400/35 bg-blue-950/80 px-2 py-1 text-[11px] font-bold text-blue-200">

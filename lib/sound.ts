@@ -172,8 +172,14 @@ export function playJokerSound(enabled = true) {
 
 // ============================================================================
 // SYNTHÉTISEUR « QUI VEUT GAGNER DES MILLIONS » — VERSION ZOUK ANTILLAIS 🌴
-// Mélange le thème dramatique en Do mineur (Cm - Ab - Fm - G7) avec le groove
-// Zouk (Kick 4x4, Ti-bwa caribéen 3-3-2, Basse syncopée & Synth-Brass Zouk)
+// Combine :
+// 1. Le vrai thème mélodique officiel de l'émission (tenues dramatiques :
+//    Do - Mib - SOL——— Lab—— Sol | Fa - Mib - RÉ——— Mib - Fa - Sol |
+//    Do - Mib - SOL—— Lab—— DO——— | SI——— Lab - SOL————)
+// 2. Le fameux battement de cœur "BOUM-boum" + l'arpège horloge de suspense
+//    (C - Eb - G - C) typique du plateau TV, joué au Steel-Pan / Marimba
+// 3. Le groove Zouk Antillais en accompagnement (Basse ronde, Ti-bwa doux et
+//    accords contretemps Zouk) sans jamais couvrir la mélodie !
 // ============================================================================
 
 let zoukInterval: ReturnType<typeof setInterval> | null = null;
@@ -184,95 +190,50 @@ function midiToFreq(midi: number): number {
   return 440 * Math.pow(2, (midi - 69) / 12);
 }
 
-function triggerZoukKick(ctx: AudioContext, time: number) {
+// 1. Le fameux "BOUM-boum" (battement de cœur / timbale QVGDM) + Kick Zouk
+function triggerMillionsHeartbeatKick(
+  ctx: AudioContext,
+  time: number,
+  isHeavyDownbeat: boolean
+) {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.type = 'sine';
-  osc.frequency.setValueAtTime(115, time);
-  osc.frequency.exponentialRampToValueAtTime(42, time + 0.11);
-  gain.gain.setValueAtTime(0.22, time);
-  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.22);
+  osc.frequency.setValueAtTime(isHeavyDownbeat ? 98 : 82, time);
+  osc.frequency.exponentialRampToValueAtTime(36, time + 0.18);
+  gain.gain.setValueAtTime(isHeavyDownbeat ? 0.24 : 0.14, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.24);
   osc.connect(gain);
   gain.connect(ctx.destination);
   osc.start(time);
-  osc.stop(time + 0.23);
+  osc.stop(time + 0.25);
 }
 
-function triggerZoukTiBwa(
+// 2. Nappe dramatique grave "DOUUUM" de début de mesure (ambiance plateau QVGDM)
+function triggerMillionsSuspensePad(
   ctx: AudioContext,
   time: number,
-  accent: boolean
+  rootMidi: number,
+  duration: number
 ) {
-  // Rimshot / Ti-bwa boisé typique du Zouk + léger bruit de shaker
-  const osc = ctx.createOscillator();
-  const filter = ctx.createBiquadFilter();
-  const gain = ctx.createGain();
-
-  osc.type = 'triangle';
-  osc.frequency.setValueAtTime(accent ? 1480 : 1120, time);
-  osc.frequency.exponentialRampToValueAtTime(420, time + 0.035);
-
-  filter.type = 'bandpass';
-  filter.frequency.setValueAtTime(1350, time);
-  filter.Q.setValueAtTime(3.5, time);
-
-  gain.gain.setValueAtTime(accent ? 0.09 : 0.045, time);
-  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
-
-  osc.connect(filter);
-  filter.connect(gain);
-  gain.connect(ctx.destination);
-  osc.start(time);
-  osc.stop(time + 0.055);
-}
-
-function triggerZoukBass(ctx: AudioContext, time: number, midiNote: number) {
-  const osc = ctx.createOscillator();
-  const filter = ctx.createBiquadFilter();
-  const gain = ctx.createGain();
-
-  osc.type = 'sawtooth';
-  osc.frequency.setValueAtTime(midiToFreq(midiNote), time);
-
-  filter.type = 'lowpass';
-  filter.frequency.setValueAtTime(360, time);
-  filter.frequency.exponentialRampToValueAtTime(140, time + 0.18);
-
-  gain.gain.setValueAtTime(0.14, time);
-  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.21);
-
-  osc.connect(filter);
-  filter.connect(gain);
-  gain.connect(ctx.destination);
-  osc.start(time);
-  osc.stop(time + 0.22);
-}
-
-function triggerMillionsZoukLead(
-  ctx: AudioContext,
-  time: number,
-  midiNote: number,
-  duration = 0.22,
-  isBrass = false
-) {
-  // Double oscillateur légèrement désaccordé (effet Chorus Guitare/Cuivres Zouk 90s)
   const osc1 = ctx.createOscillator();
   const osc2 = ctx.createOscillator();
   const filter = ctx.createBiquadFilter();
   const gain = ctx.createGain();
 
-  const baseFreq = midiToFreq(midiNote);
-  osc1.type = isBrass ? 'sawtooth' : 'triangle';
-  osc2.type = 'sine';
-  osc1.frequency.setValueAtTime(baseFreq, time);
-  osc2.frequency.setValueAtTime(baseFreq * 1.004, time);
+  const freq = midiToFreq(rootMidi);
+  osc1.type = 'sawtooth';
+  osc2.type = 'triangle';
+  osc1.frequency.setValueAtTime(freq, time);
+  osc2.frequency.setValueAtTime(freq * 1.5, time); // Quinte dramatique
 
   filter.type = 'lowpass';
-  filter.frequency.setValueAtTime(isBrass ? 1900 : 1400, time);
-  filter.frequency.exponentialRampToValueAtTime(650, time + duration);
+  filter.frequency.setValueAtTime(320, time);
+  filter.frequency.linearRampToValueAtTime(520, time + duration * 0.5);
+  filter.frequency.exponentialRampToValueAtTime(220, time + duration);
 
   gain.gain.setValueAtTime(0.001, time);
-  gain.gain.linearRampToValueAtTime(isBrass ? 0.075 : 0.065, time + 0.015);
+  gain.gain.linearRampToValueAtTime(0.055, time + 0.08);
   gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
 
   osc1.connect(filter);
@@ -282,44 +243,234 @@ function triggerMillionsZoukLead(
 
   osc1.start(time);
   osc2.start(time);
-  osc1.stop(time + duration + 0.01);
-  osc2.stop(time + duration + 0.01);
+  osc1.stop(time + duration + 0.02);
+  osc2.stop(time + duration + 0.02);
 }
 
+// 3. L'arpège horloge hypnotique de "Qui veut gagner des millions" (en Steel-Pan / Kalimb-Zouk)
+function triggerMillionsClockArpeggio(
+  ctx: AudioContext,
+  time: number,
+  midiNote: number,
+  accent: boolean
+) {
+  const osc = ctx.createOscillator();
+  const filter = ctx.createBiquadFilter();
+  const gain = ctx.createGain();
+
+  const freq = midiToFreq(midiNote);
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(freq, time);
+
+  filter.type = 'bandpass';
+  filter.frequency.setValueAtTime(freq * 2, time);
+  filter.Q.setValueAtTime(2.2, time);
+
+  gain.gain.setValueAtTime(accent ? 0.055 : 0.032, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.11);
+
+  osc.connect(filter);
+  filter.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(time);
+  osc.stop(time + 0.12);
+}
+
+// 4. Ti-bwa / Shaker Zouk très doux en arrière-plan
+function triggerZoukTiBwa(
+  ctx: AudioContext,
+  time: number,
+  accent: boolean
+) {
+  const osc = ctx.createOscillator();
+  const filter = ctx.createBiquadFilter();
+  const gain = ctx.createGain();
+
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(accent ? 1450 : 1080, time);
+  osc.frequency.exponentialRampToValueAtTime(460, time + 0.03);
+
+  filter.type = 'bandpass';
+  filter.frequency.setValueAtTime(1400, time);
+  filter.Q.setValueAtTime(4.0, time);
+
+  gain.gain.setValueAtTime(accent ? 0.038 : 0.018, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
+
+  osc.connect(filter);
+  filter.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(time);
+  osc.stop(time + 0.045);
+}
+
+// 5. Basse Zouk ronde et chantante
+function triggerZoukBass(
+  ctx: AudioContext,
+  time: number,
+  midiNote: number,
+  duration = 0.24
+) {
+  const osc = ctx.createOscillator();
+  const filter = ctx.createBiquadFilter();
+  const gain = ctx.createGain();
+
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(midiToFreq(midiNote), time);
+
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(310, time);
+  filter.frequency.exponentialRampToValueAtTime(130, time + duration);
+
+  gain.gain.setValueAtTime(0.11, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+  osc.connect(filter);
+  filter.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(time);
+  osc.stop(time + duration + 0.01);
+}
+
+// 6. Mélodie principale officielle de "Qui veut gagner des millions"
+//    (Cordes dramatiques + Cuivres Zouk, avec vraies tenues longues pour qu'on
+//    reconnaisse immédiatement l'air de l'émission !)
+function triggerMillionsMainThemeLead(
+  ctx: AudioContext,
+  time: number,
+  midiNote: number,
+  durationSeconds: number
+) {
+  const oscMain = ctx.createOscillator();
+  const oscChorus = ctx.createOscillator();
+  const oscOctave = ctx.createOscillator();
+  const filter = ctx.createBiquadFilter();
+  const gain = ctx.createGain();
+
+  const baseFreq = midiToFreq(midiNote);
+  oscMain.type = 'sawtooth';
+  oscChorus.type = 'sawtooth';
+  oscOctave.type = 'triangle';
+
+  oscMain.frequency.setValueAtTime(baseFreq, time);
+  oscChorus.frequency.setValueAtTime(baseFreq * 1.005, time); // Effet ensemble de cordes/choeur
+  oscOctave.frequency.setValueAtTime(baseFreq * 0.5, time); // Corps grave
+
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(2200, time);
+  filter.frequency.exponentialRampToValueAtTime(
+    900,
+    time + Math.max(0.2, durationSeconds)
+  );
+
+  // Attaque franche puis tenue chantante façon générique TV
+  gain.gain.setValueAtTime(0.001, time);
+  gain.gain.linearRampToValueAtTime(0.145, time + 0.025);
+  gain.gain.setValueAtTime(0.13, time + Math.max(0.05, durationSeconds * 0.65));
+  gain.gain.exponentialRampToValueAtTime(0.001, time + durationSeconds);
+
+  oscMain.connect(filter);
+  oscChorus.connect(filter);
+  oscOctave.connect(filter);
+  filter.connect(gain);
+  gain.connect(ctx.destination);
+
+  oscMain.start(time);
+  oscChorus.start(time);
+  oscOctave.start(time);
+  oscMain.stop(time + durationSeconds + 0.02);
+  oscChorus.stop(time + durationSeconds + 0.02);
+  oscOctave.stop(time + durationSeconds + 0.02);
+}
+
+// 7. Accord Guitare/Clavier Zouk sur le contretemps
 function triggerZoukChordSkank(
   ctx: AudioContext,
   time: number,
   midiChord: number[]
 ) {
-  // Accord guitare/clavier Zouk sur le contretemps
   midiChord.forEach((note) => {
-    triggerMillionsZoukLead(ctx, time, note, 0.13, false);
+    const osc = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(midiToFreq(note), time);
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(1200, time);
+
+    gain.gain.setValueAtTime(0.032, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.14);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(time);
+    osc.stop(time + 0.15);
   });
 }
 
-// Progression de 4 mesures (64 doubles-croches) sur les accords de Qui Veut Gagner Des Millions :
-// Mesure 1 : Cm  (Do - Mib - Sol)
-// Mesure 2 : Ab  (Lab - Do - Mib)
-// Mesure 3 : Fm  (Fa - Lab - Do)
-// Mesure 4 : G7  (Sol - Si - Ré - Fa) -> tension dramatique !
-const BAR_BASS_ROOTS = [36, 44, 41, 43]; // C2, Ab2, F2, G2
+// ============================================================================
+// PARTITION EXACTE DE « QUI VEUT GAGNER DES MILLIONS » (64 pas = 4 mesures)
+// ============================================================================
+// Mesure 1 : Cm  (Do - Mib - SOL———— Lab——— Sol)
+// Mesure 2 : Fm  (Fa - Mib - RÉ———— Mib - Fa - Sol)
+// Mesure 3 : Ab  (Do - Mib - SOL——— Lab——— DO(aigu)———)
+// Mesure 4 : G7  (SI———— Lab - SOL————————) -> Suspense iconique QVGDM !
+const BAR_BASS_ROOTS = [36, 41, 44, 43]; // C2, F2, Ab2, G2
 const BAR_CHORDS = [
-  [60, 63, 67], // Cm
-  [60, 63, 68], // Ab
-  [60, 65, 68], // Fm
-  [59, 62, 67], // G majeur/7 (sensible Si bécarre typique du thème de QVGDM !)
+  [60, 63, 67], // Cm (Do - Mib - Sol)
+  [60, 65, 68], // Fm (Do - Fa - Lab)
+  [60, 63, 68], // Ab (Do - Mib - Lab)
+  [59, 62, 67], // G7 (Si - Ré - Sol : la sensible Si bécarre de QVGDM !)
 ];
 
-// Mélodie reconnaissable de "Qui veut gagner des millions" syncopée à la sauce Zouk (sur 64 pas)
-const MILLIONS_ZOUK_MELODY: (number | null)[] = [
-  // Mesure 1 (Cm) : Do - Ré - Mib - Sol ... Do - Mib - Sol - Lab - Sol
-  72, null, 74, 75, null, 79, null, 75, 72, null, 75, 79, null, 80, 79, null,
-  // Mesure 2 (Ab) : Lab - Sol - Fa - Mib ... Do - Mib - Lab - Sol
-  80, null, 79, 77, null, 75, null, 72, 75, null, 80, 79, null, 75, 72, null,
-  // Mesure 3 (Fm) : Fa - Sol - Lab - Do ... Lab - Sol - Fa - Mib
-  77, null, 79, 80, null, 84, null, 80, 79, null, 77, 75, null, 74, 72, null,
-  // Mesure 4 (G7 suspense !) : Si - Do - Ré - Sol ... Fa - Mib - Ré - Si
-  71, null, 72, 74, null, 79, null, 77, 75, null, 74, 71, 74, null, 79, null,
+// Arpège horloge de suspense QVGDM (16 doubles-croches par mesure)
+const BAR_CLOCK_ARPEGGIOS: number[][] = [
+  // Mesure 1 (Cm) : Do - Mib - Sol - Do5 - Sol - Mib - Do - Sol ...
+  [60, 63, 67, 72, 67, 63, 60, 67, 60, 63, 68, 72, 68, 63, 60, 67],
+  // Mesure 2 (Fm -> G) : Do - Fa - Lab - Do5 - Lab - Fa - Ré - Sol ...
+  [60, 65, 68, 72, 68, 65, 62, 67, 59, 62, 67, 71, 67, 62, 59, 67],
+  // Mesure 3 (Cm -> Ab) : Do - Mib - Sol - Do5 - Lab - Do5 - Mib5 - Do5 ...
+  [60, 63, 67, 72, 67, 63, 68, 72, 68, 63, 68, 72, 75, 72, 68, 63],
+  // Mesure 4 (G7 suspense) : Si - Ré - Sol - Si4 - Sol - Fa - Ré - Si3 ...
+  [59, 62, 67, 71, 67, 62, 59, 67, 59, 62, 65, 68, 67, 62, 59, 55],
+];
+
+// Chaque événement mélodique = { step: 0..63, note: MIDI, lengthSteps: durée en doubles-croches }
+const MILLIONS_THEME_EVENTS: {
+  step: number;
+  note: number;
+  lengthSteps: number;
+}[] = [
+  // --- MESURE 1 (Cm) : Do - Mib - SOL—————— Lab———— Sol ---
+  { step: 0, note: 60, lengthSteps: 2 },  // Do4
+  { step: 2, note: 63, lengthSteps: 2 },  // Mib4
+  { step: 4, note: 67, lengthSteps: 6 },  // SOL4 (tenue signature !)
+  { step: 10, note: 68, lengthSteps: 4 }, // Lab4 (demi-ton dramatique !)
+  { step: 14, note: 67, lengthSteps: 2 }, // Sol4
+
+  // --- MESURE 2 (Fm -> G) : Fa - Mib - RÉ—————— Mib - Fa - Sol ---
+  { step: 16, note: 65, lengthSteps: 2 }, // Fa4
+  { step: 18, note: 63, lengthSteps: 2 }, // Mib4
+  { step: 20, note: 62, lengthSteps: 6 }, // RÉ4 (tenue dramatique !)
+  { step: 26, note: 63, lengthSteps: 2 }, // Mib4
+  { step: 28, note: 65, lengthSteps: 2 }, // Fa4
+  { step: 30, note: 67, lengthSteps: 2 }, // Sol4
+
+  // --- MESURE 3 (Ascension QVGDM) : Do - Mib - SOL———— Lab———— DO5———— ---
+  { step: 32, note: 60, lengthSteps: 2 }, // Do4
+  { step: 34, note: 63, lengthSteps: 2 }, // Mib4
+  { step: 36, note: 67, lengthSteps: 4 }, // SOL4
+  { step: 40, note: 68, lengthSteps: 4 }, // LAB4
+  { step: 44, note: 72, lengthSteps: 4 }, // DO5 (sommet dramatique !)
+
+  // --- MESURE 4 (Suspense G7 iconique) : SI4—————— Lab4 - SOL4———————— ---
+  { step: 48, note: 71, lengthSteps: 6 }, // SI4 (tension maximale QVGDM !)
+  { step: 54, note: 68, lengthSteps: 2 }, // Lab4
+  { step: 56, note: 67, lengthSteps: 8 }, // SOL4 (longue tenue finale avant le BOUM !)
 ];
 
 export function setMillionsZoukStep(step: number) {
@@ -335,10 +486,11 @@ export function startMillionsZoukMusic(enabled = true, step = 1) {
   zoukCurrentPallet = step;
   zoukStepIndex = 0;
 
-  // Tempo Zouk solaire : ~105 BPM -> 1 double-croche = 142ms
-  const STEP_MS = 142;
+  // Tempo dramatique & Zouk : ~98 BPM -> 1 double-croche = 152ms
+  const STEP_MS = 152;
+  const STEP_SEC = STEP_MS / 1000;
 
-  zoukInterval = setInterval(() => {
+  const playZoukTick = () => {
     const audio = getCtx();
     if (!audio) return;
     const now = audio.currentTime;
@@ -347,7 +499,7 @@ export function startMillionsZoukMusic(enabled = true, step = 1) {
     const pos16 = pos64 % 16;
     const barIdx = Math.floor(pos64 / 16);
 
-    // Modulation de tension façon "Qui veut gagner des millions" (+1 demi-ton après palier 5, +2 après palier 10)
+    // Modulation de tension façon "Qui veut gagner des millions" (+1 demi-ton par palier à partir du palier 6)
     const transpose =
       zoukCurrentPallet > 10
         ? 2
@@ -355,12 +507,25 @@ export function startMillionsZoukMusic(enabled = true, step = 1) {
         ? 1
         : 0;
 
-    // 1. Kick Zouk sur tous les temps (0, 4, 8, 12) + rebond sur le 15
-    if (pos16 % 4 === 0 || pos16 === 15) {
-      triggerZoukKick(audio, now);
+    const rootNote = BAR_BASS_ROOTS[barIdx] + transpose;
+
+    // 1. Nappe dramatique QVGDM en début de mesure ("DOUUUM")
+    if (pos16 === 0) {
+      triggerMillionsSuspensePad(audio, now, rootNote, STEP_SEC * 14);
     }
 
-    // 2. Pattern Ti-Bwa / Rimshot Caribéen (3-3-2 : steps 0, 3, 6, 8, 11, 14)
+    // 2. Battement de cœur QVGDM ("BOUM-boum") + Kick Zouk sur les temps
+    if (pos16 === 0 || pos16 === 8) {
+      triggerMillionsHeartbeatKick(audio, now, true);
+    } else if (pos16 === 3 || pos16 === 4 || pos16 === 12) {
+      triggerMillionsHeartbeatKick(audio, now, false);
+    }
+
+    // 3. Arpège horloge hypnotique de "Qui veut gagner des millions" (en continu)
+    const arpNote = BAR_CLOCK_ARPEGGIOS[barIdx][pos16] + transpose;
+    triggerMillionsClockArpeggio(audio, now, arpNote, pos16 % 4 === 0);
+
+    // 4. Groove Zouk doux (Ti-bwa 3-3-2 + Basse Zouk + Accords contretemps)
     const isTiBwaAccent =
       pos16 === 0 ||
       pos16 === 3 ||
@@ -368,34 +533,39 @@ export function startMillionsZoukMusic(enabled = true, step = 1) {
       pos16 === 8 ||
       pos16 === 11 ||
       pos16 === 14;
-    if (isTiBwaAccent || pos16 % 2 === 1) {
-      triggerZoukTiBwa(audio, now, isTiBwaAccent);
+    if (isTiBwaAccent) {
+      triggerZoukTiBwa(audio, now, pos16 === 3 || pos16 === 11);
     }
 
-    // 3. Basse Zouk rebondissante sur les accords de Qui Veut Gagner Des Millions
-    const rootNote = BAR_BASS_ROOTS[barIdx] + transpose;
     if (pos16 === 0 || pos16 === 8) {
-      triggerZoukBass(audio, now, rootNote);
+      triggerZoukBass(audio, now, rootNote, 0.28);
     } else if (pos16 === 3 || pos16 === 11) {
-      triggerZoukBass(audio, now, rootNote + 7); // Quinte
+      triggerZoukBass(audio, now, rootNote + 7, 0.2); // Quinte Zouk
     } else if (pos16 === 6 || pos16 === 14) {
-      triggerZoukBass(audio, now, rootNote + 12); // Octave Zouk
+      triggerZoukBass(audio, now, rootNote + 12, 0.18); // Octave Zouk
     }
 
-    // 4. Accords "Cocotte / Skank Zouk" sur les contretemps (steps 2, 6, 10, 14)
     if (pos16 === 2 || pos16 === 6 || pos16 === 10 || pos16 === 14) {
       const chord = BAR_CHORDS[barIdx].map((n) => n + transpose);
       triggerZoukChordSkank(audio, now, chord);
     }
 
-    // 5. Thème mélodique de "Qui veut gagner des millions" en Synth-Cuivres Zouk
-    const melodyNote = MILLIONS_ZOUK_MELODY[pos64];
-    if (melodyNote !== null) {
-      triggerMillionsZoukLead(audio, now, melodyNote + transpose, 0.24, true);
+    // 5. THÈME MÉLODIQUE OFFICIEL DE « QUI VEUT GAGNER DES MILLIONS » au premier plan !
+    const melodyEvent = MILLIONS_THEME_EVENTS.find((ev) => ev.step === pos64);
+    if (melodyEvent) {
+      triggerMillionsMainThemeLead(
+        audio,
+        now,
+        melodyEvent.note + transpose,
+        melodyEvent.lengthSteps * STEP_SEC * 0.94
+      );
     }
 
     zoukStepIndex += 1;
-  }, STEP_MS);
+  };
+
+  playZoukTick();
+  zoukInterval = setInterval(playZoukTick, STEP_MS);
 }
 
 export function stopMillionsZoukMusic() {
