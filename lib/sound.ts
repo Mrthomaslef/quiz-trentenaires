@@ -444,15 +444,15 @@ export function playJokerSound(enabled = true) {
 }
 
 // ============================================================================
-// SYNTHÉTISEUR « QUI VEUT GAGNER DES MILLIONS » — SUSPENSE & HAUTE TENSION 🎬
-// Architecture sonore sombre et cinématique (Keith & Matthew Strachan) :
-// 1. Grand Impact Abyssal ("BOOOOOM" sub-bass + gong métallique sombre)
-// 2. Bourdon (Drone) respirant par LFO avec frottements de demi-tons & tritons
-// 3. Double battement de cœur humain ("LUB-DUB") lourd, viscéral et oppressant
-// 4. Tic-tac d'horloge mécanique stéréo + impulsion sonar dans l'espace
-// 5. Ostinato sombre hypnotique sur la cellule de tension (Sol - Lab - Sol - Fa#)
-// 6. Nappes de cordes en trémolo Hitchcockien (dissonances de seconde mineure)
-// 7. Riser d'aspiration en fin de boucle + surtension en mode "Dernier mot ?"
+// SYNTHÉTISEUR « ELECTRO-QUIZ SHOW & SUSPENSE MOBILE » 🎮🔥
+// Pensé spécifiquement pour être ULTRA-ENTRAÎNANT sur haut-parleur de mobile
+// tout en gardant le suspens iconique des grands quiz (style Kahoot! × QVGDM) :
+// 1. Beat Electro-Pop / Funky Quiz punchy (~125 BPM) : Kick net sur tous les
+//    temps + Clap/Snare claquant sur 2 & 4 + Charleston & Woodblock Horloge
+// 2. Basse Synthé Funky en sauts d'octaves (parfaitement audible sur téléphone)
+//    sur la progression à suspens : Do mineur -> Lab Majeur -> Fa mineur -> Sol 7
+// 3. Accords "Quiz Show Stabs" syncopés (rythmique 3+3+2 ultra-entraînante)
+// 4. Mélodie "Hook" Marimba-Synthé & Lead Suspense (motif Do - Mib - Sol - Lab - Sol)
 // ============================================================================
 
 let millionsInterval: ReturnType<typeof setInterval> | null = null;
@@ -469,11 +469,11 @@ function midiToFreq(midi: number): number {
 function getMasterOutput(ctx: AudioContext): AudioNode {
   if (!masterCompressor || masterCompressor.context !== ctx) {
     masterCompressor = ctx.createDynamicsCompressor();
-    masterCompressor.threshold.setValueAtTime(-14, ctx.currentTime);
-    masterCompressor.knee.setValueAtTime(12, ctx.currentTime);
-    masterCompressor.ratio.setValueAtTime(4, ctx.currentTime);
-    masterCompressor.attack.setValueAtTime(0.004, ctx.currentTime);
-    masterCompressor.release.setValueAtTime(0.18, ctx.currentTime);
+    masterCompressor.threshold.setValueAtTime(-12, ctx.currentTime);
+    masterCompressor.knee.setValueAtTime(10, ctx.currentTime);
+    masterCompressor.ratio.setValueAtTime(3.5, ctx.currentTime);
+    masterCompressor.attack.setValueAtTime(0.003, ctx.currentTime);
+    masterCompressor.release.setValueAtTime(0.15, ctx.currentTime);
     masterCompressor.connect(ctx.destination);
   }
   return masterCompressor;
@@ -493,128 +493,7 @@ function getWhiteNoiseBuffer(ctx: AudioContext): AudioBuffer {
   return buffer;
 }
 
-// 1. Grand Impact Cinématique ("DOUUUUUM" + Gong Sombre) & Bourdon Abyssal Respirant
-function triggerDarkSuspenseDroneAndImpact(
-  ctx: AudioContext,
-  out: AudioNode,
-  time: number,
-  rootMidi: number,
-  tensionMidiOffset: number,
-  duration: number,
-  impactIntensity: 'heavy' | 'medium' | 'none'
-) {
-  const rootFreq = midiToFreq(rootMidi); // C2 (65.4 Hz)
-  const tensionFreq = midiToFreq(rootMidi + tensionMidiOffset);
-
-  // Bourdon continu sombre : Sous-basse C1 + Fondamentale C2 + Note de tension (Sol2 / Lab2 / Fa#2)
-  const oscSub = ctx.createOscillator();
-  const oscRoot = ctx.createOscillator();
-  const oscTension = ctx.createOscillator();
-  const lfo = ctx.createOscillator();
-  const lfoGain = ctx.createGain();
-  const filter = ctx.createBiquadFilter();
-  const gain = ctx.createGain();
-
-  oscSub.type = 'sine';
-  oscRoot.type = 'sawtooth';
-  oscTension.type = 'sawtooth';
-
-  oscSub.frequency.setValueAtTime(rootFreq * 0.5, time); // C1 abyssal (32.7 Hz)
-  oscRoot.frequency.setValueAtTime(rootFreq * 0.998, time);
-  oscTension.frequency.setValueAtTime(tensionFreq * 1.003, time);
-
-  // LFO lent qui fait "respirer" et gronder le filtre passe-bas
-  lfo.type = 'sine';
-  lfo.frequency.setValueAtTime(millionsSuspenseLocked ? 4.4 : 2.2, time);
-  lfoGain.gain.setValueAtTime(60, time);
-
-  filter.type = 'lowpass';
-  filter.frequency.setValueAtTime(
-    impactIntensity === 'heavy' ? 330 : 180,
-    time
-  );
-  filter.frequency.exponentialRampToValueAtTime(115, time + duration);
-  filter.Q.setValueAtTime(3.4, time);
-
-  lfo.connect(lfoGain);
-  lfoGain.connect(filter.frequency);
-
-  const dronePeak = millionsSuspenseLocked ? 0.14 : 0.11;
-  gain.gain.setValueAtTime(0.001, time);
-  gain.gain.linearRampToValueAtTime(dronePeak, time + 0.08);
-  gain.gain.setValueAtTime(dronePeak * 0.85, time + duration * 0.75);
-  gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
-
-  oscSub.connect(gain);
-  oscRoot.connect(filter);
-  oscTension.connect(filter);
-  filter.connect(gain);
-  gain.connect(out);
-
-  oscSub.start(time);
-  oscRoot.start(time);
-  oscTension.start(time);
-  lfo.start(time);
-
-  const stopAt = time + duration + 0.05;
-  oscSub.stop(stopAt);
-  oscRoot.stop(stopAt);
-  oscTension.stop(stopAt);
-  lfo.stop(stopAt);
-
-  // Impact de gong / timbale cinématique ("BOOOOOM")
-  if (impactIntensity !== 'none') {
-    const isHeavy = impactIntensity === 'heavy';
-
-    // A. Chute sub-bass sismique (108 Hz -> 26 Hz)
-    const boomOsc = ctx.createOscillator();
-    const boomGain = ctx.createGain();
-    boomOsc.type = 'sine';
-    boomOsc.frequency.setValueAtTime(isHeavy ? 108 : 84, time);
-    boomOsc.frequency.exponentialRampToValueAtTime(
-      26,
-      time + (isHeavy ? 1.2 : 0.78)
-    );
-    boomGain.gain.setValueAtTime(isHeavy ? 0.34 : 0.22, time);
-    boomGain.gain.exponentialRampToValueAtTime(
-      0.001,
-      time + (isHeavy ? 1.3 : 0.85)
-    );
-    boomOsc.connect(boomGain);
-    boomGain.connect(out);
-    boomOsc.start(time);
-    boomOsc.stop(time + (isHeavy ? 1.35 : 0.9));
-
-    // B. Résonance métallique sombre de gong de plateau TV (harmoniques inharmoniques filtrées)
-    if (isHeavy) {
-      const gongRatios = [1.5, 2.12, 2.83]; // Quinte + Tierce mineure/Triton métallique
-      gongRatios.forEach((ratio) => {
-        const gOsc = ctx.createOscillator();
-        const gFilter = ctx.createBiquadFilter();
-        const gGain = ctx.createGain();
-
-        gOsc.type = 'triangle';
-        gOsc.frequency.setValueAtTime(rootFreq * ratio, time);
-
-        gFilter.type = 'bandpass';
-        gFilter.frequency.setValueAtTime(rootFreq * ratio, time);
-        gFilter.Q.setValueAtTime(4.5, time);
-
-        gGain.gain.setValueAtTime(0.001, time);
-        gGain.gain.linearRampToValueAtTime(0.048, time + 0.02);
-        gGain.gain.exponentialRampToValueAtTime(0.0008, time + 1.85);
-
-        gOsc.connect(gFilter);
-        gFilter.connect(gGain);
-        gGain.connect(out);
-        gOsc.start(time);
-        gOsc.stop(time + 1.9);
-      });
-    }
-  }
-}
-
-// 2. Double battement de cœur humain sous haute pression ("LUB - DUB")
+// Gardé pour compatibilité avec playFinalAnswerSuspenseSound
 function triggerOriginalHeartbeat(
   ctx: AudioContext,
   time: number,
@@ -622,341 +501,371 @@ function triggerOriginalHeartbeat(
   intensityMultiplier = 1
 ) {
   const out = getMasterOutput(ctx);
-
-  // Onde sub-cardiaque profonde
   const osc = ctx.createOscillator();
-  const filter = ctx.createBiquadFilter();
   const gain = ctx.createGain();
-
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(isFirstBeat ? 76 : 62, time);
-  osc.frequency.exponentialRampToValueAtTime(isFirstBeat ? 29 : 25, time + 0.23);
-
-  filter.type = 'lowpass';
-  filter.frequency.setValueAtTime(135, time);
-
-  const baseAmp = (isFirstBeat ? 0.28 : 0.19) * intensityMultiplier;
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(isFirstBeat ? 110 : 85, time);
+  osc.frequency.exponentialRampToValueAtTime(42, time + 0.16);
   gain.gain.setValueAtTime(0.001, time);
-  gain.gain.linearRampToValueAtTime(baseAmp, time + 0.012);
-  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.26);
-
-  osc.connect(filter);
-  filter.connect(gain);
+  gain.gain.linearRampToValueAtTime(
+    (isFirstBeat ? 0.24 : 0.16) * intensityMultiplier,
+    time + 0.01
+  );
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.18);
+  osc.connect(gain);
   gain.connect(out);
-
   osc.start(time);
-  osc.stop(time + 0.28);
-
-  // Impact sourd de valve cardiaque pour rendre le battement viscéral
-  const thudOsc = ctx.createOscillator();
-  const thudGain = ctx.createGain();
-  thudOsc.type = 'triangle';
-  thudOsc.frequency.setValueAtTime(isFirstBeat ? 125 : 98, time);
-  thudOsc.frequency.exponentialRampToValueAtTime(40, time + 0.055);
-  thudGain.gain.setValueAtTime(0.07 * intensityMultiplier, time);
-  thudGain.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
-  thudOsc.connect(thudGain);
-  thudGain.connect(out);
-  thudOsc.start(time);
-  thudOsc.stop(time + 0.065);
+  osc.stop(time + 0.2);
 }
 
-// 3. Tic-Tac d'horloge mécanique implacable (Chronomètre stéréo de suspense)
-function triggerSuspenseClockTick(
+// 1. Kick Electro-Quiz Punchy (avec attaque médium claire pour haut-parleur mobile)
+function triggerQuizKick(
   ctx: AudioContext,
   out: AudioNode,
   time: number,
-  isTick: boolean,
-  isAccent: boolean
+  isMainBeat = true
 ) {
-  const noise = ctx.createBufferSource();
-  noise.buffer = getWhiteNoiseBuffer(ctx);
-
-  const bandpass = ctx.createBiquadFilter();
-  bandpass.type = 'bandpass';
-  bandpass.frequency.setValueAtTime(isTick ? 3100 : 2250, time);
-  bandpass.Q.setValueAtTime(9.0, time);
-
+  // Corps du kick (180 Hz -> 52 Hz)
+  const osc = ctx.createOscillator();
   const gain = ctx.createGain();
-  const peak = isAccent ? 0.055 : 0.032;
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(isMainBeat ? 185 : 150, time);
+  osc.frequency.exponentialRampToValueAtTime(52, time + 0.09);
+
+  const vol = isMainBeat ? 0.28 : 0.18;
   gain.gain.setValueAtTime(0.001, time);
-  gain.gain.linearRampToValueAtTime(peak, time + 0.002);
-  gain.gain.exponentialRampToValueAtTime(0.0005, time + 0.028);
+  gain.gain.linearRampToValueAtTime(vol, time + 0.004);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
 
-  noise.connect(bandpass);
-  bandpass.connect(gain);
+  osc.connect(gain);
+  gain.connect(out);
+  osc.start(time);
+  osc.stop(time + 0.16);
 
-  if (typeof ctx.createStereoPanner === 'function') {
-    const panner = ctx.createStereoPanner();
-    panner.pan.setValueAtTime(isTick ? -0.35 : 0.35, time);
-    gain.connect(panner);
-    panner.connect(out);
-  } else {
-    gain.connect(out);
-  }
+  // "Punch" haut-grave/médium (triangle) pour ressortir net sur iPhone / Android
+  const clickOsc = ctx.createOscillator();
+  const clickGain = ctx.createGain();
+  clickOsc.type = 'triangle';
+  clickOsc.frequency.setValueAtTime(720, time);
+  clickOsc.frequency.exponentialRampToValueAtTime(110, time + 0.025);
+  clickGain.gain.setValueAtTime(isMainBeat ? 0.12 : 0.07, time);
+  clickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.03);
 
-  noise.start(time, time % 1.5, 0.035);
-  noise.stop(time + 0.035);
+  clickOsc.connect(clickGain);
+  clickGain.connect(out);
+  clickOsc.start(time);
+  clickOsc.stop(time + 0.035);
 }
 
-// 4. Ostinato sombre hypnotique avec délai stéréo (cellule de demi-ton Sol - Lab - Sol - Fa#)
-function triggerDarkSuspenseOstinato(
+// 2. Clap / Snare Pop-Quiz claquant sur les temps 2 et 4 (+ roulements de suspense)
+function triggerQuizClapSnare(
+  ctx: AudioContext,
+  out: AudioNode,
+  time: number,
+  velocity = 1
+) {
+  // Tonique de caisse claire (pop snare body)
+  const bodyOsc = ctx.createOscillator();
+  const bodyGain = ctx.createGain();
+  bodyOsc.type = 'triangle';
+  bodyOsc.frequency.setValueAtTime(240, time);
+  bodyOsc.frequency.exponentialRampToValueAtTime(115, time + 0.06);
+  bodyGain.gain.setValueAtTime(0.001, time);
+  bodyGain.gain.linearRampToValueAtTime(0.15 * velocity, time + 0.003);
+  bodyGain.gain.exponentialRampToValueAtTime(0.001, time + 0.07);
+  bodyOsc.connect(bodyGain);
+  bodyGain.connect(out);
+  bodyOsc.start(time);
+  bodyOsc.stop(time + 0.075);
+
+  // Clap brillant (bruit blanc filtré passe-bande)
+  const noise = ctx.createBufferSource();
+  noise.buffer = getWhiteNoiseBuffer(ctx);
+  const filter = ctx.createBiquadFilter();
+  const nGain = ctx.createGain();
+
+  filter.type = 'bandpass';
+  filter.frequency.setValueAtTime(1950, time);
+  filter.Q.setValueAtTime(1.8, time);
+
+  nGain.gain.setValueAtTime(0.001, time);
+  nGain.gain.linearRampToValueAtTime(0.14 * velocity, time + 0.004);
+  nGain.gain.exponentialRampToValueAtTime(0.0008, time + 0.11);
+
+  noise.connect(filter);
+  filter.connect(nGain);
+  nGain.connect(out);
+  noise.start(time, (time * 0.9) % 1.5, 0.12);
+  noise.stop(time + 0.12);
+}
+
+// 3. Groove d'Horloge Woodblock + Charleston Electro (Tic-Tac-Tsss entraînant)
+function triggerQuizClockHat(
+  ctx: AudioContext,
+  out: AudioNode,
+  time: number,
+  step16: number
+) {
+  const isOffbeatOpenHat = step16 % 4 === 2; // Le fameux contretemps "Tsss" qui fait danser !
+  const isBeat = step16 % 4 === 0;
+
+  // A. Woodblock / Clave de chronomètre de quiz (donne le côté jeu télé / app mobile)
+  if (step16 % 2 === 0) {
+    const wbOsc = ctx.createOscillator();
+    const wbGain = ctx.createGain();
+    wbOsc.type = 'sine';
+    // Alternance TIC (aigu) / TAC (grave)
+    wbOsc.frequency.setValueAtTime(step16 % 4 === 0 ? 1180 : 885, time);
+    wbGain.gain.setValueAtTime(0.001, time);
+    wbGain.gain.linearRampToValueAtTime(isBeat ? 0.055 : 0.04, time + 0.002);
+    wbGain.gain.exponentialRampToValueAtTime(0.0008, time + 0.032);
+    wbOsc.connect(wbGain);
+    wbGain.connect(out);
+    wbOsc.start(time);
+    wbOsc.stop(time + 0.036);
+  }
+
+  // B. Hi-Hat Electro (fermé sur les 16es, ouvert sur le contretemps "2, 6, 10, 14")
+  const noise = ctx.createBufferSource();
+  noise.buffer = getWhiteNoiseBuffer(ctx);
+  const hpFilter = ctx.createBiquadFilter();
+  hpFilter.type = 'highpass';
+  hpFilter.frequency.setValueAtTime(6200, time);
+
+  const hGain = ctx.createGain();
+  const peak = isOffbeatOpenHat ? 0.065 : isBeat ? 0.035 : 0.022;
+  const decay = isOffbeatOpenHat ? 0.085 : 0.024;
+
+  hGain.gain.setValueAtTime(0.001, time);
+  hGain.gain.linearRampToValueAtTime(peak, time + 0.002);
+  hGain.gain.exponentialRampToValueAtTime(0.0005, time + decay);
+
+  noise.connect(hpFilter);
+  hpFilter.connect(hGain);
+  hGain.connect(out);
+
+  noise.start(time, (time * 1.3) % 1.5, decay + 0.01);
+  noise.stop(time + decay + 0.01);
+}
+
+// 4. Basse Synthé Funky & Rebondissante (riche en médiums pour être entendue sur mobile !)
+function triggerBouncyQuizBass(
   ctx: AudioContext,
   out: AudioNode,
   time: number,
   midiNote: number,
-  isHalfStepTension: boolean,
-  isDownbeat: boolean
+  isHighOctave: boolean
 ) {
-  const playPulse = (startTime: number, vol: number, panVal: number) => {
+  const oscSaw = ctx.createOscillator();
+  const oscSquare = ctx.createOscillator();
+  const filter = ctx.createBiquadFilter();
+  const gain = ctx.createGain();
+
+  // On joue en registre C2-C3 + harmonique C3-C4 pour percer sur les petits haut-parleurs
+  const freq = midiToFreq(midiNote + 12); // Transposé d'une octave pour un rendu mobile ultra-net
+  oscSaw.type = 'sawtooth';
+  oscSquare.type = 'square';
+
+  oscSaw.frequency.setValueAtTime(freq, time);
+  oscSquare.frequency.setValueAtTime(freq * 0.5, time); // Sous-octave
+
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(isHighOctave ? 1650 : 1150, time);
+  filter.frequency.exponentialRampToValueAtTime(260, time + 0.11);
+  filter.Q.setValueAtTime(3.2, time);
+
+  const vol = isHighOctave ? 0.115 : 0.135;
+  gain.gain.setValueAtTime(0.001, time);
+  gain.gain.linearRampToValueAtTime(vol, time + 0.006);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.115);
+
+  oscSaw.connect(filter);
+  oscSquare.connect(filter);
+  filter.connect(gain);
+  gain.connect(out);
+
+  oscSaw.start(time);
+  oscSquare.start(time);
+  oscSaw.stop(time + 0.125);
+  oscSquare.stop(time + 0.125);
+}
+
+// 5. Accords "Quiz Show Synth Stabs" sur la rythmique entraînante 3+3+2 (style Kahoot!)
+function triggerQuizChordStab(
+  ctx: AudioContext,
+  out: AudioNode,
+  time: number,
+  chordMidiNotes: number[],
+  isAccent: boolean
+) {
+  chordMidiNotes.forEach((midi) => {
     const osc1 = ctx.createOscillator();
     const osc2 = ctx.createOscillator();
     const filter = ctx.createBiquadFilter();
     const gain = ctx.createGain();
 
-    const freq = midiToFreq(midiNote);
-    osc1.type = 'sine';
-    osc2.type = isHalfStepTension ? 'sawtooth' : 'triangle';
-    osc1.frequency.setValueAtTime(freq, startTime);
-    osc2.frequency.setValueAtTime(
-      isHalfStepTension ? freq * 1.004 : freq * 2,
-      startTime
-    );
+    const freq = midiToFreq(midi);
+    osc1.type = 'sawtooth';
+    osc2.type = 'triangle';
+    osc1.frequency.setValueAtTime(freq * 0.998, time);
+    osc2.frequency.setValueAtTime(freq * 1.003, time);
 
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(
-      isHalfStepTension ? freq * 2.6 : freq * 1.9,
-      startTime
-    );
-    filter.frequency.exponentialRampToValueAtTime(freq * 0.9, startTime + 0.14);
-    filter.Q.setValueAtTime(2.4, startTime);
+    filter.frequency.setValueAtTime(isAccent ? 2400 : 1700, time);
+    filter.frequency.exponentialRampToValueAtTime(600, time + 0.13);
+    filter.Q.setValueAtTime(1.8, time);
+
+    const vol = isAccent ? 0.042 : 0.03;
+    gain.gain.setValueAtTime(0.001, time);
+    gain.gain.linearRampToValueAtTime(vol, time + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0008, time + 0.14);
+
+    osc1.connect(filter);
+    osc2.connect(filter);
+    filter.connect(gain);
+    gain.connect(out);
+
+    osc1.start(time);
+    osc2.start(time);
+    osc1.stop(time + 0.15);
+    osc2.stop(time + 0.15);
+  });
+}
+
+// 6. Mélodie Principale "Marimba-Synth Hook" (Entraînante + Suspense QVGDM avec écho)
+function triggerQuizMelodyHook(
+  ctx: AudioContext,
+  out: AudioNode,
+  time: number,
+  midiNote: number,
+  durationSeconds: number,
+  isTensionNote: boolean
+) {
+  const playNote = (startTime: number, peakGain: number, dur: number, pan: number) => {
+    const oscMain = ctx.createOscillator();
+    const oscHarm = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+
+    const freq = midiToFreq(midiNote);
+    oscMain.type = isTensionNote ? 'sawtooth' : 'triangle';
+    oscHarm.type = 'sine';
+    oscMain.frequency.setValueAtTime(freq, startTime);
+    // Harmonique brillante de marimba/synthé à l'octave
+    oscHarm.frequency.setValueAtTime(freq * 2, startTime);
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(3200, startTime);
+    filter.frequency.exponentialRampToValueAtTime(900, startTime + dur);
+    filter.Q.setValueAtTime(2.0, startTime);
 
     gain.gain.setValueAtTime(0.001, startTime);
-    gain.gain.linearRampToValueAtTime(vol, startTime + 0.006);
-    gain.gain.exponentialRampToValueAtTime(0.0006, startTime + 0.15);
+    gain.gain.linearRampToValueAtTime(peakGain, startTime + 0.008);
+    gain.gain.setValueAtTime(peakGain * 0.7, startTime + dur * 0.45);
+    gain.gain.exponentialRampToValueAtTime(0.0008, startTime + dur);
 
-    osc1.connect(gain);
-    osc2.connect(filter);
+    oscMain.connect(filter);
+    oscHarm.connect(filter);
     filter.connect(gain);
 
     if (typeof ctx.createStereoPanner === 'function') {
       const panner = ctx.createStereoPanner();
-      panner.pan.setValueAtTime(panVal, startTime);
+      panner.pan.setValueAtTime(pan, startTime);
       gain.connect(panner);
       panner.connect(out);
     } else {
       gain.connect(out);
     }
 
-    osc1.start(startTime);
-    osc2.start(startTime);
-    osc1.stop(startTime + 0.16);
-    osc2.stop(startTime + 0.16);
+    oscMain.start(startTime);
+    oscHarm.start(startTime);
+    oscMain.stop(startTime + dur + 0.02);
+    oscHarm.stop(startTime + dur + 0.02);
   };
 
-  const mainVol = isDownbeat
-    ? 0.048
-    : isHalfStepTension
-    ? 0.044
-    : 0.026;
-
-  // Note principale + double écho sombre ping-pong dans l'espace du plateau
-  playPulse(time, mainVol, -0.2);
-  playPulse(time + 0.232, mainVol * 0.36, 0.28);
-  if (isHalfStepTension || isDownbeat) {
-    playPulse(time + 0.464, mainVol * 0.14, -0.32);
-  }
-}
-
-// 5. Cordes en Trémolo Hitchcockien & Dissonance de Demi-Ton (Tension psychologique)
-function triggerTremoloSuspenseStrings(
-  ctx: AudioContext,
-  out: AudioNode,
-  time: number,
-  mainMidi: number,
-  rubMidi: number | null, // Note de frottement dissonant (ex: Sol4 + Lab4 simultanés !)
-  durationSeconds: number,
-  crescendoEnd = false
-) {
-  const osc1 = ctx.createOscillator();
-  const osc2 = ctx.createOscillator();
-  const oscSubStr = ctx.createOscillator();
-  const tremoloLfo = ctx.createOscillator();
-  const tremoloDepth = ctx.createGain();
-  const tremoloNode = ctx.createGain();
-  const filter = ctx.createBiquadFilter();
-  const envGain = ctx.createGain();
-
-  const mainFreq = midiToFreq(mainMidi);
-  osc1.type = 'sawtooth';
-  osc2.type = 'sawtooth';
-  oscSubStr.type = 'triangle';
-
-  osc1.frequency.setValueAtTime(mainFreq * 0.996, time);
-  osc2.frequency.setValueAtTime(
-    rubMidi !== null ? midiToFreq(rubMidi) * 1.003 : mainFreq * 1.004,
-    time
+  // Note principale bien présente + rebond d'écho stéréo entraînant
+  playNote(time, isTensionNote ? 0.115 : 0.095, durationSeconds, -0.15);
+  playNote(
+    time + 0.175,
+    isTensionNote ? 0.038 : 0.028,
+    Math.min(0.16, durationSeconds * 0.7),
+    0.25
   );
-  oscSubStr.frequency.setValueAtTime(mainFreq * 0.5, time);
-
-  // Effet d'archet en trémolo rapide (7.2 Hz -> 10.5 Hz) typique des scènes de haute tension
-  tremoloNode.gain.setValueAtTime(0.78, time);
-  tremoloLfo.type = 'sine';
-  tremoloLfo.frequency.setValueAtTime(7.2, time);
-  if (crescendoEnd) {
-    tremoloLfo.frequency.linearRampToValueAtTime(10.5, time + durationSeconds);
-  }
-  tremoloDepth.gain.setValueAtTime(0.24, time);
-  tremoloLfo.connect(tremoloDepth);
-  tremoloDepth.connect(tremoloNode.gain);
-
-  filter.type = 'lowpass';
-  filter.frequency.setValueAtTime(620, time);
-  filter.frequency.linearRampToValueAtTime(
-    crescendoEnd ? 2100 : 1350,
-    time + durationSeconds * (crescendoEnd ? 0.9 : 0.55)
-  );
-  if (!crescendoEnd) {
-    filter.frequency.exponentialRampToValueAtTime(520, time + durationSeconds);
-  }
-  filter.Q.setValueAtTime(2.2, time);
-
-  // Attaque très progressive (gonflement angoissant venu de l'ombre)
-  const attackTime = Math.min(0.45, durationSeconds * 0.38);
-  const peakGain = crescendoEnd ? 0.095 : 0.072;
-  envGain.gain.setValueAtTime(0.001, time);
-  envGain.gain.linearRampToValueAtTime(peakGain, time + attackTime);
-  if (crescendoEnd) {
-    envGain.gain.linearRampToValueAtTime(
-      peakGain * 1.25,
-      time + durationSeconds * 0.92
-    );
-  } else {
-    envGain.gain.setValueAtTime(peakGain * 0.9, time + durationSeconds * 0.72);
-  }
-  envGain.gain.exponentialRampToValueAtTime(0.001, time + durationSeconds);
-
-  osc1.connect(filter);
-  osc2.connect(filter);
-  oscSubStr.connect(filter);
-  filter.connect(tremoloNode);
-  tremoloNode.connect(envGain);
-  envGain.connect(out);
-
-  osc1.start(time);
-  osc2.start(time);
-  oscSubStr.start(time);
-  tremoloLfo.start(time);
-
-  const stopTime = time + durationSeconds + 0.04;
-  osc1.stop(stopTime);
-  osc2.stop(stopTime);
-  oscSubStr.stop(stopTime);
-  tremoloLfo.stop(stopTime);
-}
-
-// 6. Riser d'aspiration cinématique en fin de cycle (fait monter la pression avant le BOOOOM)
-function triggerSuspenseRiser(
-  ctx: AudioContext,
-  out: AudioNode,
-  time: number,
-  rootMidi: number,
-  durationSeconds: number
-) {
-  // A. Glissando ascendant sourd d'un triton vers l'octave (Fa#3 -> Do4)
-  const osc = ctx.createOscillator();
-  const filter = ctx.createBiquadFilter();
-  const gain = ctx.createGain();
-
-  osc.type = 'sawtooth';
-  osc.frequency.setValueAtTime(midiToFreq(rootMidi + 18), time); // Fa#3
-  osc.frequency.exponentialRampToValueAtTime(
-    midiToFreq(rootMidi + 24), // Do4
-    time + durationSeconds
-  );
-
-  filter.type = 'bandpass';
-  filter.frequency.setValueAtTime(280, time);
-  filter.frequency.exponentialRampToValueAtTime(1600, time + durationSeconds);
-  filter.Q.setValueAtTime(3.5, time);
-
-  gain.gain.setValueAtTime(0.001, time);
-  gain.gain.exponentialRampToValueAtTime(0.075, time + durationSeconds * 0.92);
-  gain.gain.exponentialRampToValueAtTime(0.001, time + durationSeconds);
-
-  osc.connect(filter);
-  filter.connect(gain);
-  gain.connect(out);
-
-  osc.start(time);
-  osc.stop(time + durationSeconds + 0.03);
-
-  // B. Souffle inversé (Reverse Cymbal / Timbale Roll) en bruit blanc filtré
-  const noise = ctx.createBufferSource();
-  noise.buffer = getWhiteNoiseBuffer(ctx);
-  const nFilter = ctx.createBiquadFilter();
-  const nGain = ctx.createGain();
-
-  nFilter.type = 'bandpass';
-  nFilter.frequency.setValueAtTime(350, time);
-  nFilter.frequency.exponentialRampToValueAtTime(2400, time + durationSeconds);
-  nFilter.Q.setValueAtTime(4.0, time);
-
-  nGain.gain.setValueAtTime(0.0005, time);
-  nGain.gain.exponentialRampToValueAtTime(0.055, time + durationSeconds * 0.94);
-  nGain.gain.exponentialRampToValueAtTime(0.001, time + durationSeconds);
-
-  noise.connect(nFilter);
-  nFilter.connect(nGain);
-  nGain.connect(out);
-
-  noise.start(time, 0, Math.min(1.95, durationSeconds));
-  noise.stop(time + durationSeconds + 0.02);
 }
 
 // ============================================================================
-// PARTITION DE HAUTE TENSION (64 PAS — PÉDALE DE DO MINEUR, DEMI-TONS & TRITONS)
+// PARTITION « ELECTRO-QUIZ SHOW » (64 PAS — Cm -> Ab -> Fm -> G7)
 // ============================================================================
-const BAR_BASS_PEDAL = [36, 36, 36, 36];
-const BAR_TENSION_OFFSET = [7, 8, 6, 7]; // Sol2 -> Lab2 (demi-ton) -> Fa#2 (triton) -> Sol2
 
-// Ostinato sombre obsédant articulé autour du frottement Sol4 (67) <-> Lab4 (68) <-> Fa#4 (66)
-const DARK_SUSPENSE_OSTINATO: number[][] = [
-  // Mesure 1 (Cm abyssal) : le motif obsédant Do - Sol - Lab - Sol
-  [48, 55, 67, 68, 67, 55, 63, 67, 48, 55, 68, 67, 66, 67, 63, 55],
-  // Mesure 2 (Fm/C -> Ddim/C) : montée d'angoisse sur Lab - Sol - Fa# - Sol
-  [48, 56, 68, 67, 68, 65, 68, 67, 48, 56, 68, 66, 67, 62, 63, 55],
-  // Mesure 3 (Cm/Ab -> F#dim7) : tension chromatique aiguë Do5 - Si4 - Lab4 - Sol4 - Fa#4
-  [48, 55, 67, 68, 72, 71, 68, 67, 48, 54, 66, 68, 67, 66, 63, 55],
-  // Mesure 4 (G7b9/C — falaise de tension maximale avant le BOOOOM)
-  [47, 55, 68, 67, 65, 68, 67, 66, 47, 56, 68, 71, 68, 67, 66, 59],
+// Basse rebondissante en sauts d'octaves (façon Disco-Funk / Kahoot! / Synthwave Quiz)
+const BOUNCY_BASS_PROGRESSION: number[][] = [
+  // Mesure 1 : Do mineur (Cm) — rebond Do2 / Do3 + passage Sol2 / Lab2
+  [36, 48, 36, 48, 36, 48, 43, 48, 36, 48, 36, 48, 39, 43, 44, 43],
+  // Mesure 2 : La bémol Majeur (Ab) — groove lumineux mais tendu
+  [32, 44, 32, 44, 32, 44, 39, 44, 32, 44, 32, 44, 39, 44, 43, 39],
+  // Mesure 3 : Fa mineur (Fm) — montée d'enjeu
+  [29, 41, 29, 41, 29, 41, 36, 41, 29, 41, 32, 44, 36, 48, 44, 41],
+  // Mesure 4 : Sol 7 (G7 suspense) — tension maximale & relance rythmique vers Do !
+  [31, 43, 31, 43, 31, 43, 38, 43, 31, 43, 35, 47, 38, 41, 43, 47],
 ];
 
-// Nappes de cordes en trémolo : phrases lentes, espacées de silences angoissants,
-// avec frottements de seconde mineure (rubNote) comme dans un thriller
-const SUSPENSE_STRING_SWELLS: {
+// Accords de synthé rythmiques (joués en rythmique 3+3+2 sur chaque mesure)
+const QUIZ_CHORD_PROGRESSION: number[][] = [
+  [60, 63, 67], // Mesure 1 : Cm (Do4 - Mib4 - Sol4)
+  [60, 63, 68], // Mesure 2 : Ab (Do4 - Mib4 - Lab4 -> le demi-ton de suspense !)
+  [60, 65, 68], // Mesure 3 : Fm (Do4 - Fa4 - Lab4)
+  [59, 65, 67], // Mesure 4 : G7 (Si3 - Fa4 - Sol4 -> tension de dominante !)
+];
+
+// Arpège Marimba-Pluck rapide en arrière-plan (donne la vitesse et l'énergie du chrono)
+const QUIZ_FAST_ARPEGGIO: number[][] = [
+  [60, 63, 67, 72, 67, 63, 68, 67, 60, 63, 67, 72, 68, 67, 63, 67], // Cm
+  [60, 63, 68, 72, 68, 63, 67, 68, 60, 63, 68, 75, 72, 68, 67, 63], // Ab
+  [60, 65, 68, 72, 68, 65, 68, 72, 60, 65, 68, 77, 75, 72, 68, 65], // Fm
+  [59, 62, 67, 71, 68, 67, 65, 62, 59, 65, 67, 71, 72, 71, 68, 67], // G7
+];
+
+// Mélodie "Hook" ultra-accrocheuse combinant l'énergie d'un jeu mobile et le thème QVGDM
+const QUIZ_MELODY_HOOK_EVENTS: {
   step: number;
   note: number;
-  rubNote: number | null;
   lengthSteps: number;
-  crescendoEnd?: boolean;
+  tension?: boolean;
 }[] = [
-  // Mesure 1 : Gonflement lent sur Sol4 puis glissement glaçant d'un demi-ton sur Lab4
-  { step: 2, note: 67, rubNote: null, lengthSteps: 8 },
-  { step: 10, note: 68, rubNote: 67, lengthSteps: 6 }, // Frottement Sol4 + Lab4 !
+  // Mesure 1 (Cm) : Do - Mib - Sol ! Lab - Sol ! (rythmé et rebondissant)
+  { step: 0, note: 72, lengthSteps: 2 },                  // Do5
+  { step: 2, note: 75, lengthSteps: 2 },                  // Mib5
+  { step: 4, note: 79, lengthSteps: 3 },                  // Sol5
+  { step: 7, note: 80, lengthSteps: 3, tension: true },   // Lab5 (syncope de suspense !)
+  { step: 10, note: 79, lengthSteps: 2 },                 // Sol5
+  { step: 12, note: 75, lengthSteps: 2 },                 // Mib5
+  { step: 14, note: 79, lengthSteps: 2 },                 // Sol5
 
-  // Mesure 2 : Descente sur Fa#4 (triton) -> Sol4, puis silence tendu (seul le cœur bat)
-  { step: 16, note: 67, rubNote: 66, lengthSteps: 6 },
-  { step: 22, note: 62, rubNote: 63, lengthSteps: 6 }, // Ré4 + Mib4 sombre
+  // Mesure 2 (Ab) : Réponse mélodique entraînante Lab - Sol - Fa - Mib - Sol
+  { step: 16, note: 80, lengthSteps: 3, tension: true },  // Lab5
+  { step: 19, note: 79, lengthSteps: 3 },                 // Sol5
+  { step: 22, note: 77, lengthSteps: 2 },                 // Fa5
+  { step: 24, note: 75, lengthSteps: 2 },                 // Mib5
+  { step: 26, note: 77, lengthSteps: 2 },                 // Fa5
+  { step: 28, note: 79, lengthSteps: 2 },                 // Sol5
+  { step: 30, note: 75, lengthSteps: 2 },                 // Mib5
 
-  // Mesure 3 : Montée fatidique de QVGDM (Sol4 -> Lab4 -> Do5)
-  { step: 32, note: 67, rubNote: null, lengthSteps: 6 },
-  { step: 38, note: 68, rubNote: 67, lengthSteps: 6 },
-  { step: 44, note: 72, rubNote: 71, lengthSteps: 4 }, // Do5 + Si4
+  // Mesure 3 (Fm) : La grande montée QVGDM en version électro-quiz (Do - Fa - Lab - Do6 !)
+  { step: 32, note: 72, lengthSteps: 2 },                 // Do5
+  { step: 34, note: 77, lengthSteps: 2 },                 // Fa5
+  { step: 36, note: 80, lengthSteps: 3, tension: true },  // Lab5
+  { step: 39, note: 79, lengthSteps: 3 },                 // Sol5
+  { step: 42, note: 80, lengthSteps: 2, tension: true },  // Lab5
+  { step: 44, note: 84, lengthSteps: 4, tension: true },  // Do6 (sommet !)
 
-  // Mesure 4 : Accord de suspense G7b9 en trémolo accéléré jusqu'au gouffre final
-  { step: 48, note: 71, rubNote: 68, lengthSteps: 8 },
-  { step: 56, note: 68, rubNote: 67, lengthSteps: 8, crescendoEnd: true },
+  // Mesure 4 (G7 Turnaround) : Descente/Relance de suspense Si - Lab - Sol - Fa# - Sol - Si !
+  { step: 48, note: 83, lengthSteps: 3, tension: true },  // Si5 bécarre
+  { step: 51, note: 80, lengthSteps: 3, tension: true },  // Lab5
+  { step: 54, note: 79, lengthSteps: 2 },                 // Sol5
+  { step: 56, note: 78, lengthSteps: 2, tension: true },  // Fa#5 (triton !)
+  { step: 58, note: 79, lengthSteps: 2 },                 // Sol5
+  { step: 60, note: 80, lengthSteps: 2, tension: true },  // Lab5
+  { step: 62, note: 83, lengthSteps: 2, tension: true },  // Si5 (relance vers Do5 !)
 ];
 
 export function setMillionsZoukStep(step: number) {
@@ -976,11 +885,11 @@ export function startMillionsZoukMusic(enabled = true, step = 1) {
   millionsCurrentStep = step;
   millionsStepIndex = 0;
 
-  // Tempo tendu de plateau TV (~95 BPM -> 1 double-croche = 158ms)
-  const STEP_MS = 158;
+  // Tempo Electro-Quiz ultra-entraînant (~125 BPM -> 1 double-croche = 120ms)
+  const STEP_MS = 120;
   const STEP_SEC = STEP_MS / 1000;
 
-  const playSuspenseTick = () => {
+  const playQuizGrooveTick = () => {
     const audio = getCtx();
     if (!audio) return;
     const out = getMasterOutput(audio);
@@ -990,104 +899,83 @@ export function startMillionsZoukMusic(enabled = true, step = 1) {
     const pos16 = pos64 % 16;
     const barIdx = Math.floor(pos64 / 16);
 
-    // Transposition progressive par demi-ton selon le palier (exactement comme à la TV)
+    // Transposition progressive par demi-ton selon le palier (monte la pression !)
     const transpose =
       millionsCurrentStep <= 5
         ? 0
         : Math.min(7, millionsCurrentStep - 5);
 
-    const highStakesFactor =
+    const intensity =
       1 +
-      Math.max(0, millionsCurrentStep - 5) * 0.04 +
-      (millionsSuspenseLocked ? 0.25 : 0);
+      Math.max(0, millionsCurrentStep - 5) * 0.03 +
+      (millionsSuspenseLocked ? 0.2 : 0);
 
-    const rootNote = BAR_BASS_PEDAL[barIdx] + transpose;
-    const tensionOffset = BAR_TENSION_OFFSET[barIdx];
-
-    // 1. Grand Impact ("DOUUUUUM") + Bourdon abyssal respirant à chaque mesure
-    if (pos16 === 0) {
-      const impactType =
-        barIdx === 0 ? 'heavy' : barIdx === 2 ? 'medium' : 'none';
-      triggerDarkSuspenseDroneAndImpact(
-        audio,
-        out,
-        now,
-        rootNote,
-        tensionOffset,
-        STEP_SEC * 15.8,
-        impactType
-      );
+    // 1. KICK ELECTRO-QUIZ : 4-on-the-floor (0, 4, 8, 12) + rebonds funky (6, 14)
+    if (pos16 % 4 === 0) {
+      triggerQuizKick(audio, out, now, true);
+    } else if (pos16 === 6 || pos16 === 14) {
+      triggerQuizKick(audio, out, now, false);
     }
 
-    // 2. Battement de cœur humain ("LUB-DUB") avec écart physiologique réaliste (pas 0 & 3, 8 & 11)
-    // En mode "C'est votre dernier mot ?" ou paliers > 10, ajout d'un 3e battement d'adrénaline (pas 13 & 15)
-    if (pos16 === 0 || pos16 === 8) {
-      triggerOriginalHeartbeat(audio, now, true, highStakesFactor);
-    } else if (pos16 === 3 || pos16 === 11) {
-      triggerOriginalHeartbeat(audio, now, false, highStakesFactor);
-    } else if (
-      (millionsSuspenseLocked || millionsCurrentStep >= 11 || barIdx === 3) &&
-      pos16 === 13
+    // 2. CLAP / SNARE sur les temps 2 et 4 (pas 4 et 12) + roulement final sur la mesure 4
+    if (pos16 === 4 || pos16 === 12) {
+      triggerQuizClapSnare(audio, out, now, 0.95 * intensity);
+    } else if (pos16 === 15 && barIdx % 2 === 1) {
+      triggerQuizClapSnare(audio, out, now, 0.45 * intensity);
+    } else if (barIdx === 3 && pos16 >= 12) {
+      // Petit break/roulement de caisse claire super entraînant en fin de boucle !
+      const rollVel = (0.45 + (pos16 - 12) * 0.16) * intensity;
+      triggerQuizClapSnare(audio, out, now, rollVel);
+    }
+
+    // 3. CHARLESTON + WOODBLOCK HORLOGE sur chaque double-croche
+    triggerQuizClockHat(audio, out, now, pos16);
+
+    // 4. BASSE SYNTHÉ FUNKY EN OCTAVES (audible même sur petit haut-parleur mobile)
+    const bassNote = BOUNCY_BASS_PROGRESSION[barIdx][pos16] + transpose;
+    triggerBouncyQuizBass(audio, out, now, bassNote, pos16 % 2 === 1);
+
+    // 5. ACCORDS "QUIZ SHOW STABS" sur la rythmique syncopée 3+3+2 (pas 0, 3, 6, 8, 11, 14)
+    if (
+      pos16 === 0 ||
+      pos16 === 3 ||
+      pos16 === 6 ||
+      pos16 === 8 ||
+      pos16 === 11 ||
+      pos16 === 14
     ) {
-      triggerOriginalHeartbeat(audio, now, true, highStakesFactor * 0.85);
-    } else if (
-      (millionsSuspenseLocked || millionsCurrentStep >= 11 || barIdx === 3) &&
-      pos16 === 15
-    ) {
-      triggerOriginalHeartbeat(audio, now, false, highStakesFactor * 0.85);
-    }
-
-    // 3. Tic-Tac mécanique de chronomètre stéréo (croches en temps normal, doubles-croches sous haute tension)
-    const playFastTicks =
-      millionsSuspenseLocked || millionsCurrentStep >= 10 || barIdx === 3;
-    if (pos16 % 2 === 0 || playFastTicks) {
-      triggerSuspenseClockTick(
+      const chordNotes = QUIZ_CHORD_PROGRESSION[barIdx].map((n) => n + transpose);
+      triggerQuizChordStab(
         audio,
         out,
         now,
-        pos16 % 4 < 2,
-        pos16 % 4 === 0
+        chordNotes,
+        pos16 === 0 || pos16 === 8
       );
     }
 
-    // 4. Ostinato sombre hypnotique (cellule de demi-ton Sol - Lab - Sol - Fa#)
-    const arpMidi = DARK_SUSPENSE_OSTINATO[barIdx][pos16] + transpose;
-    const rawPitchClass = DARK_SUSPENSE_OSTINATO[barIdx][pos16] % 12;
-    const isHalfStepOrTritone =
-      rawPitchClass === 8 || rawPitchClass === 6 || rawPitchClass === 11; // Lab, Fa#, Si
-    triggerDarkSuspenseOstinato(
-      audio,
-      out,
-      now,
-      arpMidi,
-      isHalfStepOrTritone,
-      pos16 % 4 === 0
-    );
+    // 6. ARPÈGE PLUCK RAPIDE EN DOUBLES-CROCHES (énergie + compte à rebours)
+    const arpNote = QUIZ_FAST_ARPEGGIO[barIdx][pos16] + transpose;
+    triggerQuizMelodyHook(audio, out, now, arpNote, STEP_SEC * 0.85, false);
 
-    // 5. Cordes en trémolo Hitchcockien & frottements de seconde mineure
-    const stringEvent = SUSPENSE_STRING_SWELLS.find((ev) => ev.step === pos64);
-    if (stringEvent) {
-      triggerTremoloSuspenseStrings(
+    // 7. MÉLODIE "HOOK" PRINCIPALE (Entraînante + Suspense QVGDM)
+    const hookEv = QUIZ_MELODY_HOOK_EVENTS.find((ev) => ev.step === pos64);
+    if (hookEv) {
+      triggerQuizMelodyHook(
         audio,
         out,
         now,
-        stringEvent.note + transpose,
-        stringEvent.rubNote !== null ? stringEvent.rubNote + transpose : null,
-        stringEvent.lengthSteps * STEP_SEC * 0.98,
-        Boolean(stringEvent.crescendoEnd)
+        hookEv.note + transpose,
+        hookEv.lengthSteps * STEP_SEC * 0.92,
+        Boolean(hookEv.tension)
       );
-    }
-
-    // 6. Riser d'aspiration cinématique sur les 12 derniers pas avant le grand BOOOOM
-    if (pos64 === 52) {
-      triggerSuspenseRiser(audio, out, now, rootNote, 12 * STEP_SEC);
     }
 
     millionsStepIndex += 1;
   };
 
-  playSuspenseTick();
-  millionsInterval = setInterval(playSuspenseTick, STEP_MS);
+  playQuizGrooveTick();
+  millionsInterval = setInterval(playQuizGrooveTick, STEP_MS);
 }
 
 export function stopMillionsZoukMusic() {

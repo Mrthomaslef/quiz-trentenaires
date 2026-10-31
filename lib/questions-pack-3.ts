@@ -804,10 +804,10 @@ export const QUESTIONS_PACK_3: RawSeedQuestion[] = [
   {
     difficulty: 1,
     theme: "Espace & Astronomie",
-    question: "Quelle planète du système solaire est surnommée la « Planète rouge » ?",
-    options: ["Mars", "Vénus", "Jupiter", "Mercure"],
+    question: "Comment s'appelle l'unique satellite naturel permanent qui tourne autour de la planète Terre ?",
+    options: ["La Lune", "Titan", "Phobos", "Europe"],
     correct_index: 0,
-    explanation: "Mars doit sa couleur rouge orangé à l’abondance d’oxyde de fer (rouille) présent à sa surface.",
+    explanation: "Située à environ 384 400 km de la Terre, la Lune est notre seul satellite naturel permanent et le cinquième plus grand du système solaire.",
   },
   {
     difficulty: 1,
@@ -820,10 +820,10 @@ export const QUESTIONS_PACK_3: RawSeedQuestion[] = [
   {
     difficulty: 1,
     theme: "Espace & Astronomie",
-    question: "Quelle est la planète la plus proche du Soleil dans notre système solaire ?",
-    options: ["Vénus", "Mars", "Mercure", "Terre"],
+    question: "Quel spationaute français est devenu une star des réseaux sociaux lors de ses deux missions à bord de l'ISS en 2016 et 2021 ?",
+    options: ["Jean-Loup Chrétien", "Patrick Baudry", "Thomas Pesquet", "Jean-François Clervoy"],
     correct_index: 2,
-    explanation: "Mercure orbite à environ 58 millions de kilomètres du Soleil, ce qui en fait la planète la plus proche de notre étoile.",
+    explanation: "Thomas Pesquet a effectué les missions Proxima (2016-2017) et Alpha (2021), devenant même commandant de la Station spatiale internationale.",
   },
   {
     difficulty: 1,

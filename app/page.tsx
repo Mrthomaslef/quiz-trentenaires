@@ -47,12 +47,20 @@ import {
   ShieldCheck,
   Globe,
   Car,
+  Wallet,
+  ShoppingBag,
+  Sparkles,
+  CheckCircle2,
+  X,
 } from 'lucide-react';
 import {
   playPointSound,
+  playCorrectSound,
   startMillionsZoukMusic,
   stopMillionsZoukMusic,
 } from '@/lib/sound';
+
+const PACK_10_QUESTIONS_PRICE = 1500;
 
 const STORAGE_KEYS = {
   MODE: '7ter:mode:v2',
@@ -66,6 +74,10 @@ const STORAGE_KEYS = {
   COOP: '7ter:coop:v1',
   ACTIVE_QUESTION_BY_KEY: '7ter:active_q_by_key:v1',
   ACTIVE_QUESTION_SNAPSHOT: '7ter:active_q_snapshot:v1',
+  USER_PSEUDO: '7ter:user_pseudo:v1',
+  USER_CAGNOTTE: '7ter:user_cagnotte:v1',
+  CUSTOM_QUESTIONS: '7ter:custom_questions:v1',
+  VERSUS_PLAYER_NAME: '7ter:versus:player_name:v1',
 };
 
 const DEFAULT_COUPLES: PlayerScore[] = [
@@ -135,6 +147,21 @@ export default function QuizHomePage() {
     DEFAULT_ADMIN_SETTINGS
   );
   const [hydrated, setHydrated] = useState<boolean>(false);
+
+  // Profil personnel (Pseudo à la 1re connexion + Cagnotte personnelle + Boutique 10 questions)
+  const [userPseudo, setUserPseudo] = useState<string>('');
+  const [pseudoInput, setPseudoInput] = useState<string>('');
+  const [showFirstTimePseudoModal, setShowFirstTimePseudoModal] = useState<boolean>(false);
+  const [cagnotteBalance, setCagnotteBalance] = useState<number>(0);
+  const [customBoughtQuestions, setCustomBoughtQuestions] = useState<QuizQuestionRecord[]>([]);
+  const [showShopModal, setShowShopModal] = useState<boolean>(false);
+  const [isBuyingPack, setIsBuyingPack] = useState<boolean>(false);
+  const [shopFeedback, setShopFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+    questions?: QuizQuestionRecord[];
+  } | null>(null);
+  const [cagnotteToast, setCagnotteToast] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -256,6 +283,52 @@ export default function QuizHomePage() {
       if (savedDCC === 'true') {
         setDuoCarreCashEnabled(true);
       }
+
+      // Chargement du pseudo (1re connexion), de la cagnotte personnelle et des questions achetées
+      const savedPseudo =
+        localStorage.getItem(STORAGE_KEYS.USER_PSEUDO) ||
+        localStorage.getItem(STORAGE_KEYS.VERSUS_PLAYER_NAME) ||
+        '';
+      if (savedPseudo && savedPseudo.trim().length > 0) {
+        const cleanPseudo = savedPseudo.trim();
+        setUserPseudo(cleanPseudo);
+        setPseudoInput(cleanPseudo);
+        localStorage.setItem(STORAGE_KEYS.USER_PSEUDO, cleanPseudo);
+      } else {
+        setShowFirstTimePseudoModal(true);
+      }
+
+      const savedCagnotte = Number.parseInt(
+        localStorage.getItem(STORAGE_KEYS.USER_CAGNOTTE) || '0',
+        10
+      );
+      if (Number.isFinite(savedCagnotte) && savedCagnotte >= 0) {
+        setCagnotteBalance(savedCagnotte);
+      }
+
+      const savedCustomQ = localStorage.getItem(STORAGE_KEYS.CUSTOM_QUESTIONS);
+      if (savedCustomQ) {
+        const parsedCustom = JSON.parse(savedCustomQ);
+        if (Array.isArray(parsedCustom) && parsedCustom.length > 0) {
+          setCustomBoughtQuestions(parsedCustom);
+          setPoolByLevel((prev) => {
+            const nextPool: Record<number, QuizQuestionRecord[]> = { ...prev };
+            for (const cq of parsedCustom as QuizQuestionRecord[]) {
+              const lvl = Math.max(1, Math.min(10, Number(cq.difficulty) || 5));
+              const list = nextPool[lvl] || [];
+              const exists = list.some(
+                (item) =>
+                  normalizeQuestionKey(item.question) ===
+                  normalizeQuestionKey(cq.question)
+              );
+              if (!exists) {
+                nextPool[lvl] = [cq, ...list];
+              }
+            }
+            return nextPool;
+          });
+        }
+      }
     } catch {
       // Ignore storage errors
     } finally {
@@ -370,6 +443,18 @@ export default function QuizHomePage() {
       localStorage.setItem(STORAGE_KEYS.QUESTION_COUNT, String(questionNumber));
       localStorage.setItem(STORAGE_KEYS.SOUND, String(soundEnabled));
       localStorage.setItem('7ter:dcc:v1', String(duoCarreCashEnabled));
+      if (userPseudo) {
+        localStorage.setItem(STORAGE_KEYS.USER_PSEUDO, userPseudo);
+        localStorage.setItem(STORAGE_KEYS.VERSUS_PLAYER_NAME, userPseudo);
+      }
+      localStorage.setItem(
+        STORAGE_KEYS.USER_CAGNOTTE,
+        String(cagnotteBalance)
+      );
+      localStorage.setItem(
+        STORAGE_KEYS.CUSTOM_QUESTIONS,
+        JSON.stringify(customBoughtQuestions)
+      );
     } catch {
       // Ignore storage errors
     }
@@ -387,6 +472,9 @@ export default function QuizHomePage() {
     questionNumber,
     soundEnabled,
     duoCarreCashEnabled,
+    userPseudo,
+    cagnotteBalance,
+    customBoughtQuestions,
   ]);
 
   // Niveau effectif : en mode Ensemble (coop), c'est le palier d'ascension (1 -> 10)
@@ -794,26 +882,160 @@ export default function QuizHomePage() {
     [poolByLevel]
   );
 
+  const handleSaveFirstTimePseudo = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      const cleaned = pseudoInput.trim();
+      if (!cleaned) return;
+      setUserPseudo(cleaned);
+      setShowFirstTimePseudoModal(false);
+      playPointSound(soundEnabled);
+      // Si Joueur 1 a encore son nom par défaut, lui attribuer le pseudo choisi
+      setPlayers((prev) =>
+        prev.map((p, idx) =>
+          idx === 0 && (p.name === 'Joueur 1' || !p.name)
+            ? { ...p, name: cleaned }
+            : p
+        )
+      );
+      try {
+        localStorage.setItem(STORAGE_KEYS.USER_PSEUDO, cleaned);
+        localStorage.setItem(STORAGE_KEYS.VERSUS_PLAYER_NAME, cleaned);
+      } catch {
+        // Ignore
+      }
+    },
+    [pseudoInput, soundEnabled]
+  );
+
+  const handleAddMoneyToCagnotte = useCallback(
+    (amount: number, reason: string) => {
+      if (amount <= 0) return;
+      setCagnotteBalance((prev) => {
+        const next = prev + amount;
+        try {
+          localStorage.setItem(STORAGE_KEYS.USER_CAGNOTTE, String(next));
+        } catch {
+          // Ignore
+        }
+        return next;
+      });
+      setCagnotteToast(
+        `+${amount.toLocaleString('fr-FR')} € dans la cagnotte (${reason})`
+      );
+      setTimeout(() => {
+        setCagnotteToast(null);
+      }, 4500);
+    },
+    []
+  );
+
+  const handleBuyTenQuestionsPack = useCallback(async () => {
+    if (isBuyingPack || cagnotteBalance < PACK_10_QUESTIONS_PRICE) return;
+    setIsBuyingPack(true);
+    setShopFeedback(null);
+
+    try {
+      const existingKeys: string[] = [];
+      for (let lvl = 1; lvl <= 10; lvl++) {
+        for (const q of poolByLevel[lvl] || []) {
+          existingKeys.push(normalizeQuestionKey(q.question));
+        }
+      }
+
+      const res = await fetch('/api/questions/buy-pack', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pseudo: userPseudo || 'Joueur',
+          excludeKeys: existingKeys,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !Array.isArray(data?.questions) || data.questions.length === 0) {
+        throw new Error(data?.error || 'Impossible de générer le pack de 10 questions.');
+      }
+
+      const newQuestions: QuizQuestionRecord[] = data.questions;
+
+      // Débiter la cagnotte
+      setCagnotteBalance((prev) => {
+        const next = Math.max(0, prev - PACK_10_QUESTIONS_PRICE);
+        try {
+          localStorage.setItem(STORAGE_KEYS.USER_CAGNOTTE, String(next));
+        } catch {
+          // Ignore
+        }
+        return next;
+      });
+
+      // Enregistrer et injecter immédiatement les 10 nouvelles questions dans le pool actif
+      setCustomBoughtQuestions((prev) => [...newQuestions, ...prev]);
+      setPoolByLevel((prev) => {
+        const nextPool: Record<number, QuizQuestionRecord[]> = { ...prev };
+        for (const nq of newQuestions) {
+          const lvl = Math.max(1, Math.min(10, Number(nq.difficulty) || 5));
+          const currentList = nextPool[lvl] || [];
+          const alreadyIn = currentList.some(
+            (item) =>
+              normalizeQuestionKey(item.question) ===
+              normalizeQuestionKey(nq.question)
+          );
+          if (!alreadyIn) {
+            nextPool[lvl] = [nq, ...currentList];
+          }
+        }
+        return nextPool;
+      });
+
+      playCorrectSound(soundEnabled);
+      setShopFeedback({
+        type: 'success',
+        message: `10 nouvelles questions inédites ont été créées et ajoutées au jeu par ${
+          userPseudo || 'vous'
+        } !`,
+        questions: newQuestions,
+      });
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : 'Erreur lors de la création des questions.';
+      setShopFeedback({
+        type: 'error',
+        message: msg,
+      });
+    } finally {
+      setIsBuyingPack(false);
+    }
+  }, [cagnotteBalance, isBuyingPack, poolByLevel, soundEnabled, userPseudo]);
+
   return (
     <div className="h-[100dvh] max-h-[100dvh] w-full overflow-hidden flex flex-col justify-between select-none pb-[env(safe-area-inset-bottom)]">
-      {/* En-tête avec barre de modes 100% visible et lisible en mode portrait et desktop */}
-      <header className="shrink-0 border-b border-yellow-400/35 bg-[#050d26]/95 px-2 sm:px-4 py-1 sm:py-2">
-        <div className="mx-auto max-w-5xl flex flex-col gap-1 sm:gap-1.5">
-          {/* Ligne 1 : Logo 7TER + Bouton Mode Enfant + Espace Admin + Son + Reset */}
+      {/* Notification flottante lors d'un gain dans la cagnotte */}
+      {cagnotteToast && (
+        <div className="fixed top-12 left-1/2 -translate-x-1/2 z-50 rounded-full border-2 border-emerald-300 bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-1.5 text-xs sm:text-sm font-black text-slate-950 shadow-2xl animate-bounce">
+          💰 {cagnotteToast}
+        </div>
+      )}
+
+      {/* En-tête avec barre de modes 100% visible et lisible en mode portrait, paysage et desktop */}
+      <header className="shrink-0 border-b border-yellow-400/35 bg-[#050d26]/95 px-2 sm:px-4 py-1 sm:py-2 ls:py-0.5">
+        <div className="mx-auto max-w-5xl flex flex-col gap-1 sm:gap-1.5 ls:gap-0.5">
+          {/* Ligne 1 : Logo 7TER + Pseudo & Cagnotte/Boutique + Bouton Mode Enfant + Espace Admin + Son + Reset */}
           <div className="flex items-center justify-between gap-1.5">
             <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-              <div className="relative flex h-6 w-9 sm:h-8 sm:w-12 shrink-0 items-center justify-center rounded-lg border-2 border-yellow-400 bg-gradient-to-br from-[#133282] to-[#06102b] shadow">
-                <span className="text-xs sm:text-base font-black text-yellow-400 tracking-tighter">
+              <div className="relative flex h-6 w-9 sm:h-8 sm:w-12 ls:h-5 ls:w-8 shrink-0 items-center justify-center rounded-lg border-2 border-yellow-400 bg-gradient-to-br from-[#133282] to-[#06102b] shadow">
+                <span className="text-xs sm:text-base ls:text-xs font-black text-yellow-400 tracking-tighter">
                   7
                 </span>
-                <span className="text-[7px] sm:text-[9px] font-black uppercase text-white ml-0.5">
+                <span className="text-[7px] sm:text-[9px] ls:text-[7px] font-black uppercase text-white ml-0.5">
                   TER
                 </span>
               </div>
 
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <h1 className="text-xs sm:text-lg font-black uppercase tracking-tight text-white truncate">
+                  <h1 className="text-xs sm:text-lg ls:text-xs font-black uppercase tracking-tight text-white truncate">
                     QUIZ du <span className="text-yellow-400">7TER</span>
                   </h1>
                   <span className="hidden md:inline-flex items-center gap-1 rounded-full bg-yellow-400/15 border border-yellow-400/40 px-2 py-0.5 text-[10px] font-bold text-yellow-300">
@@ -824,18 +1046,37 @@ export default function QuizHomePage() {
             </div>
 
             <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+              {/* Bouton Pseudo + Cagnotte personnelle & Boutique (+10 questions) */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShopFeedback(null);
+                  setShowShopModal(true);
+                }}
+                className="inline-flex items-center gap-1 rounded-lg border border-amber-400/70 bg-gradient-to-r from-amber-400/20 via-yellow-400/20 to-emerald-400/20 hover:from-amber-400 hover:to-yellow-400 hover:text-slate-950 px-2 py-1 ls:py-0.5 text-[10px] sm:text-[11px] font-black text-amber-200 transition shadow-sm"
+                title="Profil joueur, Cagnotte personnelle & Boutique (+10 nouvelles questions au hasard)"
+              >
+                <Wallet className="h-3.5 w-3.5 text-yellow-400 shrink-0" />
+                <span className="truncate max-w-[75px] sm:max-w-[110px]">
+                  {userPseudo || 'Pseudo'}
+                </span>
+                <span className="rounded bg-emerald-500/25 border border-emerald-400/50 px-1 py-0.2 text-[9px] sm:text-[10px] font-black text-emerald-300">
+                  {cagnotteBalance.toLocaleString('fr-FR')} €
+                </span>
+              </button>
+
               <Link
                 href="/enfants"
-                className="inline-flex items-center gap-1 rounded-lg border border-lime-400/60 bg-gradient-to-r from-lime-400/25 to-emerald-500/25 hover:from-lime-400 hover:to-emerald-400 hover:text-slate-950 px-2 py-1 text-[10px] sm:text-[11px] font-black text-lime-300 transition shadow-sm"
+                className="inline-flex items-center gap-1 rounded-lg border border-lime-400/60 bg-gradient-to-r from-lime-400/25 to-emerald-500/25 hover:from-lime-400 hover:to-emerald-400 hover:text-slate-950 px-2 py-1 ls:py-0.5 text-[10px] sm:text-[11px] font-black text-lime-300 transition shadow-sm"
                 title="Ouvrir la page dédiée au Mode Enfant (Quiz sur images : Ferme, JO, Animaux, Sport, Pokémon)"
               >
                 <span>🎈</span>
-                <span className=" sm:inline">Enfants</span>
+                <span className="hidden sm:inline">Enfants</span>
               </Link>
 
               <Link
                 href="/admin"
-                className="inline-flex items-center gap-1 rounded-lg border border-purple-400/60 bg-gradient-to-r from-purple-500/25 to-indigo-500/25 hover:from-purple-400 hover:to-indigo-400 hover:text-slate-950 px-1.5 sm:px-2 py-1 text-[10px] sm:text-[11px] font-black text-purple-200 transition shadow-sm"
+                className="inline-flex items-center gap-1 rounded-lg border border-purple-400/60 bg-gradient-to-r from-purple-500/25 to-indigo-500/25 hover:from-purple-400 hover:to-indigo-400 hover:text-slate-950 px-1.5 sm:px-2 py-1 ls:py-0.5 text-[10px] sm:text-[11px] font-black text-purple-200 transition shadow-sm"
                 title="Espace Admin (Code requis) : Évaluer la difficulté, notes, statistiques des questions et base Déjà répondu"
               >
                 <ShieldCheck className="h-3.5 w-3.5 text-purple-300 shrink-0" />
@@ -854,7 +1095,7 @@ export default function QuizHomePage() {
                     stopMillionsZoukMusic();
                   }
                 }}
-                className={`flex h-6 sm:h-7 items-center justify-center gap-1 rounded-lg border px-1.5 text-[10px] font-bold transition active:scale-95 ${
+                className={`flex h-6 sm:h-7 ls:h-5 items-center justify-center gap-1 rounded-lg border px-1.5 text-[10px] font-bold transition active:scale-95 ${
                   zoukMusicEnabled && soundEnabled
                     ? 'border-yellow-400/60 bg-yellow-400/15 text-yellow-300'
                     : 'border-blue-500/30 bg-blue-950/70 text-blue-300/50'
@@ -874,7 +1115,7 @@ export default function QuizHomePage() {
                     stopMillionsZoukMusic();
                   }
                 }}
-                className={`flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-lg border transition ${
+                className={`flex h-6 w-6 sm:h-7 sm:w-7 ls:h-5 ls:w-5 items-center justify-center rounded-lg border transition ${
                   soundEnabled
                     ? 'border-yellow-400/60 bg-yellow-400/15 text-yellow-300'
                     : 'border-blue-500/30 bg-blue-950/70 text-blue-300/50'
@@ -889,7 +1130,7 @@ export default function QuizHomePage() {
               </button>
 
               <span
-                className={`hidden md:inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-bold ${
+                className={`hidden md:inline-flex items-center gap-1 rounded-lg border px-2 py-1 ls:py-0.5 text-[10px] font-bold ${
                   dbSynced
                     ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-300'
                     : 'border-sky-400/40 bg-sky-500/15 text-sky-300'
@@ -911,7 +1152,7 @@ export default function QuizHomePage() {
               <button
                 type="button"
                 onClick={handleResetAll}
-                className="inline-flex h-6 sm:h-7 items-center gap-1 rounded-lg border border-blue-400/35 bg-blue-900/50 px-1.5 sm:px-2 text-[10px] sm:text-[11px] font-extrabold text-blue-100 hover:bg-yellow-400 hover:text-blue-950 transition"
+                className="inline-flex h-6 sm:h-7 ls:h-5 items-center gap-1 rounded-lg border border-blue-400/35 bg-blue-900/50 px-1.5 sm:px-2 text-[10px] sm:text-[11px] font-extrabold text-blue-100 hover:bg-yellow-400 hover:text-blue-950 transition"
                 title="Remettre les scores et la soirée à zéro"
               >
                 <RotateCcw className="h-3 w-3" />
@@ -920,9 +1161,9 @@ export default function QuizHomePage() {
             </div>
           </div>
 
-          {/* Ligne 2 : Sélecteur des 5 Catégories de Modes (Icône au-dessus du texte en portrait mobile pour 0 troncature) */}
-          <div className="flex flex-col gap-1 rounded-xl bg-[#040b1e] p-1 border border-blue-500/35">
-            <div className="grid grid-cols-5 gap-1">
+          {/* Ligne 2 : Sélecteur des 5 Catégories de Modes + Sous-modes (sur 1 seule ligne en paysage ls:/md: pour économiser la hauteur) */}
+          <div className="flex flex-col ls:flex-row md:flex-row ls:items-center md:items-center gap-1 ls:gap-1.5 rounded-xl bg-[#040b1e] p-1 ls:p-0.5 border border-blue-500/35">
+            <div className="grid grid-cols-5 gap-1 flex-1">
               <button
                 type="button"
                 onClick={() => {
@@ -932,17 +1173,17 @@ export default function QuizHomePage() {
                     setCoopStats((prev) => ({ ...prev, status: 'playing' }));
                   }
                 }}
-                className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 rounded-lg py-1 sm:py-1.5 px-0.5 sm:px-1.5 text-[10px] sm:text-xs font-black leading-tight transition ${
+                className={`flex flex-col landscape:flex-row sm:flex-row items-center justify-center gap-0.5 sm:gap-1 rounded-lg py-1 sm:py-1.5 ls:py-0.5 px-0.5 sm:px-1.5 text-[10px] sm:text-xs ls:text-[10px] font-black leading-tight transition ${
                   mode === '2_couples' || mode === '4_players' || mode === 'coop'
                     ? 'bg-yellow-400 text-blue-950 shadow'
                     : 'text-blue-200/80 hover:text-white'
                 }`}
                 title="Mode de base (2 Équipes, 4 Joueurs ou Ensemble)"
               >
-                <Users className="h-3.5 w-3.5 shrink-0" />
+                <Users className="h-3.5 w-3.5 ls:h-3 ls:w-3 shrink-0" />
                 <span className="truncate max-w-full">
                   Classique{' '}
-                  <span className="hidden md:inline opacity-80 font-extrabold">
+                  <span className="hidden lg:inline opacity-80 font-extrabold">
                     ({classicSubMode === '2_couples'
                       ? '2 Équipes'
                       : classicSubMode === '4_players'
@@ -958,14 +1199,14 @@ export default function QuizHomePage() {
                   stopMillionsZoukMusic();
                   setMode('versus');
                 }}
-                className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 rounded-lg py-1 sm:py-1.5 px-0.5 sm:px-1.5 text-[10px] sm:text-xs font-black leading-tight transition ${
+                className={`flex flex-col landscape:flex-row sm:flex-row items-center justify-center gap-0.5 sm:gap-1 rounded-lg py-1 sm:py-1.5 ls:py-0.5 px-0.5 sm:px-1.5 text-[10px] sm:text-xs ls:text-[10px] font-black leading-tight transition ${
                   mode === 'versus'
                     ? 'bg-gradient-to-r from-sky-300 via-sky-400 to-blue-500 text-slate-950 shadow'
                     : 'text-sky-300 hover:text-white'
                 }`}
                 title="Salon Versus Multi-Téléphones : Timer 10s à points dégressifs"
               >
-                <Swords className="h-3.5 w-3.5 shrink-0" />
+                <Swords className="h-3.5 w-3.5 ls:h-3 ls:w-3 shrink-0" />
                 <span className="truncate max-w-full">Versus 10s</span>
               </button>
 
@@ -977,14 +1218,14 @@ export default function QuizHomePage() {
                     startMillionsZoukMusic(true, 1);
                   }
                 }}
-                className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 rounded-lg py-1 sm:py-1.5 px-0.5 sm:px-1.5 text-[10px] sm:text-xs font-black leading-tight transition ${
+                className={`flex flex-col landscape:flex-row sm:flex-row items-center justify-center gap-0.5 sm:gap-1 rounded-lg py-1 sm:py-1.5 ls:py-0.5 px-0.5 sm:px-1.5 text-[10px] sm:text-xs ls:text-[10px] font-black leading-tight transition ${
                   mode === 'millions'
                     ? 'bg-gradient-to-r from-amber-300 via-yellow-400 to-orange-500 text-blue-950 shadow'
                     : 'text-amber-300 hover:text-white'
                 }`}
                 title="Qui veut gagner des Millions : 15 paliers, 2 paliers de sécurité et 4 Jokers !"
               >
-                <Gem className="h-3.5 w-3.5 shrink-0" />
+                <Gem className="h-3.5 w-3.5 ls:h-3 ls:w-3 shrink-0" />
                 <span className="truncate max-w-full">Millions</span>
               </button>
 
@@ -994,14 +1235,14 @@ export default function QuizHomePage() {
                   stopMillionsZoukMusic();
                   setMode('wikipedia');
                 }}
-                className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 rounded-lg py-1 sm:py-1.5 px-0.5 sm:px-1.5 text-[10px] sm:text-xs font-black leading-tight transition ${
+                className={`flex flex-col landscape:flex-row sm:flex-row items-center justify-center gap-0.5 sm:gap-1 rounded-lg py-1 sm:py-1.5 ls:py-0.5 px-0.5 sm:px-1.5 text-[10px] sm:text-xs ls:text-[10px] font-black leading-tight transition ${
                   mode === 'wikipedia'
                     ? 'bg-gradient-to-r from-white via-slate-100 to-sky-200 text-slate-950 shadow'
                     : 'text-emerald-300 hover:text-white'
                 }`}
                 title="Mode Wikipédia : Une image principale issue de Wikipédia au hasard, devinez le titre de la page !"
               >
-                <Globe className="h-3.5 w-3.5 shrink-0" />
+                <Globe className="h-3.5 w-3.5 ls:h-3 ls:w-3 shrink-0" />
                 <span className="truncate max-w-full">Wikipédia</span>
               </button>
 
@@ -1011,25 +1252,25 @@ export default function QuizHomePage() {
                   stopMillionsZoukMusic();
                   setMode('code_route');
                 }}
-                className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 rounded-lg py-1 sm:py-1.5 px-0.5 sm:px-1.5 text-[10px] sm:text-xs font-black leading-tight transition ${
+                className={`flex flex-col landscape:flex-row sm:flex-row items-center justify-center gap-0.5 sm:gap-1 rounded-lg py-1 sm:py-1.5 ls:py-0.5 px-0.5 sm:px-1.5 text-[10px] sm:text-xs ls:text-[10px] font-black leading-tight transition ${
                   mode === 'code_route'
                     ? 'bg-gradient-to-r from-rose-500 via-red-500 to-amber-500 text-white shadow'
                     : 'text-rose-300 hover:text-white'
                 }`}
                 title="Section Code de la Route : 100% questions avec images (panneaux, priorités, intersections, voyants, pièges examen) !"
               >
-                <Car className="h-3.5 w-3.5 shrink-0" />
+                <Car className="h-3.5 w-3.5 ls:h-3 ls:w-3 shrink-0" />
                 <span className="truncate max-w-full">Code Route</span>
               </button>
             </div>
 
             {/* Sous-modes de la catégorie Classique : 2 Équipes | 4 Joueurs | Ensemble */}
             {(mode === '2_couples' || mode === '4_players' || mode === 'coop') && (
-              <div className="flex items-center gap-1 pt-0.5 border-t border-blue-500/25">
-                <span className="hidden sm:inline-block px-2 text-[10px] font-extrabold uppercase tracking-wider text-blue-300/80 shrink-0">
+              <div className="flex items-center gap-1 pt-0.5 ls:pt-0 md:pt-0 border-t ls:border-t-0 md:border-t-0 ls:border-l md:border-l border-blue-500/25 ls:pl-1.5 md:pl-2 shrink-0">
+                <span className="hidden lg:inline-block px-1 text-[10px] font-extrabold uppercase tracking-wider text-blue-300/80 shrink-0">
                   Sous-mode :
                 </span>
-                <div className="grid grid-cols-3 gap-1 flex-1">
+                <div className="grid grid-cols-3 gap-1 flex-1 ls:flex-none md:flex-none">
                   <button
                     type="button"
                     onClick={() => {
@@ -1037,7 +1278,7 @@ export default function QuizHomePage() {
                       setClassicSubMode('2_couples');
                       setMode('2_couples');
                     }}
-                    className={`inline-flex items-center justify-center gap-1 rounded-md py-1 px-1.5 text-[10px] sm:text-[11px] font-black transition ${
+                    className={`inline-flex items-center justify-center gap-1 rounded-md py-1 ls:py-0.5 px-1.5 sm:px-2 text-[10px] sm:text-[11px] ls:text-[10px] font-black transition ${
                       mode === '2_couples'
                         ? 'bg-blue-500/35 border border-yellow-400/80 text-yellow-300 shadow-sm'
                         : 'text-blue-200/70 hover:text-white hover:bg-blue-900/30 border border-transparent'
@@ -1054,7 +1295,7 @@ export default function QuizHomePage() {
                       setClassicSubMode('4_players');
                       setMode('4_players');
                     }}
-                    className={`inline-flex items-center justify-center gap-1 rounded-md py-1 px-1.5 text-[10px] sm:text-[11px] font-black transition ${
+                    className={`inline-flex items-center justify-center gap-1 rounded-md py-1 ls:py-0.5 px-1.5 sm:px-2 text-[10px] sm:text-[11px] ls:text-[10px] font-black transition ${
                       mode === '4_players'
                         ? 'bg-blue-500/35 border border-yellow-400/80 text-yellow-300 shadow-sm'
                         : 'text-blue-200/70 hover:text-white hover:bg-blue-900/30 border border-transparent'
@@ -1072,7 +1313,7 @@ export default function QuizHomePage() {
                       setMode('coop');
                       setCoopStats((prev) => ({ ...prev, status: 'playing' }));
                     }}
-                    className={`inline-flex items-center justify-center gap-1 rounded-md py-1 px-1.5 text-[10px] sm:text-[11px] font-black transition ${
+                    className={`inline-flex items-center justify-center gap-1 rounded-md py-1 ls:py-0.5 px-1.5 sm:px-2 text-[10px] sm:text-[11px] ls:text-[10px] font-black transition ${
                       mode === 'coop'
                         ? 'bg-amber-500/25 border border-amber-400/80 text-yellow-300 shadow-sm'
                         : 'text-yellow-300/75 hover:text-yellow-300 hover:bg-blue-900/30 border border-transparent'
@@ -1090,7 +1331,7 @@ export default function QuizHomePage() {
       </header>
 
       {/* Cockpit Principal Sans Scroll (occupe exactement le reste de la hauteur 100dvh) */}
-      <main className="mx-auto w-full max-w-5xl flex-1 min-h-0 flex flex-col justify-between gap-1.5 sm:gap-2 px-2 py-1.5 sm:px-4 sm:py-2.5">
+      <main className="mx-auto w-full max-w-5xl flex-1 min-h-0 flex flex-col justify-between gap-1.5 sm:gap-2 ls:gap-1 px-2 py-1.5 sm:px-4 sm:py-2.5 ls:py-1">
         {mode === 'versus' ? (
           <VersusMode
             poolByLevel={effectivePoolByLevel}
@@ -1119,6 +1360,13 @@ export default function QuizHomePage() {
               } else {
                 stopMillionsZoukMusic();
               }
+            }}
+            userPseudo={userPseudo}
+            cagnotteBalance={cagnotteBalance}
+            onAddMoneyToCagnotte={handleAddMoneyToCagnotte}
+            onOpenShopModal={() => {
+              setShopFeedback(null);
+              setShowShopModal(true);
             }}
           />
         ) : mode === 'wikipedia' ? (
@@ -1210,6 +1458,247 @@ export default function QuizHomePage() {
           </>
         )}
       </main>
+
+      {/* ====================================================================
+          MODALE 1 : BIENVENUE / CHOIX DU PSEUDO À LA PREMIÈRE CONNEXION
+         ==================================================================== */}
+      {hydrated && showFirstTimePseudoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4">
+          <div className="w-full max-w-md rounded-2xl border-2 border-yellow-400 bg-gradient-to-b from-[#0b1f52] via-[#071538] to-[#040b1e] p-5 shadow-2xl space-y-4 animate-fadeIn">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-yellow-400 bg-gradient-to-br from-yellow-300 to-amber-500 text-blue-950 font-black text-lg shadow">
+                7T
+              </div>
+              <div>
+                <h2 className="text-base sm:text-lg font-black uppercase text-white">
+                  Bienvenue au Quiz du <span className="text-yellow-400">7TER</span> !
+                </h2>
+                <p className="text-xs text-blue-200">
+                  Entrez votre pseudo pour créer votre profil et votre cagnotte personnelle.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveFirstTimePseudo} className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-black uppercase tracking-wider text-yellow-300 mb-1">
+                  Votre Pseudo
+                </label>
+                <input
+                  type="text"
+                  value={pseudoInput}
+                  onChange={(e) => setPseudoInput(e.target.value)}
+                  placeholder="Ex: Thomas, Camille, Max…"
+                  maxLength={20}
+                  autoFocus
+                  className="w-full rounded-xl border-2 border-blue-400/50 focus:border-yellow-400 bg-[#040b1e] px-3.5 py-2.5 text-sm font-extrabold text-white placeholder-blue-300/40 outline-none transition"
+                />
+              </div>
+
+              <div className="rounded-xl border border-emerald-400/40 bg-emerald-950/40 p-2.5 text-xs text-emerald-200 space-y-1">
+                <div className="font-black text-emerald-300 flex items-center gap-1.5">
+                  <Gem className="h-3.5 w-3.5 shrink-0" />
+                  <span>Cagnotte & Boutique de Questions</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-emerald-100/90">
+                  En mode <strong>Qui veut gagner des Millions</strong>, chaque gain encaissé ou palier de sécurité alimente votre cagnotte personnelle pour acheter la création de <strong>10 nouvelles questions au hasard</strong> !
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={!pseudoInput.trim()}
+                className="w-full rounded-xl bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 hover:from-yellow-200 hover:to-amber-400 disabled:opacity-40 py-2.5 text-xs sm:text-sm font-black uppercase text-blue-950 shadow-lg transition"
+              >
+                Enregistrer mon pseudo et jouer
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================
+          MODALE 2 : PROFIL, CAGNOTTE PERSONNELLE & BOUTIQUE (+10 QUESTIONS)
+         ==================================================================== */}
+      {showShopModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-3 sm:p-4">
+          <div className="w-full max-w-lg max-h-[90dvh] flex flex-col justify-between rounded-2xl border-2 border-yellow-400/80 bg-gradient-to-b from-[#0b1f52] via-[#071538] to-[#040b1e] p-4 sm:p-5 shadow-2xl gap-3 overflow-hidden animate-fadeIn">
+            {/* Header modale */}
+            <div className="flex items-center justify-between border-b border-blue-500/30 pb-2.5 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-yellow-300 to-amber-500 text-blue-950 shadow">
+                  <Wallet className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-sm sm:text-base font-black uppercase text-white">
+                    Profil & Boutique du <span className="text-yellow-400">7TER</span>
+                  </h2>
+                  <p className="text-[11px] text-blue-200">
+                    Gagnez de l’argent en mode Millions et enrichissez le quiz !
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowShopModal(false)}
+                className="rounded-lg border border-blue-400/30 bg-blue-950/70 p-1.5 text-blue-200 hover:text-white hover:bg-blue-900 transition"
+                aria-label="Fermer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Contenu scrollable */}
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-0.5">
+              {/* Pseudo modifiable */}
+              <div className="rounded-xl border border-blue-500/35 bg-[#040b1e]/90 p-3 space-y-2">
+                <label className="block text-[10px] font-black uppercase tracking-wider text-blue-300">
+                  Votre Pseudo Personnel
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={pseudoInput}
+                    onChange={(e) => setPseudoInput(e.target.value)}
+                    placeholder="Votre pseudo…"
+                    maxLength={20}
+                    className="flex-1 rounded-lg border border-blue-400/40 focus:border-yellow-400 bg-blue-950/70 px-3 py-1.5 text-xs sm:text-sm font-extrabold text-white outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const clean = pseudoInput.trim();
+                      if (!clean) return;
+                      setUserPseudo(clean);
+                      playPointSound(soundEnabled);
+                      try {
+                        localStorage.setItem(STORAGE_KEYS.USER_PSEUDO, clean);
+                        localStorage.setItem(STORAGE_KEYS.VERSUS_PLAYER_NAME, clean);
+                      } catch {
+                        // Ignore
+                      }
+                    }}
+                    className="rounded-lg bg-yellow-400 hover:bg-yellow-300 px-3 py-1.5 text-xs font-black text-blue-950 transition"
+                  >
+                    Mettre à jour
+                  </button>
+                </div>
+              </div>
+
+              {/* Cagnotte personnelle */}
+              <div className="rounded-xl border-2 border-emerald-400/60 bg-gradient-to-r from-emerald-950/80 via-[#062426] to-emerald-950/80 p-3.5 flex items-center justify-between gap-3 shadow-inner">
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-wider text-emerald-300">
+                    Cagnotte personnelle de {userPseudo || 'Joueur'}
+                  </div>
+                  <div className="text-xl sm:text-2xl font-black text-white mt-0.5">
+                    {cagnotteBalance.toLocaleString('fr-FR')} €
+                  </div>
+                  <p className="text-[11px] text-emerald-200/80 mt-0.5">
+                    Cumulée grâce à vos gains en mode « Qui veut gagner des Millions »
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowShopModal(false);
+                    setMode('millions');
+                  }}
+                  className="shrink-0 inline-flex items-center gap-1 rounded-xl border border-yellow-400/70 bg-yellow-400/15 hover:bg-yellow-400 hover:text-blue-950 px-2.5 py-2 text-[11px] font-black text-yellow-300 transition"
+                >
+                  <Gem className="h-3.5 w-3.5" />
+                  <span>Jouer à Millions</span>
+                </button>
+              </div>
+
+              {/* Offre Boutique : Acheter la création de 10 nouvelles questions au hasard */}
+              <div className="rounded-xl border-2 border-amber-400/70 bg-gradient-to-b from-[#132968]/90 to-[#081538]/95 p-3.5 space-y-2.5 shadow-lg">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="space-y-0.5">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/20 border border-amber-300/50 px-2 py-0.5 text-[10px] font-black uppercase text-amber-300">
+                      <Sparkles className="h-3 w-3" />
+                      Boutique de Création IA
+                    </span>
+                    <h3 className="text-sm sm:text-base font-black text-white">
+                      Créer & Ajouter 10 Nouvelles Questions au Hasard
+                    </h3>
+                  </div>
+                  <span className="shrink-0 rounded-lg bg-gradient-to-r from-yellow-300 to-amber-500 px-2.5 py-1 text-xs font-black text-blue-950 shadow">
+                    {PACK_10_QUESTIONS_PRICE.toLocaleString('fr-FR')} €
+                  </span>
+                </div>
+
+                <p className="text-xs text-blue-100/90 leading-relaxed">
+                  Utilisez votre cagnotte pour commander la création immédiate de{' '}
+                  <strong>10 nouvelles questions inédites au hasard</strong> (tous thèmes et niveaux 1 à 10). Elles sont générées et ajoutées directement dans le jeu !
+                </p>
+
+                <button
+                  type="button"
+                  onClick={handleBuyTenQuestionsPack}
+                  disabled={
+                    isBuyingPack || cagnotteBalance < PACK_10_QUESTIONS_PRICE
+                  }
+                  className={`w-full flex items-center justify-center gap-2 rounded-xl py-2.5 px-4 text-xs sm:text-sm font-black uppercase transition shadow-lg ${
+                    cagnotteBalance >= PACK_10_QUESTIONS_PRICE && !isBuyingPack
+                      ? 'bg-gradient-to-r from-amber-300 via-yellow-400 to-orange-500 text-blue-950 hover:brightness-110 cursor-pointer active:scale-98'
+                      : 'border border-blue-500/30 bg-blue-950/60 text-blue-300/50 cursor-not-allowed'
+                  }`}
+                >
+                  <ShoppingBag className="h-4 w-4 shrink-0" />
+                  <span>
+                    {isBuyingPack
+                      ? 'Création et ajout des 10 questions en cours…'
+                      : cagnotteBalance >= PACK_10_QUESTIONS_PRICE
+                      ? `Acheter 10 nouvelles questions (${PACK_10_QUESTIONS_PRICE.toLocaleString(
+                          'fr-FR'
+                        )} €)`
+                      : `Il vous manque ${(
+                          PACK_10_QUESTIONS_PRICE - cagnotteBalance
+                        ).toLocaleString(
+                          'fr-FR'
+                        )} € (Gagnez le 1er palier à 1 500 € en Millions !)`}
+                  </span>
+                </button>
+
+                {shopFeedback && (
+                  <div
+                    className={`rounded-xl border p-2.5 text-xs space-y-1.5 ${
+                      shopFeedback.type === 'success'
+                        ? 'border-emerald-400 bg-emerald-950/60 text-emerald-200'
+                        : 'border-rose-400 bg-rose-950/60 text-rose-200'
+                    }`}
+                  >
+                    <div className="font-black flex items-center gap-1.5">
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      <span>{shopFeedback.message}</span>
+                    </div>
+                    {shopFeedback.questions && shopFeedback.questions.length > 0 && (
+                      <div className="max-h-32 overflow-y-auto space-y-1 pt-1 border-t border-emerald-400/30 text-[11px]">
+                        {shopFeedback.questions.map((q, i) => (
+                          <div key={q.id} className="truncate text-emerald-100">
+                            <strong>#{i + 1} (Niv.{q.difficulty} · {q.theme}) :</strong>{' '}
+                            {q.question}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {customBoughtQuestions.length > 0 && (
+                <div className="rounded-xl border border-blue-500/30 bg-[#040b1e]/70 p-2.5 text-xs text-blue-200 flex items-center justify-between">
+                  <span>Questions bonus débloquées par {userPseudo || 'vous'} :</span>
+                  <span className="font-black text-yellow-300">
+                    +{customBoughtQuestions.length} questions actives
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1505,6 +1505,10 @@ export default function WikipediaMode({
 
           setQueue((prev) => {
             if (replaceUpcoming) {
+              if (allFallbacksSeenOnMountRef.current) {
+                allFallbacksSeenOnMountRef.current = false;
+                return fetched;
+              }
               const current = prev[currentIndex] ? [prev[currentIndex]] : [];
               return [...current, ...fetched];
             }
@@ -1526,9 +1530,16 @@ export default function WikipediaMode({
 
   // Chargement initial dès l'ouverture du mode Wikipédia
   useEffect(() => {
-    replenishQueue(sourceMode, false);
+    replenishQueue(sourceMode, allFallbacksSeenOnMountRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Mémoriser dès qu'une page Wikipédia est affichée pour ne plus la proposer aux parties suivantes
+  useEffect(() => {
+    if (currentChallenge) {
+      markChallengeSeen(currentChallenge);
+    }
+  }, [currentChallenge, markChallengeSeen]);
 
   // Recharger automatiquement quand il reste moins de 5 pages en réserve
   useEffect(() => {
@@ -1780,6 +1791,7 @@ export default function WikipediaMode({
   }, [resetZoom]);
 
   const handleNextPage = useCallback(() => {
+    markChallengeSeen(currentChallenge);
     resetRoundState();
     setRoundNumber((n) => n + 1);
     if (currentIndex + 1 < queue.length) {
@@ -1788,10 +1800,11 @@ export default function WikipediaMode({
       setCurrentIndex(0);
       replenishQueue(sourceMode, false);
     }
-  }, [currentIndex, queue.length, resetRoundState, replenishQueue, sourceMode]);
+  }, [currentChallenge, markChallengeSeen, currentIndex, queue.length, resetRoundState, replenishQueue, sourceMode]);
 
   const handleChangeSourceMode = (newMode: WikiSourceMode) => {
     if (newMode === sourceMode) return;
+    markChallengeSeen(currentChallenge);
     setSourceMode(newMode);
     resetRoundState();
     // Si on a déjà en file un article du bon type, avancer dessus, sinon rafraîchir
@@ -1816,6 +1829,7 @@ export default function WikipediaMode({
       isGuessMatchingTitle(trimmed, currentChallenge.title) ||
       isGuessMatchingTitle(trimmed, currentChallenge.cleanTitle)
     ) {
+      markChallengeSeen(currentChallenge);
       playCorrectSound(soundEnabled);
       setRevealed(true);
       setWonMethod('cash');
@@ -1829,6 +1843,7 @@ export default function WikipediaMode({
 
   const handleSelectQcmOption = (idx: number) => {
     if (!currentChallenge || revealed || selectedQcmIndex !== null) return;
+    markChallengeSeen(currentChallenge);
     setSelectedQcmIndex(idx);
     const isCorrect = idx === currentChallenge.correctIndex;
     if (isCorrect) {
@@ -1842,6 +1857,7 @@ export default function WikipediaMode({
 
   const handleRevealOral = () => {
     if (!currentChallenge || revealed) return;
+    markChallengeSeen(currentChallenge);
     playJokerSound(soundEnabled);
     setWonMethod('oral');
     setRevealed(true);

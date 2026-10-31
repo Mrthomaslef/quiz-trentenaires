@@ -293,7 +293,7 @@ export default function QuestionCard({
   return (
     <section
       key={question.id}
-      className={`relative flex-1 min-h-0 flex flex-col gap-1.5 sm:gap-2 overflow-hidden rounded-2xl border-2 bg-gradient-to-b from-[#0b1d48]/95 via-[#081538]/95 to-[#050d26]/95 p-2.5 sm:p-4 shadow-2xl backdrop-blur-md animate-fadeIn ${
+      className={`relative flex-1 min-h-0 flex flex-col gap-1.5 sm:gap-2 ls:gap-1 overflow-hidden rounded-2xl border-2 bg-gradient-to-b from-[#0b1d48]/95 via-[#081538]/95 to-[#050d26]/95 p-2.5 sm:p-4 ls:p-2 shadow-2xl backdrop-blur-md animate-fadeIn ${
         isCoopMode && coopStats?.status === 'failed'
           ? 'border-rose-500 shadow-rose-500/20'
           : isCoopMode && coopStats?.status === 'victory'
@@ -321,7 +321,7 @@ export default function QuestionCard({
       )}
 
       {/* 1. PARTIE HAUTE (shrink-0) : Métadonnées + Chrono + Énoncé */}
-      <div className="shrink-0 space-y-1.5 sm:space-y-2">
+      <div className="shrink-0 space-y-1.5 sm:space-y-2 ls:space-y-1">
         {timerEnabled && !waitingForFormulaChoice && (
           <div className="flex items-center gap-2">
             <Timer className="h-3.5 w-3.5 text-yellow-400 shrink-0" />
@@ -350,12 +350,12 @@ export default function QuestionCard({
         <div className="flex items-center justify-between gap-1.5">
           <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 min-w-0">
             {isCoopMode && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-yellow-300 to-amber-500 text-blue-950 px-2 py-0.5 text-[10px] sm:text-[11px] font-black uppercase tracking-wide shadow">
+              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-yellow-300 to-amber-500 text-blue-950 px-2 py-0.5 text-[10px] sm:text-[11px] ls:text-[10px] font-black uppercase tracking-wide shadow">
                 <Flame className="h-3 w-3 fill-blue-950" />
                 Palier {question.difficulty} / 10
               </span>
             )}
-            <span className="inline-flex items-center gap-1 rounded-full bg-yellow-400 text-blue-950 px-2 sm:px-2.5 py-0.5 text-[10px] sm:text-[11px] font-black uppercase tracking-wide truncate max-w-[180px] sm:max-w-none">
+            <span className="inline-flex items-center gap-1 rounded-full bg-yellow-400 text-blue-950 px-2 sm:px-2.5 py-0.5 text-[10px] sm:text-[11px] ls:text-[10px] font-black uppercase tracking-wide truncate max-w-[180px] sm:max-w-none">
               <Tag className="h-3 w-3 fill-blue-950 shrink-0" />
               <span className="truncate">{question.theme}</span>
             </span>
@@ -369,7 +369,7 @@ export default function QuestionCard({
             )}
             {!isCoopMode && duoCarreCashEnabled && selectedFormula && (
               <span
-                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] sm:text-[11px] font-black uppercase shadow ${
+                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] sm:text-[11px] ls:text-[10px] font-black uppercase shadow ${
                   selectedFormula === 'cash'
                     ? 'bg-gradient-to-r from-amber-300 to-yellow-400 text-slate-950'
                     : selectedFormula === 'carre'
@@ -385,21 +385,21 @@ export default function QuestionCard({
               </span>
             )}
             {!isCoopMode && doublePoints && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] sm:text-[11px] font-black text-blue-950 animate-pulse">
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] sm:text-[11px] ls:text-[10px] font-black text-blue-950 animate-pulse">
                 <Zap className="h-3 w-3 fill-blue-950" />
                 x2 (+{pointValue})
               </span>
             )}
           </div>
 
-          <span className="text-[10px] sm:text-[11px] font-bold text-blue-200/75 shrink-0">
+          <span className="text-[10px] sm:text-[11px] ls:text-[10px] font-bold text-blue-200/75 shrink-0">
             #{questionNumber} · {remainingInLevel}/{totalInLevel}
           </span>
         </div>
 
         {/* Énoncé bien mis en valeur */}
-        <div className="rounded-xl border border-blue-400/30 bg-[#040b1e]/90 px-3 py-2 sm:px-5 sm:py-3.5 shadow-inner">
-          <h3 className="text-sm sm:text-lg lg:text-xl font-black text-white leading-snug">
+        <div className="rounded-xl border border-blue-400/30 bg-[#040b1e]/90 px-3 py-2 sm:px-5 sm:py-3.5 ls:px-3 ls:py-1.5 shadow-inner">
+          <h3 className="text-sm sm:text-lg lg:text-xl ls:text-sm font-black text-white leading-snug">
             {question.question}
           </h3>
         </div>
@@ -407,31 +407,31 @@ export default function QuestionCard({
 
       {/* 2. PARTIE CENTRALE : CHOIX DUO/CARRÉ/CASH OU RÉPONSES */}
       <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
-        <div className="my-auto flex flex-col gap-2 sm:gap-2.5 py-0.5 sm:py-1">
+        <div className="my-auto flex flex-col gap-2 sm:gap-2.5 ls:gap-1.5 py-0.5 sm:py-1 ls:py-0">
           {/* ÉTAPE 1 (si Duo/Carré/Cash est coché) : Choisir sa formule avant de voir les propositions */}
           {waitingForFormulaChoice && !isRevealed ? (
-            <div className="space-y-2.5 sm:space-y-3 py-1 animate-fadeIn">
-              <p className="text-center text-xs sm:text-sm font-extrabold uppercase tracking-wider text-yellow-300">
+            <div className="space-y-2.5 sm:space-y-3 ls:space-y-1.5 py-1 ls:py-0 animate-fadeIn">
+              <p className="text-center text-xs sm:text-sm ls:text-xs font-extrabold uppercase tracking-wider text-yellow-300">
                 🎯 Choisissez votre formule avant de découvrir les réponses :
               </p>
 
-              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 ls:gap-2">
                 {/* BOUTON DUO (1 pt) */}
                 <button
                   type="button"
                   onClick={() => handleSelectFormula('duo')}
-                  className="group flex flex-col items-center justify-between gap-1.5 sm:gap-2 rounded-2xl border-2 border-emerald-400/60 bg-gradient-to-b from-emerald-500/20 to-[#05102e] hover:from-emerald-400 hover:to-teal-500 hover:text-slate-950 p-2.5 sm:p-4 text-center transition-all active:scale-95 shadow-lg"
+                  className="group flex flex-col ls:flex-row items-center justify-between gap-1.5 sm:gap-2 rounded-2xl border-2 border-emerald-400/60 bg-gradient-to-b from-emerald-500/20 to-[#05102e] hover:from-emerald-400 hover:to-teal-500 hover:text-slate-950 p-2.5 sm:p-4 ls:p-2 text-center transition-all active:scale-95 shadow-lg"
                 >
-                  <span className="rounded-full bg-emerald-400 px-2 py-0.5 text-[10px] sm:text-xs font-black uppercase text-slate-950 shadow">
+                  <span className="rounded-full bg-emerald-400 px-2 py-0.5 text-[10px] sm:text-xs ls:text-[10px] font-black uppercase text-slate-950 shadow">
                     +{1 * multiplier} PT{multiplier > 1 ? 'S' : ''}
                   </span>
-                  <div className="flex flex-col items-center">
-                    <Split className="h-5 w-5 sm:h-7 sm:w-7 text-emerald-300 group-hover:text-slate-950 mb-0.5 sm:mb-1" />
-                    <span className="text-sm sm:text-xl font-black uppercase tracking-tight">
+                  <div className="flex flex-col ls:flex-row ls:gap-1.5 items-center">
+                    <Split className="h-5 w-5 sm:h-7 sm:w-7 ls:h-4 ls:w-4 text-emerald-300 group-hover:text-slate-950 mb-0.5 sm:mb-1 ls:mb-0" />
+                    <span className="text-sm sm:text-xl ls:text-sm font-black uppercase tracking-tight">
                       DUO
                     </span>
                   </div>
-                  <span className="text-[10px] sm:text-xs font-bold text-blue-200 group-hover:text-slate-900">
+                  <span className="text-[10px] sm:text-xs ls:text-[10px] font-bold text-blue-200 group-hover:text-slate-900">
                     2 choix
                   </span>
                 </button>
@@ -440,18 +440,18 @@ export default function QuestionCard({
                 <button
                   type="button"
                   onClick={() => handleSelectFormula('carre')}
-                  className="group flex flex-col items-center justify-between gap-1.5 sm:gap-2 rounded-2xl border-2 border-sky-400/60 bg-gradient-to-b from-sky-500/20 to-[#05102e] hover:from-sky-400 hover:to-blue-500 hover:text-slate-950 p-2.5 sm:p-4 text-center transition-all active:scale-95 shadow-lg"
+                  className="group flex flex-col ls:flex-row items-center justify-between gap-1.5 sm:gap-2 rounded-2xl border-2 border-sky-400/60 bg-gradient-to-b from-sky-500/20 to-[#05102e] hover:from-sky-400 hover:to-blue-500 hover:text-slate-950 p-2.5 sm:p-4 ls:p-2 text-center transition-all active:scale-95 shadow-lg"
                 >
-                  <span className="rounded-full bg-sky-400 px-2 py-0.5 text-[10px] sm:text-xs font-black uppercase text-slate-950 shadow">
+                  <span className="rounded-full bg-sky-400 px-2 py-0.5 text-[10px] sm:text-xs ls:text-[10px] font-black uppercase text-slate-950 shadow">
                     +{3 * multiplier} PTS
                   </span>
-                  <div className="flex flex-col items-center">
-                    <Grid className="h-5 w-5 sm:h-7 sm:w-7 text-sky-300 group-hover:text-slate-950 mb-0.5 sm:mb-1" />
-                    <span className="text-sm sm:text-xl font-black uppercase tracking-tight">
+                  <div className="flex flex-col ls:flex-row ls:gap-1.5 items-center">
+                    <Grid className="h-5 w-5 sm:h-7 sm:w-7 ls:h-4 ls:w-4 text-sky-300 group-hover:text-slate-950 mb-0.5 sm:mb-1 ls:mb-0" />
+                    <span className="text-sm sm:text-xl ls:text-sm font-black uppercase tracking-tight">
                       CARRÉ
                     </span>
                   </div>
-                  <span className="text-[10px] sm:text-xs font-bold text-blue-200 group-hover:text-slate-900">
+                  <span className="text-[10px] sm:text-xs ls:text-[10px] font-bold text-blue-200 group-hover:text-slate-900">
                     4 choix
                   </span>
                 </button>
@@ -460,18 +460,18 @@ export default function QuestionCard({
                 <button
                   type="button"
                   onClick={() => handleSelectFormula('cash')}
-                  className="group flex flex-col items-center justify-between gap-1.5 sm:gap-2 rounded-2xl border-2 border-yellow-400 bg-gradient-to-b from-yellow-400/25 to-[#05102e] hover:from-yellow-300 hover:to-amber-500 hover:text-slate-950 p-2.5 sm:p-4 text-center transition-all active:scale-95 shadow-xl"
+                  className="group flex flex-col ls:flex-row items-center justify-between gap-1.5 sm:gap-2 rounded-2xl border-2 border-yellow-400 bg-gradient-to-b from-yellow-400/25 to-[#05102e] hover:from-yellow-300 hover:to-amber-500 hover:text-slate-950 p-2.5 sm:p-4 ls:p-2 text-center transition-all active:scale-95 shadow-xl"
                 >
-                  <span className="rounded-full bg-yellow-400 px-2 py-0.5 text-[10px] sm:text-xs font-black uppercase text-slate-950 shadow">
+                  <span className="rounded-full bg-yellow-400 px-2 py-0.5 text-[10px] sm:text-xs ls:text-[10px] font-black uppercase text-slate-950 shadow">
                     +{5 * multiplier} PTS
                   </span>
-                  <div className="flex flex-col items-center">
-                    <Sparkles className="h-5 w-5 sm:h-7 sm:w-7 text-yellow-300 group-hover:text-slate-950 mb-0.5 sm:mb-1" />
-                    <span className="text-sm sm:text-xl font-black uppercase tracking-tight">
+                  <div className="flex flex-col ls:flex-row ls:gap-1.5 items-center">
+                    <Sparkles className="h-5 w-5 sm:h-7 sm:w-7 ls:h-4 ls:w-4 text-yellow-300 group-hover:text-slate-950 mb-0.5 sm:mb-1 ls:mb-0" />
+                    <span className="text-sm sm:text-xl ls:text-sm font-black uppercase tracking-tight">
                       CASH
                     </span>
                   </div>
-                  <span className="text-[10px] sm:text-xs font-bold text-yellow-200 group-hover:text-slate-900">
+                  <span className="text-[10px] sm:text-xs ls:text-[10px] font-bold text-yellow-200 group-hover:text-slate-900">
                     Sans choix !
                   </span>
                 </button>
@@ -479,9 +479,9 @@ export default function QuestionCard({
             </div>
           ) : selectedFormula === 'cash' && !isRevealed ? (
             /* ÉTAPE 2A : MODE CASH (SANS PROPOSITIONS -> Saisie ou Validation orale directe) */
-            <div className="rounded-2xl border-2 border-yellow-400/60 bg-[#05102e]/95 p-3 sm:p-4 space-y-2.5 sm:space-y-3 animate-fadeIn">
+            <div className="rounded-2xl border-2 border-yellow-400/60 bg-[#05102e]/95 p-3 sm:p-4 ls:p-2.5 space-y-2.5 sm:space-y-3 ls:space-y-1.5 animate-fadeIn">
               {!cashRevealedWaitValidation ? (
-                <form onSubmit={handleSubmitCashForm} className="space-y-2.5">
+                <form onSubmit={handleSubmitCashForm} className="space-y-2.5 ls:space-y-1.5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black uppercase text-yellow-300">
                       💰 Tenté en CASH pour +{5 * multiplier} points !
@@ -495,29 +495,29 @@ export default function QuestionCard({
                     </button>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex flex-col landscape:flex-row sm:flex-row gap-2">
                     <input
                       type="text"
                       value={cashGuess}
                       onChange={(e) => setCashGuess(e.target.value)}
                       placeholder="Tape la réponse Cash (ou annonce-la à l'oral)..."
-                      className="flex-1 rounded-xl border border-blue-400/40 focus:border-yellow-400 bg-blue-950/90 px-3 py-2 text-sm font-bold text-white placeholder-blue-300/40 outline-none"
+                      className="flex-1 rounded-xl border border-blue-400/40 focus:border-yellow-400 bg-blue-950/90 px-3 py-2 ls:py-1.5 text-sm ls:text-xs font-bold text-white placeholder-blue-300/40 outline-none"
                     />
                     <button
                       type="submit"
-                      className="shimmer-btn relative overflow-hidden rounded-xl bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 px-4 py-2 text-xs sm:text-sm font-black uppercase text-blue-950 shadow-lg"
+                      className="shimmer-btn relative overflow-hidden rounded-xl bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 px-4 py-2 ls:py-1.5 text-xs sm:text-sm ls:text-xs font-black uppercase text-blue-950 shadow-lg"
                     >
                       Vérifier le Cash
                     </button>
                   </div>
                 </form>
               ) : (
-                <div className="space-y-2.5 text-center">
-                  <div className="rounded-xl border border-emerald-400/50 bg-emerald-950/40 p-2.5 sm:p-3">
-                    <span className="text-[11px] font-bold uppercase text-emerald-300 block">
+                <div className="space-y-2.5 ls:space-y-1.5 text-center">
+                  <div className="rounded-xl border border-emerald-400/50 bg-emerald-950/40 p-2.5 sm:p-3 ls:p-1.5">
+                    <span className="text-[11px] ls:text-[10px] font-bold uppercase text-emerald-300 block">
                       Réponse attendue :
                     </span>
-                    <span className="text-base sm:text-lg font-black text-white">
+                    <span className="text-base sm:text-lg ls:text-sm font-black text-white">
                       {question.options[question.correct_index]}
                     </span>
                   </div>
@@ -526,7 +526,7 @@ export default function QuestionCard({
                     <button
                       type="button"
                       onClick={() => handleResolveCashOral(true)}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-400 hover:bg-emerald-300 px-3.5 py-2 text-xs sm:text-sm font-black uppercase text-slate-950 shadow-lg active:scale-95 transition"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-400 hover:bg-emerald-300 px-3.5 py-2 ls:py-1 text-xs sm:text-sm ls:text-xs font-black uppercase text-slate-950 shadow-lg active:scale-95 transition"
                     >
                       <CheckCircle2 className="h-4 w-4" />
                       <span>Accordé (+{5 * multiplier} pts) !</span>
@@ -534,7 +534,7 @@ export default function QuestionCard({
                     <button
                       type="button"
                       onClick={() => handleResolveCashOral(false)}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-rose-500 hover:bg-rose-400 px-3.5 py-2 text-xs sm:text-sm font-black uppercase text-white shadow-lg active:scale-95 transition"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-rose-500 hover:bg-rose-400 px-3.5 py-2 ls:py-1 text-xs sm:text-sm ls:text-xs font-black uppercase text-white shadow-lg active:scale-95 transition"
                     >
                       <XCircle className="h-4 w-4" />
                       <span>Raté (0 pt)</span>
@@ -544,8 +544,8 @@ export default function QuestionCard({
               )}
             </div>
           ) : (
-            /* ÉTAPE 2B : GRILLE DES PROPOSITIONS (2 en mode DUO, 4 en mode CARRÉ ou Classique) */
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2.5">
+            /* ÉTAPE 2B : GRILLE DES PROPOSITIONS (2x2 en paysage et sur grand écran, 1 col en portrait mobile) */
+            <div className="grid grid-cols-1 landscape:grid-cols-2 sm:grid-cols-2 gap-1.5 sm:gap-2.5 ls:gap-1.5">
               {question.options.map((optionText, idx) => {
                 const isHiddenByDuo =
                   duoCarreCashEnabled &&
@@ -559,9 +559,9 @@ export default function QuestionCard({
                   return (
                     <div
                       key={idx}
-                      className="flex items-center gap-2 rounded-xl border border-blue-900/30 bg-[#040b1e]/30 px-2.5 py-2 sm:px-4 sm:py-3 opacity-25 select-none"
+                      className="flex items-center gap-2 rounded-xl border border-blue-900/30 bg-[#040b1e]/30 px-2.5 py-2 sm:px-4 sm:py-3 ls:px-2.5 ls:py-1.5 opacity-25 select-none"
                     >
-                      <span className="flex h-6 w-6 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-lg bg-blue-950 text-xs font-black text-blue-500">
+                      <span className="flex h-6 w-6 sm:h-7 sm:w-7 ls:h-5 ls:w-5 shrink-0 items-center justify-center rounded-lg bg-blue-950 text-xs font-black text-blue-500">
                         {OPTION_LETTERS[idx]}
                       </span>
                       <span className="text-xs font-bold text-blue-400">
@@ -600,28 +600,28 @@ export default function QuestionCard({
                     type="button"
                     onClick={() => handleOptionClick(idx)}
                     disabled={isRevealed}
-                    className={`group relative flex items-center justify-between gap-2 rounded-xl border-2 px-2.5 py-2 sm:px-4 sm:py-3 text-left transition-all duration-150 ${buttonStyle} ${
+                    className={`group relative flex items-center justify-between gap-2 rounded-xl border-2 px-2.5 py-2 sm:px-4 sm:py-3 ls:px-2.5 ls:py-1.5 text-left transition-all duration-150 ${buttonStyle} ${
                       !isRevealed
                         ? 'active:scale-[0.98] cursor-pointer'
                         : 'cursor-default'
                     }`}
                   >
-                    <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+                    <div className="flex items-center gap-2 sm:gap-2.5 ls:gap-2 min-w-0">
                       <span
-                        className={`flex h-6 w-6 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-lg text-xs sm:text-sm font-black shadow-sm ${badgeStyle}`}
+                        className={`flex h-6 w-6 sm:h-7 sm:w-7 ls:h-5 ls:w-5 shrink-0 items-center justify-center rounded-lg text-xs sm:text-sm ls:text-xs font-black shadow-sm ${badgeStyle}`}
                       >
                         {OPTION_LETTERS[idx]}
                       </span>
-                      <span className="text-[13px] sm:text-base font-bold leading-snug break-words">
+                      <span className="text-[13px] sm:text-base ls:text-xs font-bold leading-snug break-words">
                         {optionText}
                       </span>
                     </div>
 
                     {isRevealed && isCorrect && (
-                      <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-emerald-400" />
+                      <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 ls:h-4 ls:w-4 shrink-0 text-emerald-400" />
                     )}
                     {isRevealed && isSelected && !isCorrect && (
-                      <XCircle className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-rose-400" />
+                      <XCircle className="h-4 w-4 sm:h-5 sm:w-5 ls:h-4 ls:w-4 shrink-0 text-rose-400" />
                     )}
                   </button>
                 );
@@ -632,7 +632,7 @@ export default function QuestionCard({
           {/* Zone Explication / Anecdote (juste sous les 4 réponses) */}
           {isRevealed ? (
             <div
-              className={`rounded-xl border px-2.5 py-2 sm:px-3 sm:py-2.5 shadow-lg animate-fadeIn ${
+              className={`rounded-xl border px-2.5 py-2 sm:px-3 sm:py-2.5 ls:px-2.5 ls:py-1.5 shadow-lg animate-fadeIn ${
                 isCoopMode && coopStats?.status === 'failed'
                   ? 'border-rose-400/70 bg-rose-950/40'
                   : isCoopMode && coopStats?.status === 'victory'
@@ -641,7 +641,7 @@ export default function QuestionCard({
               }`}
             >
               <div className="flex items-start gap-2">
-                <div className="mt-0.5 flex h-5 w-5 sm:h-6 sm:w-6 shrink-0 items-center justify-center rounded-lg bg-yellow-400 text-blue-950 font-black">
+                <div className="mt-0.5 flex h-5 w-5 sm:h-6 sm:w-6 ls:h-4 ls:w-4 shrink-0 items-center justify-center rounded-lg bg-yellow-400 text-blue-950 font-black">
                   {isCoopMode && coopStats?.status === 'victory' ? (
                     <Trophy className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                   ) : (
@@ -681,11 +681,11 @@ export default function QuestionCard({
                           : `❌ RATÉ (${OPTION_LETTERS[question.correct_index]})`}
                       </span>
                     )}
-                    <span className="text-[10px] sm:text-[11px] font-extrabold text-yellow-300">
+                    <span className="text-[10px] sm:text-[11px] ls:text-[10px] font-extrabold text-yellow-300">
                       L’Anecdote du 7TER :
                     </span>
                   </div>
-                  <p className="text-xs sm:text-sm text-blue-50 leading-snug">
+                  <p className="text-xs sm:text-sm ls:text-xs text-blue-50 leading-snug">
                     {question.explanation}
                   </p>
                 </div>
@@ -700,7 +700,7 @@ export default function QuestionCard({
                   setShowConfetti(true);
                   playCorrectSound(soundEnabled);
                 }}
-                className="inline-flex items-center gap-1 text-[11px] font-bold text-yellow-300/80 hover:text-yellow-300 transition"
+                className="inline-flex items-center gap-1 text-[11px] ls:text-[10px] font-bold text-yellow-300/80 hover:text-yellow-300 transition"
               >
                 <Eye className="h-3 w-3" />
                 Révéler la réponse (jeu à l’oral)
@@ -711,10 +711,10 @@ export default function QuestionCard({
       </div>
 
       {/* 3. PARTIE BASSE FIXE DANS LA CARTE (shrink-0) */}
-      <div className="shrink-0 pt-1.5 sm:pt-2 border-t border-blue-500/30 flex items-center justify-between gap-1.5 sm:gap-2">
+      <div className="shrink-0 pt-1.5 sm:pt-2 ls:pt-1 border-t border-blue-500/30 flex items-center justify-between gap-1.5 sm:gap-2">
         {isCoopMode ? (
           <>
-            <div className="text-[11px] sm:text-xs font-bold text-blue-200/85 min-w-0 truncate">
+            <div className="text-[11px] sm:text-xs ls:text-[11px] font-bold text-blue-200/85 min-w-0 truncate">
               {!isRevealed ? (
                 <span>🤝 Concertation à 4 : touchez votre réponse !</span>
               ) : coopStats?.status === 'victory' ? (
@@ -736,7 +736,7 @@ export default function QuestionCard({
               <button
                 type="button"
                 onClick={onNextQuestion}
-                className={`shimmer-btn shrink-0 relative overflow-hidden inline-flex items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 sm:px-4 text-xs sm:text-sm font-black uppercase tracking-wide shadow-lg active:scale-95 transition-all ml-auto ${
+                className={`shimmer-btn shrink-0 relative overflow-hidden inline-flex items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 sm:px-4 ls:py-1 text-xs sm:text-sm ls:text-xs font-black uppercase tracking-wide shadow-lg active:scale-95 transition-all ml-auto ${
                   coopStats?.status === 'failed'
                     ? 'bg-gradient-to-r from-rose-500 to-amber-500 text-white shadow-rose-500/25'
                     : 'bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 text-blue-950 shadow-yellow-400/25'
@@ -764,7 +764,7 @@ export default function QuestionCard({
         ) : (
           <>
             <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar min-w-0">
-              <span className="hidden md:inline-flex items-center gap-1 text-[11px] font-black uppercase text-yellow-300 mr-0.5 shrink-0">
+              <span className="hidden md:inline-flex ls:hidden items-center gap-1 text-[11px] font-black uppercase text-yellow-300 mr-0.5 shrink-0">
                 <Award className="h-3.5 w-3.5 text-yellow-400" />
                 +{pointValue} pt{pointValue > 1 ? 's' : ''} :
               </span>
@@ -776,7 +776,7 @@ export default function QuestionCard({
                     key={team.id}
                     type="button"
                     onClick={() => handleQuickAward(team.id)}
-                    className={`shrink-0 inline-flex items-center gap-1 rounded-lg px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-black transition-all ${
+                    className={`shrink-0 inline-flex items-center gap-1 rounded-lg px-1.5 sm:px-2 py-1 ls:py-0.5 text-[10px] sm:text-xs ls:text-[10px] font-black transition-all ${
                       isAwarded
                         ? 'bg-emerald-400 text-slate-950 shadow'
                         : 'bg-blue-900/75 hover:bg-yellow-400 hover:text-blue-950 text-white border border-blue-400/40'
@@ -791,8 +791,8 @@ export default function QuestionCard({
                     <span
                       className={`truncate ${
                         teams.length === 4
-                          ? 'max-w-[44px] sm:max-w-[100px]'
-                          : 'max-w-[68px] sm:max-w-[110px]'
+                          ? 'max-w-[44px] landscape:max-w-[90px] sm:max-w-[100px]'
+                          : 'max-w-[68px] landscape:max-w-[110px] sm:max-w-[110px]'
                       }`}
                     >
                       {team.name}
@@ -812,7 +812,7 @@ export default function QuestionCard({
                 }
                 onNextQuestion();
               }}
-              className="shimmer-btn shrink-0 relative overflow-hidden inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-xl bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 hover:from-yellow-200 hover:to-yellow-400 px-3 py-1.5 sm:px-5 sm:py-2 text-xs sm:text-sm font-black uppercase tracking-wide text-blue-950 shadow-lg shadow-yellow-400/25 active:scale-95 transition-all ml-auto"
+              className="shimmer-btn shrink-0 relative overflow-hidden inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-xl bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 hover:from-yellow-200 hover:to-yellow-400 px-3 py-1.5 sm:px-5 sm:py-2 ls:px-3 ls:py-1 text-xs sm:text-sm ls:text-xs font-black uppercase tracking-wide text-blue-950 shadow-lg shadow-yellow-400/25 active:scale-95 transition-all ml-auto"
             >
               <span>Suivante</span>
               <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 stroke-[2.5]" />

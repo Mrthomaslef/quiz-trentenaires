@@ -53,7 +53,7 @@ export async function fetchQuestionsByLevelFromSupabase(
       'id, difficulty, theme, question, options, correct_index, explanation, target_audience, times_played, times_correct, times_wrong, difficulty_notes, is_already_answered, last_played_at, created_at'
     )
     .eq('difficulty', level)
-    .limit(200);
+    .limit(500);
 
   if (error || !data) {
     throw new Error(error?.message || 'Erreur lors de la lecture Supabase');
@@ -92,7 +92,7 @@ export async function fetchAllQuestionsFromSupabase(): Promise<
       'id, difficulty, theme, question, options, correct_index, explanation, target_audience, times_played, times_correct, times_wrong, difficulty_notes, is_already_answered, last_played_at, created_at'
     )
     .order('difficulty', { ascending: true })
-    .limit(1000);
+    .limit(3000);
 
   if (error || !data) {
     throw new Error(error?.message || 'Erreur lors du pré-chargement Supabase');

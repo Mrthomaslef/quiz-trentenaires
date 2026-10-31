@@ -18,6 +18,8 @@ import {
   Lightbulb,
   Tag,
   Music,
+  Wallet,
+  ShoppingBag,
 } from 'lucide-react';
 import {
   playCorrectSound,
@@ -49,6 +51,10 @@ interface MillionsModeProps {
   soundEnabled: boolean;
   zoukMusicEnabled?: boolean;
   onToggleZoukMusic?: () => void;
+  userPseudo?: string;
+  cagnotteBalance?: number;
+  onAddMoneyToCagnotte?: (amount: number, reason: string) => void;
+  onOpenShopModal?: () => void;
 }
 
 export interface MillionStep {
@@ -135,6 +141,10 @@ export default function MillionsMode({
   soundEnabled,
   zoukMusicEnabled: propZoukEnabled,
   onToggleZoukMusic,
+  userPseudo,
+  cagnotteBalance = 0,
+  onAddMoneyToCagnotte,
+  onOpenShopModal,
 }: MillionsModeProps) {
   const [currentStep, setCurrentStep] = useState<number>(1); // 1 to 15
   const [currentQuestion, setCurrentQuestion] =
@@ -701,6 +711,9 @@ export default function MillionsMode({
         playCorrectSound(soundEnabled);
         if (stepSnapshot >= 15) {
           setRunStatus('millionaire');
+          if (onAddMoneyToCagnotte) {
+            onAddMoneyToCagnotte(1000000, 'Victoire à 1 000 000 € !');
+          }
           saveStats({
             bestAmount: Math.max(stats.bestAmount, 1000000),
             millionWins: stats.millionWins + 1,
@@ -718,6 +731,12 @@ export default function MillionsMode({
       } else {
         playWrongSound(soundEnabled);
         setRunStatus('failed');
+        if (safeHavenSnapshot > 0 && onAddMoneyToCagnotte) {
+          onAddMoneyToCagnotte(
+            safeHavenSnapshot,
+            `Palier de sécurité garanti (${formatEuros(safeHavenSnapshot)})`
+          );
+        }
         if (safeHavenSnapshot > stats.bestAmount) {
           saveStats({
             ...stats,
@@ -736,6 +755,14 @@ export default function MillionsMode({
     }
     playPointSound(soundEnabled);
     setRunStatus('walked_away');
+    if (currentWalkAwayAmount > 0 && onAddMoneyToCagnotte) {
+      onAddMoneyToCagnotte(
+        currentWalkAwayAmount,
+        `Chèque encaissé au palier ${currentStep - 1} (${formatEuros(
+          currentWalkAwayAmount
+        )})`
+      );
+    }
     if (currentWalkAwayAmount > stats.bestAmount) {
       saveStats({
         ...stats,
@@ -816,9 +843,9 @@ export default function MillionsMode({
         {/* 1. BARRE SUPÉRIEURE : LES 4 JOKERS + INFOS GAIN EN JEU */}
         <section className="shrink-0 rounded-2xl border-2 border-yellow-400/50 bg-gradient-to-r from-[#091b46]/95 via-[#071436]/95 to-[#091b46]/95 px-2.5 sm:px-3 py-1.5 sm:py-2 shadow-xl space-y-1.5 sm:space-y-2">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2">
-            {/* Gain de la question actuelle + Toggle Musique Zouk */}
+            {/* Gain de la question actuelle + Cagnotte + Toggle Musique Zouk */}
             <div className="flex items-center justify-between sm:justify-start gap-1.5 flex-wrap">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 px-2 sm:px-2.5 py-0.5 sm:py-1 text-xs sm:text-sm font-black uppercase text-blue-950 shadow">
                   <Banknote className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   <span>
@@ -832,6 +859,20 @@ export default function MillionsMode({
                     Garanti : {formatEuros(guaranteedSafeHavenAmount)}
                   </span>
                 </span>
+
+                <button
+                  type="button"
+                  onClick={onOpenShopModal}
+                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-400/60 bg-emerald-950/80 hover:bg-emerald-400 hover:text-slate-950 px-2 py-0.5 sm:py-1 text-[10px] sm:text-[11px] font-black text-emerald-300 transition shadow-sm"
+                  title="Cagnotte personnelle & Boutique de questions (+10 nouvelles questions au hasard)"
+                >
+                  <Wallet className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
+                  <span>
+                    {userPseudo ? `${userPseudo} : ` : 'Cagnotte : '}
+                    {formatEuros(cagnotteBalance)}
+                  </span>
+                  <ShoppingBag className="h-3 w-3 ml-0.5 opacity-85 shrink-0" />
+                </button>
               </div>
 
               <button
@@ -1228,7 +1269,7 @@ export default function MillionsMode({
                       {runStatus === 'millionaire' ? (
                         <span className="text-yellow-300">
                           🏆 1 000 000 € ! VOUS AVEZ FAIT SAUTER LA BANQUE DU
-                          7TER !
+                          7TER ! (+1 000 000 € dans votre cagnotte !)
                         </span>
                       ) : runStatus === 'step_won' ? (
                         <span className="text-emerald-300">
@@ -1240,12 +1281,17 @@ export default function MillionsMode({
                       ) : runStatus === 'walked_away' ? (
                         <span className="text-yellow-300">
                           💼 VOUS REPARTEZ AVEC LE CHÈQUE DE{' '}
-                          {formatEuros(currentWalkAwayAmount)} !
+                          {formatEuros(currentWalkAwayAmount)} ! (+
+                          {formatEuros(currentWalkAwayAmount)} ajoutés à votre
+                          cagnotte)
                         </span>
                       ) : (
                         <span className="text-rose-300">
                           💥 MAUVAISE RÉPONSE ! Vous repartez avec le palier
-                          garanti de {formatEuros(guaranteedSafeHavenAmount)}.
+                          garanti de {formatEuros(guaranteedSafeHavenAmount)}
+                          {guaranteedSafeHavenAmount > 0
+                            ? ` (+${formatEuros(guaranteedSafeHavenAmount)} ajoutés à votre cagnotte)`
+                            : '.'}
                         </span>
                       )}
                     </div>

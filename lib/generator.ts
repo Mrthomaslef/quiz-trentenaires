@@ -132,7 +132,7 @@ export async function generateQuestionsBatchWithLLM(
   const systemPrompt = `Tu es le créateur éditorial du jeu "Le Grand Quiz des Trentenaires (Édition 4 Joueurs / 2 Couples)".
 Public cible : 4 personnes d'environ 30 ans (nés entre 1990 et 1998), jouant en 2 couples ou 4 joueurs solo à l'apéritif ou en soirée.
 Ton : Convivial, cultivé, malin, propice au débat entre amis.
-Thématiques variées : Pop Culture années 90/2000, Cinéma, Séries TV, Histoire, Géographie, Sciences, Musique, Gastronomie, Jeux Vidéo, Société, Sport, Animaux & Nature, BD & Mangas, Mythologie & Légendes, Littérature & Contes.
+Thématiques variées : Pop Culture années 90/2000, Cinéma, Séries TV, Histoire, Géographie, Sciences, Musique, Gastronomie, Jeux Vidéo, Société, Sport, Animaux & Nature, BD & Mangas, Mythologie & Légendes, Littérature & Contes, Arts & Architecture, Internet, Memes & Réseaux, Humour & Comédie, Santé, Corps & Psychologie, Émissions TV & Télé-réalité, Espace & Astronomie, Marques, Pubs & Objets Cultes, Langue Française & Expressions, Jeux de Société & Jouets, Inventions, Tech & Insolite.
 
 Génère exactement ${count} questions inédites de niveau ${difficulty}/10 (${info.title} : ${info.subtitle}).
 Réponds UNIQUEMENT avec un tableau JSON strict d'objets ayant exactement cette structure :
@@ -180,3 +180,113 @@ Réponds UNIQUEMENT avec un tableau JSON strict d'objets ayant exactement cette 
 
   throw new Error('Aucune clé AI_API_KEY externe fournie — utilisation du pool pré-généré.');
 }
+
+export async function generateRandomTenQuestionsWithLLM(
+  count = 10
+): Promise<ValidatedQuestion[]> {
+  const systemPrompt = `Tu es le créateur éditorial du jeu "Le Grand Quiz des Trentenaires (Édition 7TER)".
+Public cible : Amis d'environ 30 ans (nés entre 1990 et 1998), jouant en soirée.
+Ton : Convivial, cultivé, malin, propice au débat entre amis.
+Thématiques variées : Pop Culture années 90/2000, Cinéma, Séries TV, Histoire, Géographie, Sciences, Musique, Gastronomie, Jeux Vidéo, Société, Sport, Animaux & Nature, BD & Mangas, Mythologie & Légendes, Littérature & Contes, Arts & Architecture, Internet & Memes, Humour & Comédie, Émissions TV, Espace & Astronomie, Marques & Objets Cultes, Langue Française, Jeux de Société.
+
+Génère exactement ${count} questions TOTALEMENT INÉDITES au hasard, réparties sur les niveaux de difficulté 1 à 10 (de 1 = très facile à 10 = expert).
+Chaque question doit porter sur un thème différent et avoir une anecdote savoureuse dans explanation.
+Réponds UNIQUEMENT avec un tableau JSON strict d'objets ayant exactement cette structure :
+[
+  {
+    "difficulty": 5,
+    "theme": "Nom du thème",
+    "question": "Intitulé clair de la question ?",
+    "options": ["Réponse A", "Réponse B", "Réponse C", "Réponse D"],
+    "correct_index": 0,
+    "explanation": "Explication détaillée et anecdote savoureuse d'au moins 25 caractères."
+  }
+]`;
+
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (geminiKey && geminiKey.trim().length > 0 && !geminiKey.startsWith('AQ.')) {
+    try {
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(
+        geminiKey.trim()
+      )}`;
+      const res = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: systemPrompt }] }],
+          generationConfig: {
+            temperature: 0.85,
+            responseMimeType: 'application/json',
+          },
+        }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const text: string =
+          json?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+        const cleaned = text
+          .replace(/^```(?:json)?\s*/i, '')
+          .replace(/\s*```$/i, '')
+          .trim();
+        const parsed = JSON.parse(cleaned);
+        const validated = validateQuestionBatch(
+          Array.isArray(parsed) ? parsed : []
+        );
+        if (validated.length >= count) {
+          return validated.slice(0, count);
+        }
+      }
+    } catch {
+      // Fallback to AI_API_KEY or curated generator
+    }
+  }
+
+  const aiApiKey = process.env.AI_API_KEY;
+  const aiBaseUrl = process.env.AI_BASE_URL || 'https://api.sambanova.ai/v1';
+  const aiModel = process.env.AI_MODEL || 'Meta-Llama-3.3-70B-Instruct';
+
+  if (aiApiKey && aiApiKey !== 'votre_cle_api') {
+    const response = await fetch(
+      `${aiBaseUrl.replace(/\/$/, '')}/chat/completions`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${aiApiKey}`,
+        },
+        body: JSON.stringify({
+          model: aiModel,
+          messages: [
+            {
+              role: 'system',
+              content: 'Tu réponds exclusivement en JSON valide.',
+            },
+            { role: 'user', content: systemPrompt },
+          ],
+          temperature: 0.8,
+        }),
+      }
+    );
+
+    if (response.ok) {
+      const json = await response.json();
+      const content: string = json?.choices?.[0]?.message?.content || '[]';
+      const cleaned = content
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```$/i, '')
+        .trim();
+      const parsed = JSON.parse(cleaned);
+      const validated = validateQuestionBatch(
+        Array.isArray(parsed) ? parsed : []
+      );
+      if (validated.length > 0) {
+        return validated.slice(0, count);
+      }
+    }
+  }
+
+  throw new Error(
+    'Aucune clé AI_API_KEY externe active — bascule sur le générateur de pack inédit.'
+  );
+}
+
