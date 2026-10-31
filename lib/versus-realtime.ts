@@ -467,16 +467,14 @@ export function connectVersusChannel(
   const seenIds = new Set<string>();
   let latestRetainedStatePayload: { topic: string; payload: string } | null =
     null;
-  let supabaseConnected = false;
   let lastReportedStatus: boolean | null = null;
 
   const reportConnectionStatus = () => {
     const anyMqttConnected = mqttClients.some((c) => c.isConnected());
-    const effectiveConnected = anyMqttConnected || supabaseConnected;
-    if (lastReportedStatus !== effectiveConnected) {
-      lastReportedStatus = effectiveConnected;
+    if (lastReportedStatus !== anyMqttConnected) {
+      lastReportedStatus = anyMqttConnected;
       if (onStatusChange) {
-        onStatusChange(effectiveConnected);
+        onStatusChange(anyMqttConnected);
       }
     }
   };
@@ -558,29 +556,6 @@ export function connectVersusChannel(
     )
   );
 
-  // 3. Canal Supabase Realtime Broadcast (complémentaire si disponible)
-  let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
-  try {
-    realtimeChannel = supabase.channel(channelName, {
-      config: {
-        broadcast: { self: false, ack: false },
-      },
-    });
-
-    realtimeChannel
-      .on('broadcast', { event: 'versus_msg' }, (payload) => {
-        if (payload?.payload) {
-          handleIncomingEnvelope(payload.payload, false);
-        }
-      })
-      .subscribe((status) => {
-        supabaseConnected = status === 'SUBSCRIBED';
-        reportConnectionStatus();
-      });
-  } catch {
-    realtimeChannel = null;
-  }
-
   // Reconnexion automatique au retour au premier plan sur mobile (ex: après partage WhatsApp)
   const handleVisibilityOrOnline = () => {
     if (
@@ -633,17 +608,6 @@ export function connectVersusChannel(
         client.publish(eventsTopic, serialized, false);
       }
     }
-
-    // 3. Envoi Supabase Realtime si connecté
-    if (realtimeChannel && supabaseConnected) {
-      realtimeChannel
-        .send({
-          type: 'broadcast',
-          event: 'versus_msg',
-          payload: envelope,
-        })
-        .catch(() => {});
-    }
   };
 
   const disconnect = () => {
@@ -661,9 +625,6 @@ export function connectVersusChannel(
     }
     for (const client of mqttClients) {
       client.close();
-    }
-    if (realtimeChannel) {
-      supabase.removeChannel(realtimeChannel).catch(() => {});
     }
   };
 
