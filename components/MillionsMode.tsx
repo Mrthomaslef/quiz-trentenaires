@@ -1112,6 +1112,16 @@ export default function MillionsMode({
               </span>
             </div>
 
+            {/* Animateur FMV en portrait (la colonne pyramide est masquée) */}
+            <HostReaction
+              variant="inline"
+              className="landscape:hidden lg:hidden"
+              expression={hostExpression}
+              line={hostLine}
+              isSuspenseLock={isSuspenseLock}
+              suspenseStage={suspenseStage}
+            />
+
             <div
               className={`rounded-2xl border-2 bg-gradient-to-r from-[#040b1e] via-[#091c4e] to-[#040b1e] px-3 py-2 ls:px-3 ls:py-1.5 sm:px-5 sm:py-3.5 text-center shadow-inner transition-colors duration-300 ${
                 isSuspenseLock ? 'border-amber-400/80' : 'border-yellow-400/45'

@@ -25,6 +25,9 @@ interface HostReactionProps {
   /** Suspense en cours après « dernier mot » : zoom FMV progressif. */
   isSuspenseLock?: boolean;
   suspenseStage?: 0 | 1 | 2;
+  /** 'sidebar' : colonne pyramide (paysage/desktop) · 'inline' : au-dessus de la question (portrait). */
+  variant?: 'sidebar' | 'inline';
+  className?: string;
 }
 
 /**
@@ -36,7 +39,10 @@ export default function HostReaction({
   line,
   isSuspenseLock = false,
   suspenseStage = 0,
+  variant = 'sidebar',
+  className = '',
 }: HostReactionProps) {
+  const isInline = variant === 'inline';
   // Précharge toutes les expressions pour que le changement soit instantané
   useEffect(() => {
     Object.values(HOST_FRAMES).forEach((src) => {
@@ -72,10 +78,18 @@ export default function HostReaction({
       : 'border-yellow-400/70 shadow-[0_0_12px_rgba(250,204,21,0.25)]';
 
   return (
-    <div className="shrink-0 flex items-center gap-2 lg:gap-2.5 border-b border-blue-500/30 pb-1.5 lg:pb-2 mb-1.5">
+    <div
+      className={`shrink-0 flex items-center gap-2 lg:gap-2.5 ${
+        isInline ? '' : 'border-b border-blue-500/30 pb-1.5 lg:pb-2 mb-1.5'
+      } ${className}`}
+    >
       {/* Écran CRT de l'animateur */}
       <div
-        className={`relative shrink-0 h-16 w-16 ls:h-12 ls:w-12 sm:h-[72px] sm:w-[72px] lg:h-24 lg:w-24 overflow-hidden rounded-lg border-2 bg-[#0a1a5c] transition-[border-color,box-shadow] duration-300 ${frameTone}`}
+        className={`relative shrink-0 ${
+          isInline
+            ? 'h-14 w-14 xs:h-16 xs:w-16'
+            : 'h-16 w-16 ls:h-12 ls:w-12 sm:h-[72px] sm:w-[72px] lg:h-24 lg:w-24'
+        } overflow-hidden rounded-lg border-2 bg-[#0a1a5c] transition-[border-color,box-shadow] duration-300 ${frameTone}`}
       >
         <div
           key={expression}
@@ -124,7 +138,11 @@ export default function HostReaction({
           aria-hidden="true"
           className="absolute -left-[5px] top-1/2 -translate-y-1/2 h-2 w-2 rotate-45 border-b border-l border-yellow-400/40 bg-[#040b1e]"
         />
-        <p className="text-[10px] ls:text-[9px] lg:text-xs font-black italic leading-tight text-yellow-200">
+        <p
+          className={`${
+            isInline ? 'text-[11px] xs:text-xs' : 'text-[10px] ls:text-[9px] lg:text-xs'
+          } font-black italic leading-tight text-yellow-200`}
+        >
           {line}
         </p>
       </div>
