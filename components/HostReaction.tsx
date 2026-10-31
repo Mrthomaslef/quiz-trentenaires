@@ -10,13 +10,17 @@ export type HostExpression =
   | 'ecstatic'
   | 'cheque';
 
+// Sur GitHub Pages l'app est servie sous /quiz-trentenaires : un <img> brut
+// ne reçoit pas le basePath de Next automatiquement.
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
+
 const HOST_FRAMES: Record<HostExpression, string> = {
-  neutral: '/host/neutral.png',
-  suspense: '/host/suspense.png',
-  happy: '/host/happy.png',
-  sad: '/host/sad.png',
-  ecstatic: '/host/ecstatic.png',
-  cheque: '/host/cheque.png',
+  neutral: `${BASE_PATH}/host/neutral.png`,
+  suspense: `${BASE_PATH}/host/suspense.png`,
+  happy: `${BASE_PATH}/host/happy.png`,
+  sad: `${BASE_PATH}/host/sad.png`,
+  ecstatic: `${BASE_PATH}/host/ecstatic.png`,
+  cheque: `${BASE_PATH}/host/cheque.png`,
 };
 
 interface HostReactionProps {
