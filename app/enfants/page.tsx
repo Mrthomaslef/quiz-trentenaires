@@ -433,7 +433,7 @@ export default function KidsQuizPage() {
     !isRevealed;
 
   return (
-    <div className="h-[100dvh] max-h-[100dvh] w-full overflow-hidden flex flex-col justify-between select-none bg-gradient-to-b from-[#0b1f4d] via-[#08173a] to-[#040b1e] pb-[env(safe-area-inset-bottom)]">
+    <div className="min-h-[100dvh] w-full overflow-x-hidden overflow-y-auto flex flex-col justify-between select-none bg-gradient-to-b from-[#0b1f4d] via-[#08173a] to-[#040b1e] pb-[env(safe-area-inset-bottom)]">
       {/* 1. HEADER MODE ENFANT */}
       <header className="shrink-0 border-b border-yellow-400/40 bg-[#050d26]/95 px-2.5 sm:px-4 py-1.5 ls:py-1 sm:py-2">
         <div className="mx-auto max-w-5xl flex items-center justify-between gap-1.5 sm:gap-2">
@@ -509,7 +509,7 @@ export default function KidsQuizPage() {
       </header>
 
       {/* 2. CONTENU PRINCIPAL SANS SCROLL */}
-      <main className="mx-auto w-full max-w-5xl flex-1 min-h-0 flex flex-col justify-between gap-1.5 ls:gap-1 sm:gap-2 px-2 py-1.5 ls:py-1 sm:px-4 sm:py-3 overflow-hidden">
+      <main className="mx-auto w-full max-w-5xl flex-1 min-h-0 flex flex-col justify-between gap-1.5 ls:gap-1 sm:gap-2 px-2 py-1.5 ls:py-1 sm:px-4 sm:py-3 overflow-x-hidden overflow-y-auto">
         {/* A. BARRE DES THÈMES ILLUSTRÉS (Tous, Ferme, Animaux, JO, Sport, Pokémon) + ENFANTS (sur 1 ligne en paysage ls:) */}
         <section className="shrink-0 rounded-2xl border border-blue-400/35 bg-[#091942]/90 p-1.5 ls:p-1 sm:p-2 shadow-lg space-y-1.5 ls:space-y-0 ls:flex ls:items-center ls:justify-between ls:gap-2">
           <div className="grid grid-cols-3 landscape:grid-cols-6 sm:grid-cols-6 gap-1 sm:gap-1.5 ls:gap-1 ls:shrink-0">

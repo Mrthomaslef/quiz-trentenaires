@@ -89,18 +89,25 @@ export default function PullToRefresh() {
     window.addEventListener("touchmove", handleTouchMove, { passive: false });
     window.addEventListener("touchend", onEnd, { passive: true });
     window.addEventListener("touchcancel", onEnd, { passive: true });
-    window.addEventListener("mousedown", handleMouseDown);
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", onEnd);
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) return;
+      const dy = e.deltaY || 0;
+      const dx = e.deltaX || 0;
+      if (!dy && !dx) return;
+      const horiz = (e.target as HTMLElement | null)?.closest?.(".overflow-x-auto") as HTMLElement | null;
+      if (horiz && horiz.scrollWidth > horiz.clientWidth && Math.abs(dy) > Math.abs(dx)) {
+        horiz.scrollLeft += dy;
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("wheel", handleWheel, { passive: false });
 
     return () => {
       window.removeEventListener("touchstart", handleTouchStart);
       window.removeEventListener("touchmove", handleTouchMove);
       window.removeEventListener("touchend", onEnd);
       window.removeEventListener("touchcancel", onEnd);
-      window.removeEventListener("mousedown", handleMouseDown);
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", onEnd);
+      window.removeEventListener("wheel", handleWheel);
     };
   }, [refreshing]);
 
