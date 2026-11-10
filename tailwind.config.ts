@@ -10,6 +10,8 @@ const config: Config = {
     extend: {
       screens: {
         xs: '380px',
+        // Paysage tablette / petit laptop (avant `ls` pour que `ls` prime)
+        lsm: { raw: '(orientation: landscape) and (max-height: 820px)' },
         ls: { raw: '(orientation: landscape) and (max-height: 580px)' },
       },
       fontFamily: {

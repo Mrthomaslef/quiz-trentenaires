@@ -84,7 +84,7 @@ export default function HostReaction({
   return (
     <div
       className={`shrink-0 flex items-center gap-2 lg:gap-2.5 ${
-        isInline ? '' : 'border-b border-blue-500/30 pb-1.5 lg:pb-2 mb-1.5'
+        isInline ? '' : 'border-b border-blue-500/30 pb-1.5 lg:pb-2 mb-1.5 ls:pb-1 ls:mb-1'
       } ${className}`}
     >
       {/* Écran CRT de l'animateur */}
@@ -92,7 +92,7 @@ export default function HostReaction({
         className={`relative shrink-0 ${
           isInline
             ? 'h-20 w-20 xs:h-24 xs:w-24'
-            : 'h-20 w-20 ls:h-16 ls:w-16 sm:h-24 sm:w-24 lg:h-32 lg:w-32'
+            : 'h-20 w-20 sm:h-24 sm:w-24 lg:h-32 lg:w-32 lsm:h-20 lsm:w-20 ls:h-12 ls:w-12'
         } overflow-hidden rounded-lg border-2 bg-[#0a1a5c] transition-[border-color,box-shadow] duration-300 ${frameTone}`}
       >
         <div

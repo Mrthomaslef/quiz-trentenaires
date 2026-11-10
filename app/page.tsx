@@ -1004,7 +1004,12 @@ export default function QuizHomePage() {
   }, [cagnotteBalance, isBuyingPack, poolByLevel, soundEnabled, userPseudo]);
 
   return (
-    <div className="min-h-[100dvh] w-full overflow-x-hidden overflow-y-auto flex flex-col justify-between select-none pb-[env(safe-area-inset-bottom)]">
+    <div
+      className={`min-h-[100dvh] w-full overflow-x-hidden overflow-y-auto flex flex-col justify-between select-none pb-[env(safe-area-inset-bottom)] ${
+        // Millionnaire en paysage : tout le plateau tient dans l'écran (zéro scroll de page)
+        mode === 'millions' ? 'landscape:h-[100dvh] landscape:min-h-0 landscape:overflow-hidden' : ''
+      }`}
+    >
       {/* Notification flottante lors d'un gain dans la cagnotte */}
       {cagnotteToast && (
         <div className="fixed top-12 left-1/2 -translate-x-1/2 z-50 rounded-full border-2 border-emerald-300 bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-1.5 text-xs sm:text-sm font-black text-slate-950 shadow-2xl animate-bounce">

@@ -935,8 +935,8 @@ export default function MillionsMode({
         <section className="shrink-0 rounded-2xl border-2 border-yellow-400/50 bg-gradient-to-r from-[#091b46]/95 via-[#071436]/95 to-[#091b46]/95 px-2.5 sm:px-3 ls:px-2.5 py-1.5 sm:py-2 ls:py-1 shadow-xl space-y-1.5 sm:space-y-2 ls:space-y-1">
           <div className="flex flex-col landscape:flex-row sm:flex-row landscape:items-center sm:items-center justify-between gap-1.5 ls:gap-1 sm:gap-2">
             {/* Gain de la question actuelle + Cagnotte + Toggle Musique Zouk */}
-            <div className="flex items-center justify-between sm:justify-start gap-1.5 ls:gap-1 flex-wrap">
-              <div className="flex items-center gap-1.5 ls:gap-1 flex-wrap">
+            <div className="ls:hidden flex items-center justify-between sm:justify-start gap-1.5 flex-wrap">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-yellow-300 via-yellow-400 to-amber-500 px-2 sm:px-2.5 ls:px-2 py-0.5 sm:py-1 ls:py-0.5 text-xs sm:text-sm ls:text-xs font-black uppercase text-blue-950 shadow">
                   <Banknote className="h-3.5 w-3.5 sm:h-4 sm:w-4 ls:h-3.5 ls:w-3.5" />
                   <span>
@@ -982,7 +982,7 @@ export default function MillionsMode({
             </div>
 
             {/* LES 4 BOUTONS JOKERS */}
-            <div className="grid grid-cols-4 landscape:flex sm:flex items-center gap-1 sm:gap-1.5 ls:gap-1">
+            <div className="grid grid-cols-4 landscape:flex sm:flex items-center gap-1 sm:gap-1.5 ls:gap-1.5 ls:mx-auto">
               <button
                 type="button"
                 onClick={handleUseFiftyFifty}
@@ -1507,14 +1507,14 @@ export default function MillionsMode({
       {/* ====================================================================
           COLONNE DROITE (PAYSAGE & DESKTOP) : PYRAMIDE OFFICIELLE DES 15 PALIERS
          ==================================================================== */}
-      <aside className="hidden landscape:flex lg:flex w-44 sm:w-52 lg:w-64 shrink-0 flex-col justify-between rounded-2xl border-2 border-yellow-400/45 bg-gradient-to-b from-[#071538]/95 via-[#050f29]/95 to-[#030817]/95 p-2 sm:p-2.5 lg:p-3 shadow-2xl">
+      <aside className="hidden landscape:flex lg:flex w-44 sm:w-52 lg:w-64 ls:w-44 min-h-0 shrink-0 flex-col justify-between overflow-hidden rounded-2xl border-2 border-yellow-400/45 bg-gradient-to-b from-[#071538]/95 via-[#050f29]/95 to-[#030817]/95 p-2 sm:p-2.5 lg:p-3 ls:p-1.5 shadow-2xl">
         <HostReaction
           expression={hostExpression}
           line={hostLine}
           isSuspenseLock={isSuspenseLock}
           suspenseStage={suspenseStage}
         />
-        <div className="flex items-center justify-between border-b border-blue-500/30 pb-1.5 lg:pb-2 mb-1">
+        <div className="lsm:hidden flex items-center justify-between border-b border-blue-500/30 pb-1.5 lg:pb-2 mb-1">
           <span className="text-[11px] lg:text-xs font-black uppercase tracking-wider text-yellow-400 flex items-center gap-1">
             <Trophy className="h-3 w-3 lg:h-3.5 lg:w-3.5 shrink-0" />
             <span className="truncate">Pyramide</span>
@@ -1524,7 +1524,7 @@ export default function MillionsMode({
 
         <div
           ref={desktopLadderScrollRef}
-          className="flex-1 min-h-0 overflow-y-auto flex flex-col justify-between gap-0.5 scroll-smooth"
+          className="flex-1 min-h-0 overflow-y-auto flex flex-col justify-between gap-0.5 lsm:gap-px scroll-smooth"
         >
           {[...MILLION_LADDER].reverse().map((item) => {
             const isCurrent = item.step === currentStep;
@@ -1548,10 +1548,10 @@ export default function MillionsMode({
                 ref={(el) => {
                   desktopStepItemRefs.current[item.step] = el;
                 }}
-                className={`shrink-0 flex items-center justify-between rounded-lg border px-2.5 py-1 ls:py-0.5 text-xs ls:text-[11px] transition ${rowStyle}`}
+                className={`shrink-0 flex items-center justify-between rounded-lg ls:rounded-md border px-2.5 ls:px-1.5 py-1 lsm:py-0.5 ls:py-0 text-xs ls:text-[10px] ls:leading-[13px] transition ${rowStyle}`}
               >
                 <div className="flex items-center gap-1.5">
-                  <span className="w-5 font-mono text-[11px] font-black opacity-80">
+                  <span className="w-5 font-mono text-[11px] ls:text-[10px] font-black opacity-80">
                     {item.step}
                   </span>
                   <span className="text-[10px]">
