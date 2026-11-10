@@ -1524,7 +1524,7 @@ export default function MillionsMode({
 
         <div
           ref={desktopLadderScrollRef}
-          className="flex-1 min-h-0 overflow-y-auto flex flex-col justify-between gap-0.5 lsm:gap-px scroll-smooth"
+          className="flex-1 min-h-0 overflow-y-auto ls:overflow-hidden flex flex-col justify-between gap-0.5 lsm:gap-px scroll-smooth"
         >
           {[...MILLION_LADDER].reverse().map((item) => {
             const isCurrent = item.step === currentStep;
@@ -1548,7 +1548,7 @@ export default function MillionsMode({
                 ref={(el) => {
                   desktopStepItemRefs.current[item.step] = el;
                 }}
-                className={`shrink-0 flex items-center justify-between rounded-lg ls:rounded-md border px-2.5 ls:px-1.5 py-1 lsm:py-0.5 ls:py-0 text-xs ls:text-[10px] ls:leading-[13px] transition ${rowStyle}`}
+                className={`shrink-0 flex items-center justify-between rounded-lg ls:rounded-md border px-2.5 ls:px-1.5 py-1 lsm:py-0.5 ls:py-0 text-xs ls:text-[10px] ls:leading-none ls:flex-1 ls:min-h-0 ls:max-h-5 ls:overflow-hidden transition ${rowStyle}`}
               >
                 <div className="flex items-center gap-1.5">
                   <span className="w-5 font-mono text-[11px] ls:text-[10px] font-black opacity-80">
